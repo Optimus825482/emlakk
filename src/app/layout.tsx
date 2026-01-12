@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Noto_Sans } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from "@vercel/analytics/next";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { db } from "@/db";
+import { siteSettings } from "@/db/schema";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -41,11 +44,23 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+// Google Search Console doğrulama kodunu dinamik olarak ekle
+async function getGoogleVerification(): Promise<string | null> {
+  try {
+    const [settings] = await db.select().from(siteSettings).limit(1);
+    return settings?.googleSearchConsoleCode || null;
+  } catch {
+    return null;
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const googleVerification = await getGoogleVerification();
+
   return (
     <html lang="tr" className="scroll-smooth">
       <head>
@@ -53,12 +68,16 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
+        {googleVerification && (
+          <meta name="google-site-verification" content={googleVerification} />
+        )}
       </head>
       <body
         className={`${spaceGrotesk.variable} ${notoSans.variable} font-sans antialiased`}
       >
         {children}
         <Analytics />
+        <GoogleAnalytics />
       </body>
     </html>
   );

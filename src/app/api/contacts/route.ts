@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { contacts } from "@/db/schema";
 import { createContactSchema, contactQuerySchema } from "@/lib/validations";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { notifyNewContact } from "@/lib/notification-helper";
 
 /**
  * GET /api/contacts
@@ -102,6 +103,9 @@ export async function POST(request: NextRequest) {
         status: "new",
       })
       .returning();
+
+    // Admin paneline bildirim gönder
+    notifyNewContact(newContact.id, data.name, data.subject);
 
     return NextResponse.json(
       {

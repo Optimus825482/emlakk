@@ -50,6 +50,12 @@ export const siteSettings = pgTable("site_settings", {
   metaDescription: text("meta_description"),
   metaKeywords: text("meta_keywords"),
 
+  // Google Entegrasyonları
+  googleAnalyticsId: varchar("google_analytics_id", { length: 50 }), // G-XXXXXXXXXX
+  googleSearchConsoleCode: varchar("google_search_console_code", {
+    length: 100,
+  }), // Doğrulama meta tag içeriği
+
   // Footer
   footerText: text("footer_text"),
   copyrightText: varchar("copyright_text", { length: 255 }),

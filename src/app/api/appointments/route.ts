@@ -6,6 +6,8 @@ import {
   appointmentQuerySchema,
 } from "@/lib/validations";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { triggerAppointmentReminder } from "@/lib/workflow-trigger";
+import { notifyNewAppointment } from "@/lib/notification-helper";
 
 /**
  * GET /api/appointments
@@ -114,6 +116,12 @@ export async function POST(request: NextRequest) {
         status: "pending",
       })
       .returning();
+
+    // Randevu hatırlatma workflow'unu tetikle
+    triggerAppointmentReminder(newAppointment.id);
+
+    // Admin paneline bildirim gönder
+    notifyNewAppointment(newAppointment.id, data.name, data.type);
 
     return NextResponse.json(
       {

@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { valuations } from "@/db/schema";
 import { createValuationSchema, valuationQuerySchema } from "@/lib/validations";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { triggerAIValuation } from "@/lib/workflow-trigger";
+import { notifyNewValuation } from "@/lib/notification-helper";
 
 /**
  * GET /api/valuations
@@ -111,8 +113,11 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    // TODO: Trigger AI valuation process asynchronously
-    // This would typically be done via a queue or background job
+    // AI değerleme workflow'unu tetikle
+    triggerAIValuation(newValuation.id);
+
+    // Admin paneline bildirim gönder
+    notifyNewValuation(newValuation.id, data.name, data.propertyType);
 
     return NextResponse.json(
       {

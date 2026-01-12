@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { appointments } from "@/db/schema";
 import { updateAppointmentSchema } from "@/lib/validations";
 import { eq } from "drizzle-orm";
+import { triggerAppointmentReminder } from "@/lib/workflow-trigger";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -79,6 +80,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         { error: "Randevu bulunamadı" },
         { status: 404 }
       );
+    }
+
+    // Randevu onaylandığında hatırlatma workflow'unu tetikle
+    if (data.status === "confirmed") {
+      triggerAppointmentReminder(updated.id);
     }
 
     return NextResponse.json({

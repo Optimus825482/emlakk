@@ -21,6 +21,7 @@ const contentModules = [
 ];
 
 const tools = [
+  { href: "/admin/workflows", icon: "account_tree", label: "Workflow'lar" },
   { href: "/admin/analitik", icon: "analytics", label: "Analitik" },
   { href: "/admin/kullanicilar", icon: "group", label: "Kullanıcılar" },
   { href: "/admin/ayarlar", icon: "settings", label: "Ayarlar" },

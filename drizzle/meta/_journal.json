@@ -8,6 +8,20 @@
       "when": 1768221870026,
       "tag": "0000_warm_terror",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1768237385624,
+      "tag": "0001_add-google-and-ai-settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1768238992512,
+      "tag": "0002_workflow_logs",
+      "breakpoints": true
     }
   ]
 }

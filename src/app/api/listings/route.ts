@@ -4,6 +4,7 @@ import { listings } from "@/db/schema";
 import { createListingSchema, listingQuerySchema } from "@/lib/validations";
 import { slugify, calculatePricePerSqm } from "@/lib/utils";
 import { eq, and, gte, lte, ilike, desc, asc, sql } from "drizzle-orm";
+import { triggerListingDescription } from "@/lib/workflow-trigger";
 
 /**
  * GET /api/listings
@@ -151,6 +152,11 @@ export async function POST(request: NextRequest) {
         status: "draft",
       })
       .returning();
+
+    // Eğer açıklama boşsa AI ile oluştur
+    if (!data.description || data.description.trim() === "") {
+      triggerListingDescription(newListing.id);
+    }
 
     return NextResponse.json(
       { data: newListing, message: "İlan başarıyla oluşturuldu" },
