@@ -7,7 +7,8 @@ import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
-import { listings, listingViews } from "./schema/listings";
+import { listings } from "./schema/listings";
+import { listingViews } from "./schema/listing-analytics";
 
 // Seed için DIRECT_URL kullan (pooler değil, direkt bağlantı)
 const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;

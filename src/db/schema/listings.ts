@@ -108,30 +108,6 @@ export const listings = pgTable("listings", {
   soldAt: timestamp("sold_at"),
 });
 
-// Listing views for analytics
-export const listingViews = pgTable("listing_views", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  listingId: uuid("listing_id")
-    .notNull()
-    .references(() => listings.id, { onDelete: "cascade" }),
-  ipAddress: varchar("ip_address", { length: 45 }),
-  userAgent: text("user_agent"),
-  referrer: text("referrer"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Relations
-export const listingsRelations = relations(listings, ({ many }) => ({
-  views: many(listingViews),
-}));
-
-export const listingViewsRelations = relations(listingViews, ({ one }) => ({
-  listing: one(listings, {
-    fields: [listingViews.listingId],
-    references: [listings.id],
-  }),
-}));
-
 // Types
 export type Listing = typeof listings.$inferSelect;
 export type NewListing = typeof listings.$inferInsert;

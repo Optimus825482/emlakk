@@ -2,15 +2,47 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
+interface BadgeCounts {
+  appointments: number;
+  messages: number;
+  valuations: number;
+}
+
 const coreModules = [
-  { href: "/admin", icon: "dashboard", label: "Kontrol Paneli" },
-  { href: "/admin/ilanlar", icon: "real_estate_agent", label: "İlan Yönetimi" },
-  { href: "/admin/randevular", icon: "calendar_month", label: "Randevular" },
-  { href: "/admin/degerlemeler", icon: "calculate", label: "Değerlemeler" },
-  { href: "/admin/mesajlar", icon: "mail", label: "Mesajlar" },
+  {
+    href: "/admin",
+    icon: "dashboard",
+    label: "Kontrol Paneli",
+    badgeKey: null,
+  },
+  {
+    href: "/admin/ilanlar",
+    icon: "real_estate_agent",
+    label: "İlan Yönetimi",
+    badgeKey: null,
+  },
+  {
+    href: "/admin/randevular",
+    icon: "calendar_month",
+    label: "Randevular",
+    badgeKey: "appointments",
+  },
+  {
+    href: "/admin/degerlemeler",
+    icon: "calculate",
+    label: "Değerlemeler",
+    badgeKey: "valuations",
+  },
+  {
+    href: "/admin/mesajlar",
+    icon: "mail",
+    label: "Mesajlar",
+    badgeKey: "messages",
+  },
 ];
 
 const contentModules = [
@@ -21,14 +53,45 @@ const contentModules = [
 ];
 
 const tools = [
+  {
+    href: "/admin/ilan-analitik",
+    icon: "insights",
+    label: "İlan Analitikleri",
+  },
   { href: "/admin/workflows", icon: "account_tree", label: "Workflow'lar" },
-  { href: "/admin/analitik", icon: "analytics", label: "Analitik" },
+  { href: "/admin/analitik", icon: "analytics", label: "Site Analitik" },
   { href: "/admin/kullanicilar", icon: "group", label: "Kullanıcılar" },
   { href: "/admin/ayarlar", icon: "settings", label: "Ayarlar" },
 ];
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const [counts, setCounts] = useState<BadgeCounts>({
+    appointments: 0,
+    messages: 0,
+    valuations: 0,
+  });
+
+  useEffect(() => {
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000); // 30 saniyede bir güncelle
+    return () => clearInterval(interval);
+  }, []);
+
+  async function fetchCounts() {
+    try {
+      const res = await fetch("/api/admin/counts");
+      const data = await res.json();
+      setCounts(data);
+    } catch {
+      // Sessizce başarısız ol
+    }
+  }
+
+  function getBadgeCount(badgeKey: string | null): number {
+    if (!badgeKey) return 0;
+    return counts[badgeKey as keyof BadgeCounts] || 0;
+  }
 
   return (
     <aside className="w-64 flex-none bg-slate-800 border-r border-slate-700 flex flex-col justify-between overflow-y-auto hidden md:flex">
@@ -43,20 +106,28 @@ export function AdminSidebar() {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/admin" && pathname.startsWith(item.href));
+              const badgeCount = getBadgeCount(item.badgeKey);
 
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors",
                     isActive
                       ? "bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400"
                       : "text-slate-400 hover:bg-slate-700 hover:text-white"
                   )}
                 >
-                  <Icon name={item.icon} className="text-[20px]" />
-                  {item.label}
+                  <div className="flex items-center gap-3">
+                    <Icon name={item.icon} className="text-[20px]" />
+                    {item.label}
+                  </div>
+                  {badgeCount > 0 && (
+                    <span className="min-w-[20px] h-5 flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full px-1.5">
+                      {badgeCount > 99 ? "99+" : badgeCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

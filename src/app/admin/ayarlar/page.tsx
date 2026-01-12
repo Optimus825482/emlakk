@@ -127,6 +127,84 @@ export default function AdminAyarlarPage() {
     }
   }
 
+  async function fetchSmtpSettings() {
+    try {
+      const response = await fetch("/api/email-settings");
+      if (response.ok) {
+        const result = await response.json();
+        if (result.data) {
+          setSmtpSettings({
+            smtpHost: result.data.smtpHost || "",
+            smtpPort: String(result.data.smtpPort || 587),
+            smtpEncryption: result.data.smtpEncryption || "tls",
+            smtpUsername: result.data.smtpUsername || "",
+            smtpPassword: result.data.smtpPassword || "",
+            fromEmail: result.data.fromEmail || "",
+            fromName: result.data.fromName || "Demir Gayrimenkul",
+            replyToEmail: result.data.replyToEmail || "",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("SMTP ayarları yüklenemedi:", error);
+    }
+  }
+
+  async function handleSaveSmtp() {
+    try {
+      setSmtpLoading(true);
+      const response = await fetch("/api/email-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(smtpSettings),
+      });
+
+      if (response.ok) {
+        setMessage({ type: "success", text: "SMTP ayarları kaydedildi!" });
+        setTimeout(() => setMessage(null), 3000);
+        fetchSmtpSettings();
+      } else {
+        setMessage({ type: "error", text: "SMTP ayarları kaydedilemedi!" });
+      }
+    } catch (error) {
+      console.error("SMTP kaydetme hatası:", error);
+      setMessage({ type: "error", text: "Bir hata oluştu!" });
+    } finally {
+      setSmtpLoading(false);
+    }
+  }
+
+  async function handleTestSmtp() {
+    if (!testEmail.trim()) {
+      setMessage({ type: "error", text: "Test e-posta adresi girin" });
+      return;
+    }
+
+    try {
+      setTestingSmtp(true);
+      const response = await fetch("/api/email-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ testEmail }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setMessage({ type: "success", text: result.message });
+        setTestEmail("");
+      } else {
+        setMessage({ type: "error", text: result.error });
+      }
+    } catch (error) {
+      console.error("SMTP test hatası:", error);
+      setMessage({ type: "error", text: "Test sırasında bir hata oluştu!" });
+    } finally {
+      setTestingSmtp(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  }
+
   async function handleSave() {
     if (!settings) return;
 
@@ -748,6 +826,274 @@ export default function AdminAyarlarPage() {
                     ekleyecektir. Değişikliklerin aktif olması için sayfayı
                     kaydetmeyi unutmayın.
                   </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SMTP Ayarları Tab */}
+        {activeTab === "smtp" && (
+          <div className="space-y-8">
+            {/* SMTP Sunucu Ayarları */}
+            <div className="border border-slate-700 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <Icon name="dns" className="text-blue-400 text-2xl" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">
+                    SMTP Sunucu Ayarları
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    E-posta gönderimi için SMTP sunucu bilgilerini girin
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    SMTP Sunucu
+                  </label>
+                  <input
+                    type="text"
+                    value={smtpSettings.smtpHost}
+                    onChange={(e) =>
+                      setSmtpSettings({
+                        ...smtpSettings,
+                        smtpHost: e.target.value,
+                      })
+                    }
+                    placeholder="smtp.gmail.com"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Port
+                  </label>
+                  <input
+                    type="text"
+                    value={smtpSettings.smtpPort}
+                    onChange={(e) =>
+                      setSmtpSettings({
+                        ...smtpSettings,
+                        smtpPort: e.target.value,
+                      })
+                    }
+                    placeholder="587"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Şifreleme
+                  </label>
+                  <select
+                    value={smtpSettings.smtpEncryption}
+                    onChange={(e) =>
+                      setSmtpSettings({
+                        ...smtpSettings,
+                        smtpEncryption: e.target.value,
+                      })
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  >
+                    <option value="tls">TLS (Önerilen)</option>
+                    <option value="ssl">SSL</option>
+                    <option value="none">Yok</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Kullanıcı Adı
+                  </label>
+                  <input
+                    type="text"
+                    value={smtpSettings.smtpUsername}
+                    onChange={(e) =>
+                      setSmtpSettings({
+                        ...smtpSettings,
+                        smtpUsername: e.target.value,
+                      })
+                    }
+                    placeholder="email@domain.com"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Şifre / App Password
+                  </label>
+                  <input
+                    type="password"
+                    value={smtpSettings.smtpPassword}
+                    onChange={(e) =>
+                      setSmtpSettings({
+                        ...smtpSettings,
+                        smtpPassword: e.target.value,
+                      })
+                    }
+                    placeholder="••••••••"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Gmail için App Password kullanın (2FA aktifken)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Gönderici Bilgileri */}
+            <div className="border border-slate-700 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Icon name="person" className="text-emerald-400 text-2xl" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">
+                    Gönderici Bilgileri
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    E-postalarda görünecek gönderici bilgileri
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Gönderici E-posta
+                  </label>
+                  <input
+                    type="email"
+                    value={smtpSettings.fromEmail}
+                    onChange={(e) =>
+                      setSmtpSettings({
+                        ...smtpSettings,
+                        fromEmail: e.target.value,
+                      })
+                    }
+                    placeholder="info@demirgayrimenkul.com"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Gönderici Adı
+                  </label>
+                  <input
+                    type="text"
+                    value={smtpSettings.fromName}
+                    onChange={(e) =>
+                      setSmtpSettings({
+                        ...smtpSettings,
+                        fromName: e.target.value,
+                      })
+                    }
+                    placeholder="Demir Gayrimenkul"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Yanıt Adresi (Opsiyonel)
+                  </label>
+                  <input
+                    type="email"
+                    value={smtpSettings.replyToEmail}
+                    onChange={(e) =>
+                      setSmtpSettings({
+                        ...smtpSettings,
+                        replyToEmail: e.target.value,
+                      })
+                    }
+                    placeholder="destek@demirgayrimenkul.com"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Test ve Kaydet */}
+            <div className="border border-slate-700 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                  <Icon name="send" className="text-yellow-400 text-2xl" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">
+                    Bağlantı Testi
+                  </h3>
+                  <p className="text-sm text-slate-400">
+                    SMTP ayarlarını test edin
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mb-6">
+                <input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="test@email.com"
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+                <button
+                  onClick={handleTestSmtp}
+                  disabled={testingSmtp}
+                  className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-slate-900 px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50"
+                >
+                  {testingSmtp ? (
+                    <Icon name="sync" className="animate-spin" />
+                  ) : (
+                    <Icon name="send" />
+                  )}
+                  Test Gönder
+                </button>
+              </div>
+
+              <button
+                onClick={handleSaveSmtp}
+                disabled={smtpLoading}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 px-6 py-3 rounded-lg font-bold transition-colors disabled:opacity-50"
+              >
+                {smtpLoading ? (
+                  <Icon name="sync" className="animate-spin" />
+                ) : (
+                  <Icon name="save" />
+                )}
+                SMTP Ayarlarını Kaydet
+              </button>
+            </div>
+
+            {/* Bilgi Kutusu */}
+            <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Icon name="lightbulb" className="text-yellow-400 mt-0.5" />
+                <div className="text-sm text-slate-400">
+                  <p className="font-medium text-slate-300 mb-2">
+                    Popüler SMTP Ayarları
+                  </p>
+                  <ul className="space-y-1">
+                    <li>
+                      • <span className="text-white">Gmail:</span>{" "}
+                      smtp.gmail.com:587 (TLS) - App Password gerekli
+                    </li>
+                    <li>
+                      • <span className="text-white">Outlook:</span>{" "}
+                      smtp.office365.com:587 (TLS)
+                    </li>
+                    <li>
+                      • <span className="text-white">Yandex:</span>{" "}
+                      smtp.yandex.com:465 (SSL)
+                    </li>
+                    <li>
+                      • <span className="text-white">SendGrid:</span>{" "}
+                      smtp.sendgrid.net:587 (TLS)
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>

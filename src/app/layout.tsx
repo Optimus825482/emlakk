@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Noto_Sans } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next";
+import { AnalyticsWrapper } from "@/components/analytics/analytics-wrapper";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { CookieBanner } from "@/components/cookie-banner";
 import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import "./globals.css";
@@ -19,7 +20,7 @@ const notoSans = Noto_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "DEMİR Gayrimenkul | Hendek'in Sağlam Kararı - PropTech 2.0",
+  title: "DEMİR Gayrimenkul | Hendek'in Sağlam Kararı",
   description:
     "Demir Gayrimenkul - Hendek'in Premium Gayrimenkul Danışmanlığı. AI destekli değerleme, sanayi, tarım ve konut yatırımları.",
   keywords: [
@@ -76,7 +77,8 @@ export default async function RootLayout({
         className={`${spaceGrotesk.variable} ${notoSans.variable} font-sans antialiased`}
       >
         {children}
-        <Analytics />
+        <CookieBanner />
+        <AnalyticsWrapper />
         <GoogleAnalytics />
       </body>
     </html>

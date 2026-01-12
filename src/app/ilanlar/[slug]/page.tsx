@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Navbar, Footer } from "@/components/layout";
 import { Icon } from "@/components/ui/icon";
 import { ImageGallery } from "@/components/ui/image-gallery";
+import { ListingTracker } from "@/components/listing-tracker";
 import { db } from "@/db";
 import { listings } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -78,6 +79,7 @@ export default async function IlanDetayPage({ params }: PageProps) {
   return (
     <>
       <Navbar />
+      <ListingTracker listingId={listing.id} />
       <main className="min-h-screen bg-[var(--cream)]">
         {/* Breadcrumb */}
         <div className="bg-white border-b border-gray-200">

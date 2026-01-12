@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 interface GoogleSettings {
   googleAnalyticsId: string | null;
@@ -10,8 +11,15 @@ interface GoogleSettings {
 
 export function GoogleAnalytics() {
   const [settings, setSettings] = useState<GoogleSettings | null>(null);
+  const pathname = usePathname();
+
+  // Admin sayfalarında GA'yı devre dışı bırak
+  const isAdminPage = pathname?.startsWith("/admin");
 
   useEffect(() => {
+    // Admin sayfalarında fetch yapma
+    if (isAdminPage) return;
+
     async function fetchSettings() {
       try {
         const response = await fetch("/api/settings");
@@ -28,13 +36,14 @@ export function GoogleAnalytics() {
       }
     }
     fetchSettings();
-  }, []);
+  }, [isAdminPage]);
 
-  if (!settings?.googleAnalyticsId) return null;
+  // Admin sayfalarında veya GA ID yoksa render etme
+  if (isAdminPage || !settings?.googleAnalyticsId) return null;
 
   return (
     <>
-      {/* Google Analytics 4 */}
+      {/* Google Analytics 4 - Admin sayfaları hariç */}
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${settings.googleAnalyticsId}`}
         strategy="afterInteractive"
@@ -44,7 +53,9 @@ export function GoogleAnalytics() {
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', '${settings.googleAnalyticsId}');
+          gtag('config', '${settings.googleAnalyticsId}', {
+            page_path: window.location.pathname
+          });
         `}
       </Script>
     </>
