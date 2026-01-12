@@ -4,97 +4,79 @@ import { useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icon";
 import Link from "next/link";
 
-interface Listing {
+interface ListingWithAnalytics {
   id: string;
   title: string;
   slug: string;
   status: string;
-}
-
-interface ListingAnalytics {
-  totals: {
-    views: number;
-    uniqueVisitors: number;
-    phoneClicks: number;
-    whatsappClicks: number;
-    emailClicks: number;
-    mapClicks: number;
-    galleryClicks: number;
-    shareClicks: number;
-    favoriteAdds: number;
-    appointmentRequests: number;
-    mobileViews: number;
-    desktopViews: number;
-    tabletViews: number;
-    avgDuration: number;
-    avgScrollDepth: number;
-    conversionRate: number;
-  };
-  dailyStats: Array<{
-    date: string;
-    views: number;
-    phoneClicks: number;
-    whatsappClicks: number;
-  }>;
+  views: number;
+  uniqueVisitors: number;
+  phoneClicks: number;
+  whatsappClicks: number;
+  emailClicks: number;
+  mapClicks: number;
+  favoriteAdds: number;
+  appointmentRequests: number;
+  conversionRate: number;
 }
 
 export default function IlanAnalitikPage() {
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [selectedListing, setSelectedListing] = useState<string | null>(null);
-  const [analytics, setAnalytics] = useState<ListingAnalytics | null>(null);
+  const [listings, setListings] = useState<ListingWithAnalytics[]>([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
+  const [sortBy, setSortBy] = useState<keyof ListingWithAnalytics>("views");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     fetchListings();
-  }, []);
-
-  useEffect(() => {
-    if (selectedListing) {
-      fetchAnalytics(selectedListing);
-    }
-  }, [selectedListing, days]);
+  }, [days]);
 
   async function fetchListings() {
+    setLoading(true);
     try {
-      const res = await fetch("/api/listings?limit=100");
+      const res = await fetch(`/api/listing-analytics/all?days=${days}`);
       const data = await res.json();
       setListings(data.listings || []);
-      if (data.listings?.length > 0) {
-        setSelectedListing(data.listings[0].id);
-      }
     } catch {
-      // Error handling
+      setListings([]);
     } finally {
       setLoading(false);
     }
   }
 
-  async function fetchAnalytics(listingId: string) {
-    try {
-      const res = await fetch(
-        `/api/listing-analytics?listingId=${listingId}&days=${days}`
-      );
-      const data = await res.json();
-      setAnalytics(data);
-    } catch {
-      setAnalytics(null);
+  function handleSort(column: keyof ListingWithAnalytics) {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortOrder("desc");
     }
   }
 
-  function formatDuration(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  }
+  const sortedListings = [...listings].sort((a, b) => {
+    const aVal = a[sortBy];
+    const bVal = b[sortBy];
+    if (typeof aVal === "number" && typeof bVal === "number") {
+      return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
+    }
+    return sortOrder === "asc"
+      ? String(aVal).localeCompare(String(bVal))
+      : String(bVal).localeCompare(String(aVal));
+  });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Icon name="sync" className="text-4xl text-emerald-400 animate-spin" />
-      </div>
-    );
-  }
+  const totalViews = listings.reduce((sum, l) => sum + l.views, 0);
+  const totalPhoneClicks = listings.reduce((sum, l) => sum + l.phoneClicks, 0);
+  const totalWhatsappClicks = listings.reduce(
+    (sum, l) => sum + l.whatsappClicks,
+    0
+  );
+  const avgConversion =
+    listings.length > 0
+      ? (
+          listings.reduce((sum, l) => sum + l.conversionRate, 0) /
+          listings.length
+        ).toFixed(1)
+      : "0";
 
   return (
     <div className="space-y-6">
@@ -105,7 +87,7 @@ export default function IlanAnalitikPage() {
             İlan Analitikleri
           </h2>
           <p className="text-slate-400 text-sm mt-1">
-            İlan bazlı detaylı performans verileri
+            Tüm ilanların performans metrikleri
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -119,207 +101,218 @@ export default function IlanAnalitikPage() {
             <option value={30}>Son 30 gün</option>
             <option value={90}>Son 90 gün</option>
           </select>
+          <button
+            onClick={fetchListings}
+            className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2"
+          >
+            <Icon name="refresh" className="text-sm" />
+            Yenile
+          </button>
         </div>
       </div>
 
-      {/* Listing Selector */}
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-        <label className="text-xs text-slate-400 uppercase mb-2 block">
-          İlan Seç
-        </label>
-        <select
-          value={selectedListing || ""}
-          onChange={(e) => setSelectedListing(e.target.value)}
-          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white"
-        >
-          {listings.map((listing) => (
-            <option key={listing.id} value={listing.id}>
-              {listing.title}
-            </option>
-          ))}
-        </select>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <SummaryCard
+          icon="visibility"
+          label="Toplam Görüntüleme"
+          value={totalViews}
+          color="blue"
+        />
+        <SummaryCard
+          icon="phone"
+          label="Telefon Tıklaması"
+          value={totalPhoneClicks}
+          color="green"
+        />
+        <SummaryCard
+          icon="chat"
+          label="WhatsApp Tıklaması"
+          value={totalWhatsappClicks}
+          color="emerald"
+        />
+        <SummaryCard
+          icon="trending_up"
+          label="Ort. Dönüşüm"
+          value={`${avgConversion}%`}
+          color="purple"
+        />
       </div>
 
-      {analytics && (
-        <>
-          {/* Main Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <StatCard
-              icon="visibility"
-              label="Görüntüleme"
-              value={analytics.totals.views}
-              color="blue"
-            />
-            <StatCard
-              icon="group"
-              label="Tekil Ziyaretçi"
-              value={analytics.totals.uniqueVisitors}
-              color="emerald"
-            />
-            <StatCard
-              icon="phone"
-              label="Telefon"
-              value={analytics.totals.phoneClicks}
-              color="green"
-            />
-            <StatCard
-              icon="chat"
-              label="WhatsApp"
-              value={analytics.totals.whatsappClicks}
-              color="green"
-            />
-            <StatCard
-              icon="timer"
-              label="Ort. Süre"
-              value={formatDuration(analytics.totals.avgDuration)}
-              color="yellow"
-            />
-            <StatCard
-              icon="trending_up"
-              label="Dönüşüm"
-              value={`${analytics.totals.conversionRate}%`}
-              color="purple"
-            />
-          </div>
-
-          {/* Device & Actions */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Device Distribution */}
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Icon name="devices" className="text-blue-400" />
-                Cihaz Dağılımı
-              </h3>
-              <div className="space-y-3">
-                <DeviceBar
-                  label="Mobil"
-                  value={analytics.totals.mobileViews}
-                  total={analytics.totals.views}
-                  color="emerald"
-                />
-                <DeviceBar
-                  label="Masaüstü"
-                  value={analytics.totals.desktopViews}
-                  total={analytics.totals.views}
-                  color="blue"
-                />
-                <DeviceBar
-                  label="Tablet"
-                  value={analytics.totals.tabletViews}
-                  total={analytics.totals.views}
-                  color="purple"
-                />
-              </div>
-            </div>
-
-            {/* User Actions */}
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Icon name="touch_app" className="text-orange-400" />
-                Kullanıcı Aksiyonları
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <ActionStat
-                  icon="phone"
-                  label="Telefon"
-                  value={analytics.totals.phoneClicks}
-                />
-                <ActionStat
-                  icon="chat"
-                  label="WhatsApp"
-                  value={analytics.totals.whatsappClicks}
-                />
-                <ActionStat
-                  icon="email"
-                  label="E-posta"
-                  value={analytics.totals.emailClicks}
-                />
-                <ActionStat
-                  icon="map"
-                  label="Harita"
-                  value={analytics.totals.mapClicks}
-                />
-                <ActionStat
-                  icon="photo_library"
-                  label="Galeri"
-                  value={analytics.totals.galleryClicks}
-                />
-                <ActionStat
-                  icon="share"
-                  label="Paylaşım"
-                  value={analytics.totals.shareClicks}
-                />
-                <ActionStat
-                  icon="favorite"
-                  label="Favori"
-                  value={analytics.totals.favoriteAdds}
-                />
-                <ActionStat
-                  icon="event"
-                  label="Randevu"
-                  value={analytics.totals.appointmentRequests}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Engagement Metrics */}
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Icon name="insights" className="text-emerald-400" />
-              Etkileşim Metrikleri
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center p-4 bg-slate-900/50 rounded-lg">
-                <p className="text-3xl font-mono text-white">
-                  {formatDuration(analytics.totals.avgDuration)}
-                </p>
-                <p className="text-xs text-slate-400 mt-1">Ortalama Süre</p>
-              </div>
-              <div className="text-center p-4 bg-slate-900/50 rounded-lg">
-                <p className="text-3xl font-mono text-white">
-                  {analytics.totals.avgScrollDepth}%
-                </p>
-                <p className="text-xs text-slate-400 mt-1">Scroll Derinliği</p>
-              </div>
-              <div className="text-center p-4 bg-slate-900/50 rounded-lg">
-                <p className="text-3xl font-mono text-emerald-400">
-                  {analytics.totals.conversionRate}%
-                </p>
-                <p className="text-xs text-slate-400 mt-1">Dönüşüm Oranı</p>
-              </div>
-              <div className="text-center p-4 bg-slate-900/50 rounded-lg">
-                <p className="text-3xl font-mono text-white">
-                  {analytics.totals.views > 0
-                    ? (
-                        (analytics.totals.uniqueVisitors /
-                          analytics.totals.views) *
-                        100
-                      ).toFixed(0)
-                    : 0}
-                  %
-                </p>
-                <p className="text-xs text-slate-400 mt-1">Tekil Oran</p>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {!analytics && selectedListing && (
+      {/* Table */}
+      {loading ? (
         <div className="bg-slate-800 border border-slate-700 rounded-xl p-12 text-center">
-          <Icon name="analytics" className="text-5xl text-slate-600 mb-4" />
-          <p className="text-slate-400">
-            Bu ilan için henüz analitik verisi yok
+          <Icon
+            name="sync"
+            className="text-4xl text-emerald-400 animate-spin"
+          />
+        </div>
+      ) : listings.length === 0 ? (
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-12 text-center">
+          <Icon
+            name="hourglass_empty"
+            className="text-5xl text-slate-600 mb-4"
+          />
+          <p className="text-slate-400 text-lg">Henüz analitik verisi yok</p>
+          <p className="text-slate-500 text-sm mt-2">
+            İlan sayfaları ziyaret edildiğinde veriler burada görünecek
           </p>
+        </div>
+      ) : (
+        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-700 bg-slate-900/50">
+                  <SortableHeader
+                    label="İlan"
+                    column="title"
+                    currentSort={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                    className="text-left"
+                  />
+                  <SortableHeader
+                    label="Görüntüleme"
+                    column="views"
+                    currentSort={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Tekil"
+                    column="uniqueVisitors"
+                    currentSort={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Telefon"
+                    column="phoneClicks"
+                    currentSort={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="WhatsApp"
+                    column="whatsappClicks"
+                    currentSort={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Favori"
+                    column="favoriteAdds"
+                    currentSort={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Randevu"
+                    column="appointmentRequests"
+                    currentSort={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                  <SortableHeader
+                    label="Dönüşüm"
+                    column="conversionRate"
+                    currentSort={sortBy}
+                    sortOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                  <th className="px-4 py-3 text-xs font-bold text-slate-500 uppercase">
+                    İşlem
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedListings.map((listing) => (
+                  <tr
+                    key={listing.id}
+                    className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/admin/ilan-analitik/${listing.id}`}
+                        className="text-white hover:text-emerald-400 transition-colors font-medium text-sm max-w-[250px] truncate block"
+                      >
+                        {listing.title}
+                      </Link>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded ${
+                          listing.status === "active"
+                            ? "bg-emerald-500/20 text-emerald-400"
+                            : "bg-slate-600/50 text-slate-400"
+                        }`}
+                      >
+                        {listing.status === "active" ? "Aktif" : "Pasif"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-white font-mono">
+                        {listing.views}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-slate-300 font-mono">
+                        {listing.uniqueVisitors}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-green-400 font-mono">
+                        {listing.phoneClicks}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-green-400 font-mono">
+                        {listing.whatsappClicks}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-pink-400 font-mono">
+                        {listing.favoriteAdds}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-blue-400 font-mono">
+                        {listing.appointmentRequests}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`font-mono ${
+                          listing.conversionRate > 5
+                            ? "text-emerald-400"
+                            : listing.conversionRate > 2
+                            ? "text-yellow-400"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {listing.conversionRate.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <Link
+                        href={`/admin/ilan-analitik/${listing.id}`}
+                        className="text-emerald-400 hover:text-emerald-300 text-sm"
+                      >
+                        <Icon name="arrow_forward" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-// Sub-components
-function StatCard({
+// Summary Card Component
+function SummaryCard({
   icon,
   label,
   value,
@@ -332,11 +325,9 @@ function StatCard({
 }) {
   const colorClasses: Record<string, string> = {
     blue: "text-blue-400",
-    emerald: "text-emerald-400",
     green: "text-green-400",
-    yellow: "text-yellow-400",
+    emerald: "text-emerald-400",
     purple: "text-purple-400",
-    orange: "text-orange-400",
   };
 
   return (
@@ -350,58 +341,42 @@ function StatCard({
   );
 }
 
-function DeviceBar({
+// Sortable Header Component
+function SortableHeader({
   label,
-  value,
-  total,
-  color,
+  column,
+  currentSort,
+  sortOrder,
+  onSort,
+  className = "text-center",
 }: {
   label: string;
-  value: number;
-  total: number;
-  color: string;
+  column: keyof ListingWithAnalytics;
+  currentSort: keyof ListingWithAnalytics;
+  sortOrder: "asc" | "desc";
+  onSort: (column: keyof ListingWithAnalytics) => void;
+  className?: string;
 }) {
-  const percent = total > 0 ? (value / total) * 100 : 0;
-  const colorClasses: Record<string, string> = {
-    emerald: "bg-emerald-500",
-    blue: "bg-blue-500",
-    purple: "bg-purple-500",
-  };
+  const isActive = currentSort === column;
 
   return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-slate-300">{label}</span>
-        <span className="text-slate-500">
-          {value} ({percent.toFixed(0)}%)
-        </span>
+    <th
+      className={`px-4 py-3 text-xs font-bold text-slate-500 uppercase cursor-pointer hover:text-slate-300 transition-colors ${className}`}
+      onClick={() => onSort(column)}
+    >
+      <div
+        className={`flex items-center gap-1 ${
+          className === "text-left" ? "" : "justify-center"
+        }`}
+      >
+        {label}
+        {isActive && (
+          <Icon
+            name={sortOrder === "asc" ? "arrow_upward" : "arrow_downward"}
+            className="text-emerald-400 text-sm"
+          />
+        )}
       </div>
-      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${colorClasses[color]} rounded-full`}
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ActionStat({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg">
-      <Icon name={icon} className="text-slate-400" />
-      <div>
-        <p className="text-lg font-mono text-white">{value}</p>
-        <p className="text-xs text-slate-500">{label}</p>
-      </div>
-    </div>
+    </th>
   );
 }
