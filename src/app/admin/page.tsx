@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { listings, appointments, contacts, valuations } from "@/db/schema";
 import { eq, sql, or, isNull } from "drizzle-orm";
 import { AnalyticsWidget } from "@/components/admin/analytics-widget";
+import { ListingAnalyticsWidget } from "@/components/admin/listing-analytics-widget";
 
 async function getDashboardStats() {
   const [totalListings] = await db
@@ -122,8 +123,11 @@ export default async function AdminDashboardPage() {
         ))}
       </div>
 
-      {/* Analytics Widget */}
-      <AnalyticsWidget />
+      {/* Analytics Widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <AnalyticsWidget />
+        <ListingAnalyticsWidget />
+      </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

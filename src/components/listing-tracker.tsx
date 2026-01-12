@@ -52,9 +52,9 @@ export function ListingTracker({ listingId }: ListingTrackerProps) {
   // Veri gönder
   const sendAnalytics = useCallback(
     async (isUnload = false) => {
-      // Çerez izni kontrolü
+      // Çerez izni kontrolü - rejected değilse izin ver (varsayılan izinli)
       const consent = localStorage.getItem("cookie_consent");
-      if (consent !== "accepted" && consent !== "settings_analytics") {
+      if (consent === "rejected") {
         return;
       }
 
