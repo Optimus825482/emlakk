@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Google Chrome Kurulumu
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
@@ -25,4 +25,4 @@ ENV DISPLAY=:99
 EXPOSE 8765
 
 # Başlatma Komutu
-CMD Xvfb :99 -screen 0 1920x1080x24 & uvicorn mining_api:app --host 0.0.0.0 --port 8765
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2; uvicorn mining_api:app --host 0.0.0.0 --port 8765"]
