@@ -9,6 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+./.brv
 
 # testing
 /coverage
@@ -53,3 +54,7 @@ crwal4ai/uc_chrome_profile_4c8afaa6
 **/uc_chrome_profile/
 
 ./docs
+./.kiro/
+./.ruff_cache
+./node_modules/.cache
+./.agent/
