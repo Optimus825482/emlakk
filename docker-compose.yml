@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  # Next.js Application
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DATABASE_URL: postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db
+        DIRECT_URL: postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db
+        AUTH_SECRET: k8J2mN9pQ4rS7tV0wX3yZ6aB1cD5eF8gH2iJ4kL7mN0pQ3rS6tU9vW2xY5zA8bC1d
+        NEXT_PUBLIC_APP_URL: http://localhost:3000
+        DEEPSEEK_API_KEY: sk-2750fa1691164dd2940c2ec3cb37d2e6
+    container_name: demir-nextjs
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db
+      DIRECT_URL: postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db
+      AUTH_SECRET: k8J2mN9pQ4rS7tV0wX3yZ6aB1cD5eF8gH2iJ4kL7mN0pQ3rS6tU9vW2xY5zA8bC1d
+      AUTH_TRUST_HOST: "true"
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      DEEPSEEK_API_KEY: sk-2750fa1691164dd2940c2ec3cb37d2e6
+      NODE_ENV: production
+    extra_hosts:
+      - "wgkosgwkg8o4wg4k8cgcw4og:host-gateway"
+
+  # Flask Admin Panel
+  flask-admin:
+    build:
+      context: ./crwal4ai/admin_remix
+      dockerfile: Dockerfile
+    container_name: demir-flask-admin
+    restart: always
+    ports:
+      - "5001:5001"
+    environment:
+      DATABASE_URL: postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db
+      FLASK_ENV: production
+    extra_hosts:
+      - "wgkosgwkg8o4wg4k8cgcw4og:host-gateway"
+    volumes:
+      - ./crwal4ai/admin_remix:/app
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: demir-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - nextjs
+      - flask-admin

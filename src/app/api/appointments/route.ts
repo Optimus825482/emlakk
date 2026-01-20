@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
           error: "Geçersiz sorgu parametreleri",
           details: query.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -41,7 +41,11 @@ export async function GET(request: NextRequest) {
     // Build where conditions
     const conditions = [];
 
-    if (type) conditions.push(eq(appointments.type, type));
+    if (type) {
+      // Map frontend type to DB enum for filtering
+      const dbType = mapAppointmentType(type);
+      conditions.push(eq(appointments.type, dbType));
+    }
     if (status) conditions.push(eq(appointments.status, status));
     if (startDate) conditions.push(gte(appointments.date, startDate));
     if (endDate) conditions.push(lte(appointments.date, endDate));
@@ -79,10 +83,25 @@ export async function GET(request: NextRequest) {
     console.error("Appointments GET error:", error);
     return NextResponse.json(
       { error: "Randevular yüklenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
+
+/**
+ * Map frontend appointment types to database enum values
+ */
+const mapAppointmentType = (
+  frontendType: "kahve" | "property_visit" | "valuation" | "consultation",
+): "viewing" | "valuation" | "consultation" | "selling" | "other" => {
+  const typeMap = {
+    kahve: "other" as const,
+    property_visit: "viewing" as const,
+    valuation: "valuation" as const,
+    consultation: "consultation" as const,
+  };
+  return typeMap[frontendType];
+};
 
 /**
  * POST /api/appointments
@@ -96,7 +115,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Geçersiz veri", details: validation.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -105,7 +124,7 @@ export async function POST(request: NextRequest) {
     const [newAppointment] = await db
       .insert(appointments)
       .values({
-        type: data.type,
+        type: mapAppointmentType(data.type),
         name: data.name,
         email: data.email,
         phone: data.phone,
@@ -129,13 +148,13 @@ export async function POST(request: NextRequest) {
         message:
           "Randevu talebiniz alındı. En kısa sürede sizinle iletişime geçeceğiz.",
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Appointments POST error:", error);
     return NextResponse.json(
       { error: "Randevu oluşturulurken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

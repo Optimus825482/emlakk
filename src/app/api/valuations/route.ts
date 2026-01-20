@@ -7,6 +7,22 @@ import { triggerAIValuation } from "@/lib/workflow-trigger";
 import { notifyNewValuation } from "@/lib/notification-helper";
 import { log, captureError } from "@/lib/monitoring";
 
+/**
+ * Map frontend property types to database enum values
+ */
+const mapPropertyType = (
+  frontendType: "sanayi" | "tarim" | "konut" | "ticari" | "arsa",
+): "sanayi" | "tarim" | "konut" | "arsa" | "isyeri" | "diger" => {
+  const typeMap = {
+    sanayi: "sanayi" as const,
+    tarim: "tarim" as const,
+    konut: "konut" as const,
+    ticari: "isyeri" as const,
+    arsa: "arsa" as const,
+  };
+  return typeMap[frontendType];
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -19,7 +35,7 @@ export async function GET(request: NextRequest) {
           error: "Geçersiz sorgu parametreleri",
           details: query.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -33,8 +49,10 @@ export async function GET(request: NextRequest) {
 
     const conditions = [];
 
-    if (propertyType)
-      conditions.push(eq(valuations.propertyType, propertyType));
+    if (propertyType) {
+      const dbType = mapPropertyType(propertyType);
+      conditions.push(eq(valuations.propertyType, dbType));
+    }
     if (startDate)
       conditions.push(gte(valuations.createdAt, new Date(startDate)));
     if (endDate) conditions.push(lte(valuations.createdAt, new Date(endDate)));
@@ -72,7 +90,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json(
       { error: "Değerleme talepleri yüklenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -85,7 +103,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Geçersiz veri", details: validation.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -94,7 +112,7 @@ export async function POST(request: NextRequest) {
     const [newValuation] = await db
       .insert(valuations)
       .values({
-        propertyType: data.propertyType,
+        propertyType: mapPropertyType(data.propertyType),
         address: data.address,
         area: data.area,
         details: data.features as Record<string, unknown>,
@@ -108,9 +126,9 @@ export async function POST(request: NextRequest) {
 
     notifyNewValuation(newValuation.id, data.name, data.propertyType);
 
-    log("info", "Yeni değerleme talebi oluşturuldu", { 
-      module: "valuations-api", 
-      valuationId: newValuation.id 
+    log("info", "Yeni değerleme talebi oluşturuldu", {
+      module: "valuations-api",
+      valuationId: newValuation.id,
     });
 
     return NextResponse.json(
@@ -118,7 +136,7 @@ export async function POST(request: NextRequest) {
         data: newValuation,
         message: "Değerleme talebiniz alındı. AI analizi başlatılıyor...",
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     if (error instanceof Error) {
@@ -126,7 +144,7 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(
       { error: "Değerleme talebi oluşturulurken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
