@@ -6,7 +6,7 @@
     "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 NEXT_PRIVATE_DISABLE_TURBOPACK=1 next dev",
     "dev:turbo": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev",
     "dev:win": "set NODE_OPTIONS=--max-old-space-size=4096 && set NEXT_PRIVATE_DISABLE_TURBOPACK=1 && next dev",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
