@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN npm config set registry https://registry.npmjs.org/ && \
     npm config set fetch-retry-maxtimeout 600000 && \
     npm config set fetch-retry-mintimeout 10000 && \
-    npm ci
+    npm install
 
 # Copy source
 COPY . .
