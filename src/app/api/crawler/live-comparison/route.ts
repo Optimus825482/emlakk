@@ -1,5 +1,11 @@
+import { db } from "@/db";
+import {
+  newListings,
+  removedListings,
+  sahibindenListe,
+} from "@/db/schema/crawler";
+import { and, count, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
 interface CategoryComparison {
   category: string;
@@ -20,23 +26,6 @@ interface ComparisonData {
 
 export async function GET() {
   try {
-    // Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!,
-    );
-
-    // Sahibinden'den gerçek zamanlı sayıları çek
-    const sahibindenResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/crawler/sahibinden-counts`,
-      { cache: "no-store" },
-    );
-
-    let sahibindenData: any = { success: false, data: [] };
-    if (sahibindenResponse.ok) {
-      sahibindenData = await sahibindenResponse.json();
-    }
-
     // Kategoriler
     const categories = [
       { category: "konut", transaction: "satilik" },
@@ -51,13 +40,17 @@ export async function GET() {
     const comparisons: CategoryComparison[] = await Promise.all(
       categories.map(async ({ category, transaction }) => {
         // Database'den sayı
-        const { count: dbCount } = await supabase
-          .from("sahibinden_liste")
-          .select("*", { count: "exact", head: true })
-          .eq("category", category)
-          .eq("transaction", transaction);
+        const [dbResult] = await db
+          .select({ value: count() })
+          .from(sahibindenListe)
+          .where(
+            and(
+              eq(sahibindenListe.category, category),
+              eq(sahibindenListe.transaction, transaction),
+            ),
+          );
 
-        const database = dbCount || 0;
+        const database = Number(dbResult?.value || 0);
 
         // Sahibinden'den sayı
         let sahibinden = 0;
@@ -87,6 +80,17 @@ export async function GET() {
       }),
     );
 
+    // Sahibinden'den gerçek zamanlı sayıları çek (Async carry over)
+    const sahibindenResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/crawler/sahibinden-counts`,
+      { cache: "no-store" },
+    );
+
+    let sahibindenData: any = { success: false, data: [] };
+    if (sahibindenResponse.ok) {
+      sahibindenData = await sahibindenResponse.json();
+    }
+
     // Transform to Record<string, ComparisonData> for frontend
     const comparisonRecord: Record<string, ComparisonData> = {};
     let total_new = 0;
@@ -113,17 +117,31 @@ export async function GET() {
     });
 
     // Fetch recent new listings
-    const { data: recentNew } = await supabase
-      .from("new_listings")
-      .select("id, listing_id, baslik, fiyat, category, first_seen_at")
-      .order("created_at", { ascending: false })
+    const recentNewRows = await db
+      .select({
+        id: newListings.id,
+        listingId: newListings.listingId,
+        baslik: newListings.baslik,
+        fiyat: newListings.fiyat,
+        category: newListings.category,
+        firstSeenAt: newListings.firstSeenAt,
+      })
+      .from(newListings)
+      .orderBy(desc(newListings.createdAt))
       .limit(5);
 
     // Fetch recent removed listings
-    const { data: recentRemoved } = await supabase
-      .from("removed_listings")
-      .select("id, listing_id, baslik, fiyat, category, removed_at")
-      .order("removed_at", { ascending: false })
+    const recentRemovedRows = await db
+      .select({
+        id: removedListings.id,
+        listingId: removedListings.listingId,
+        baslik: removedListings.baslik,
+        fiyat: removedListings.fiyat,
+        category: removedListings.category,
+        removedAt: removedListings.removedAt,
+      })
+      .from(removedListings)
+      .orderBy(desc(removedListings.removedAt))
       .limit(5);
 
     // Map to frontend interface
@@ -145,8 +163,8 @@ export async function GET() {
         total_new,
         total_removed,
       },
-      recentNew: mapRecent(recentNew || [], "new"),
-      recentRemoved: mapRecent(recentRemoved || [], "removed"),
+      recentNew: mapRecent(recentNewRows || [], "new"),
+      recentRemoved: mapRecent(recentRemovedRows || [], "removed"),
       timestamp: new Date().toISOString(),
       sahibinden_available: sahibindenData.success,
     });

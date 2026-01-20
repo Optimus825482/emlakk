@@ -7,7 +7,7 @@ import { Icon } from "@/components/ui/icon";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -19,13 +19,13 @@ export default function AdminLoginPage() {
 
     try {
       const result = await signIn("credentials", {
-        email,
+        username,
         password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError("E-posta veya şifre hatalı");
+        setError("Kullanıcı adı veya şifre hatalı");
       } else {
         router.push("/admin");
         router.refresh();
@@ -71,19 +71,19 @@ export default function AdminLoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                E-posta
+                Kullanıcı Adı
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Icon name="mail" className="text-slate-500" />
+                  <Icon name="person" className="text-slate-500" />
                 </div>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                   className="block w-full rounded-lg bg-slate-900 border border-slate-700 text-white pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-                  placeholder="admin@demirgayrimenkul.com"
+                  placeholder="Kullanıcı adınız"
                 />
               </div>
             </div>

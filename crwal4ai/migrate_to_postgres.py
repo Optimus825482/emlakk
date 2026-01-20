@@ -270,15 +270,35 @@ def main():
 
     # 2. Migrate Tables
     tables = [
+        # Crawler tables
         ('sahibinden_liste', 'id'),
         ('new_listings', 'listing_id'),
         ('removed_listings', 'listing_id'),
         ('category_stats', 'id'),
         ('mining_jobs', 'id'),
-        ('mining_logs', 'id')
+        ('mining_logs', 'id'),
+        
+        # Next.js Application tables
+        ('users', 'id'),
+        ('listings', 'id'),
+        ('appointments', 'id'),
+        ('contacts', 'id'),
+        ('valuations', 'id'),
+        ('about_page', 'id'),
+        ('hendek_stats', 'id'),
+        ('page_content', 'id'),
+        ('site_settings', 'id'),
+        ('system_settings', 'id'),
+        ('email_settings', 'id'),
+        ('notifications', 'id'),
+        ('listing_analytics', 'id'),
+        ('workflow_logs', 'id'),
+        ('seo_settings', 'id'),
+        ('collected_listings', 'id')
     ]
 
     for table_name, pk in tables:
+        print(f"\n📦 Processing table: {table_name}")
         migrate_table(supabase, pg_conn, table_name, pk)
 
     pg_conn.close()

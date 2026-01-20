@@ -1,5 +1,7 @@
+import { db } from "@/db";
+import { sahibindenListe } from "@/db/schema/crawler";
+import { and, count, desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
 const MINING_API_URL = process.env.MINING_API_URL || "http://localhost:8765";
 
@@ -27,12 +29,6 @@ export async function GET() {
     }
 
     const data = await response.json();
-
-    // Kategori bazlı istatistikler için Supabase'den veri çek
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!,
-    );
 
     // Her kategori için ilan sayısı ve son güncelleme
     const categories = [
@@ -70,42 +66,35 @@ export async function GET() {
         key: "bina",
         label: "Bina (Tümü)",
         category: "bina",
-        transaction: null, // Bina için transaction filtresi yok
+        transaction: null,
       },
     ];
 
     const categoryStats = await Promise.all(
       categories.map(async (cat) => {
-        // İlan sayısı - Bina için transaction filtresi yok
-        let query = supabase
-          .from("sahibinden_liste")
-          .select("*", { count: "exact", head: true })
-          .eq("category", cat.category);
-
+        // İlan sayısı
+        let conditions = [eq(sahibindenListe.category, cat.category!)];
         if (cat.transaction) {
-          query = query.eq("transaction", cat.transaction);
+          conditions.push(eq(sahibindenListe.transaction, cat.transaction));
         }
 
-        const { count } = await query;
+        const [countResult] = await db
+          .select({ value: count() })
+          .from(sahibindenListe)
+          .where(and(...conditions));
 
         // Son güncelleme tarihi
-        let lastUpdateQuery = supabase
-          .from("sahibinden_liste")
-          .select("tarih")
-          .eq("category", cat.category)
-          .order("tarih", { ascending: false })
+        const [lastUpdate] = await db
+          .select({ tarih: sahibindenListe.tarih })
+          .from(sahibindenListe)
+          .where(and(...conditions))
+          .orderBy(desc(sahibindenListe.tarih))
           .limit(1);
-
-        if (cat.transaction) {
-          lastUpdateQuery = lastUpdateQuery.eq("transaction", cat.transaction);
-        }
-
-        const { data: lastUpdate } = await lastUpdateQuery.single();
 
         return {
           key: cat.key,
           label: cat.label,
-          count: count || 0,
+          count: countResult?.value || 0,
           last_updated: lastUpdate?.tarih || null,
         };
       }),

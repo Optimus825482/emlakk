@@ -1,71 +1,72 @@
+import { db } from "@/db";
+import { newListings } from "@/db/schema/crawler";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY!;
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
-    // 1. İlanları Çek (Limitli)
-    let query = supabase
-      .from("recent_new_listings")
-      .select("*")
-      .order("first_seen_at", { ascending: false })
-      .limit(50);
+    // Listeleme
+    let listingsQuery = db
+      .select()
+      .from(newListings)
+      .orderBy(desc(newListings.firstSeenAt))
+      .limit(50)
+      .$dynamic();
 
-    // 2. İstatistikleri Çek (Count Queries - Accurate)
-    // 24 saat
-    let query24h = supabase
-      .from("recent_new_listings")
-      .select("*", { count: "exact", head: true })
-      .lte("hours_since_added", 24);
+    // İstatistikler
+    let q24h = db
+      .select({ val: count() })
+      .from(newListings)
+      .where(gte(newListings.firstSeenAt, oneDayAgo))
+      .$dynamic();
 
-    // 48 saat
-    let query48h = supabase
-      .from("recent_new_listings")
-      .select("*", { count: "exact", head: true })
-      .lte("hours_since_added", 48);
+    let q48h = db
+      .select({ val: count() })
+      .from(newListings)
+      .where(gte(newListings.firstSeenAt, twoDaysAgo))
+      .$dynamic();
 
-    // Toplam Yeni
-    let queryTotal = supabase
-      .from("recent_new_listings")
-      .select("*", { count: "exact", head: true });
+    let qTotal = db.select({ val: count() }).from(newListings).$dynamic();
 
     if (category) {
-      query = query.eq("category", category);
-      query24h = query24h.eq("category", category);
-      query48h = query48h.eq("category", category);
-      queryTotal = queryTotal.eq("category", category);
-    }
-
-    // Paralel çalıştır
-    const [listingsRes, count24hRes, count48hRes, totalRes] = await Promise.all(
-      [query, query24h, query48h, queryTotal],
-    );
-
-    if (listingsRes.error) {
-      console.error("New listings error:", listingsRes.error);
-      return NextResponse.json(
-        { error: "Yeni ilanlar yüklenemedi" },
-        { status: 500 },
+      listingsQuery = listingsQuery.where(eq(newListings.category, category));
+      q24h = q24h.where(
+        and(
+          eq(newListings.category, category),
+          gte(newListings.firstSeenAt, oneDayAgo),
+        ),
       );
+      q48h = q48h.where(
+        and(
+          eq(newListings.category, category),
+          gte(newListings.firstSeenAt, twoDaysAgo),
+        ),
+      );
+      qTotal = qTotal.where(eq(newListings.category, category));
     }
+
+    const [listings, [c24h], [c48h], [cTotal]] = await Promise.all([
+      listingsQuery,
+      q24h,
+      q48h,
+      qTotal,
+    ]);
 
     return NextResponse.json(
       {
         success: true,
         data: {
-          listings: listingsRes.data || [],
+          listings: listings || [],
           stats: [],
-          totalNew: totalRes.count || 0,
-          last24h: count24hRes.count || 0,
-          last48h: count48hRes.count || 0,
+          totalNew: Number(cTotal?.val || 0),
+          last24h: Number(c24h?.val || 0),
+          last48h: Number(c48h?.val || 0),
         },
       },
       {

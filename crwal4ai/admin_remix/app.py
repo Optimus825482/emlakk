@@ -38,8 +38,7 @@ app.config["SECRET_KEY"] = "dev-secret-key-change-in-production"
 # DATABASE_URL is expected in .env or provided by environment
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    # PUBLIC URL provided by user
-    DATABASE_URL = "postgres://postgres:518518Erkan@77.42.68.4:5432/demir_db"
+    DATABASE_URL = "postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db"
 os.environ["DATABASE_URL"] = DATABASE_URL
 
 # Crawler state
@@ -284,26 +283,31 @@ def api_crawler_start():
 
                 # Job'u güncelle
                 if result.returncode == 0:
-                    supabase.table("mining_jobs").update(
-                        {
-                            "status": "completed",
-                            "error": debug_log[-5000:] if debug_log else "No output",
-                        }
-                    ).eq("id", job_id).execute()
+                    db.execute_query(
+                        "UPDATE mining_jobs SET status = 'completed', error = %s WHERE id = %s",
+                        (debug_log[-5000:] if debug_log else "No output", job_id),
+                        fetch=False
+                    )
                 else:
-                    supabase.table("mining_jobs").update(
-                        {"status": "failed", "error": debug_log[-5000:]}
-                    ).eq("id", job_id).execute()
+                    db.execute_query(
+                        "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
+                        (debug_log[-5000:], job_id),
+                        fetch=False
+                    )
 
             except subprocess.TimeoutExpired:
-                supabase.table("mining_jobs").update(
-                    {"status": "failed", "error": "Timeout (1 saat)"}
-                ).eq("id", job_id).execute()
+                db.execute_query(
+                    "UPDATE mining_jobs SET status = 'failed', error = 'Timeout (1 saat)' WHERE id = %s",
+                    (job_id,),
+                    fetch=False
+                )
 
             except Exception as e:
-                supabase.table("mining_jobs").update(
-                    {"status": "failed", "error": str(e)[:500]}
-                ).eq("id", job_id).execute()
+                db.execute_query(
+                    "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
+                    (str(e)[:500], job_id),
+                    fetch=False
+                )
 
             finally:
                 crawler_running = False
@@ -429,16 +433,17 @@ def api_crawler_start_parallel():
 
                 # Job'u güncelle
                 if result.returncode == 0:
-                    supabase.table("mining_jobs").update(
-                        {
-                            "status": "completed",
-                            "error": debug_log[-5000:] if debug_log else "No output",
-                        }
-                    ).eq("id", job_id).execute()
+                    db.execute_query(
+                        "UPDATE mining_jobs SET status = 'completed', error = %s WHERE id = %s",
+                        (debug_log[-5000:] if debug_log else "No output", job_id),
+                        fetch=False
+                    )
                 else:
-                    supabase.table("mining_jobs").update(
-                        {"status": "failed", "error": debug_log[-5000:]}
-                    ).eq("id", job_id).execute()
+                    db.execute_query(
+                        "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
+                        (debug_log[-5000:], job_id),
+                        fetch=False
+                    )
 
             except subprocess.TimeoutExpired:
                 db.execute_query(
@@ -777,20 +782,26 @@ def api_removed_listings():
 def run_maintenance():
     """Veritabanı bakım ve temizlik işlemini tetikler"""
     try:
-        # Supabase RPC çağrısı
-        result = supabase.rpc("admin_maintenance_cleanup", {}).execute()
-
-        # String olarak dönecek (SQL fonksiyonu TEXT döndürüyor)
-        data = result.data
-        if isinstance(data, str):
-            import json
-
-            try:
-                data = json.loads(data)
-            except:
-                pass  # Zaten obje ise veya parse edilemezse
-
-        return jsonify(data)
+        # Postgres için basit bakım görevleri
+        # 1. Mükerrer ilanları temizle (link bazlı)
+        db.execute_query("""
+            DELETE FROM sahibinden_liste 
+            WHERE id NOT IN (
+                SELECT MIN(id) 
+                FROM sahibinden_liste 
+                GROUP BY link
+            )
+        """, fetch=False)
+        
+        # 2. Geçersiz (fiyatı 0 olan) ilanları temizle
+        db.execute_query("DELETE FROM sahibinden_liste WHERE fiyat <= 0", fetch=False)
+        
+        return jsonify({
+            "success": True,
+            "message": "Bakım işlemi başarıyla tamamlandı (Postgres)",
+            "duplicates_removed": "Unknown",
+            "nulls_removed": "Unknown"
+        })
     except Exception as e:
         print(f"Maintenance Error: {e}")
         return jsonify(
@@ -808,29 +819,22 @@ def api_category_stats():
     """Kategori istatistikleri - Gerçek Zamanlı Veritabanı Sayımlı"""
     try:
         # Kategori istatistiklerini çek
-        result = (
-            supabase.table("category_stats")
-            .select("*")
-            .order("last_checked_at", desc=True)
-            .execute()
+        result = db.execute_query(
+            "SELECT * FROM category_stats ORDER BY last_checked_at DESC"
         )
 
         stats = []
-        for item in result.data:
+        for item in (result or []):
             cat = item["category"]
             trans = item["transaction"]
 
             # Veritabanındaki GERÇEK sayıyı anlık olarak say (Tutarsızlığı önle)
-            real_db_res = (
-                supabase.table("sahibinden_liste")
-                .select("id", count="exact")
-                .eq("category", cat)
-                .eq("transaction", trans)
-                .limit(1)
-                .execute()
+            real_db_res = db.execute_one(
+                "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s",
+                (cat, trans)
             )
 
-            real_db_count = real_db_res.count or 0
+            real_db_count = real_db_res["count"] if real_db_res else 0
 
             # Farkı yeniden hesapla
             diff = item["sahibinden_count"] - real_db_count
@@ -850,7 +854,7 @@ def api_category_stats():
                     "database_count": real_db_count,
                     "diff": diff,
                     "status": status,
-                    "last_checked_at": format_date(item["last_checked_at"]),
+                    "last_checked_at": format_date(item["last_checked_at"].isoformat() if hasattr(item["last_checked_at"], 'isoformat') else str(item["last_checked_at"])),
                 }
             )
 
@@ -871,23 +875,25 @@ def api_jobs():
         start = (page - 1) * per_page
         end = start + per_page - 1
 
-        result = (
-            supabase.table("mining_jobs")
-            .select("*", count="exact")
-            .order("created_at", desc=True)
-            .range(start, end)
-            .execute()
+        # Toplam sayıyı al
+        count_res = db.execute_one("SELECT COUNT(*) as count FROM mining_jobs")
+        total_count = count_res["count"] if count_res else 0
+
+        # Sayfalı listeyi al
+        result = db.execute_query(
+            "SELECT * FROM mining_jobs ORDER BY created_at DESC LIMIT %s OFFSET %s",
+            (per_page, start)
         )
 
         jobs = []
-        for item in result.data:
+        for item in (result or []):
             stats = item.get("stats") or {}
             jobs.append(
                 {
                     "id": item["id"],
                     "status": item["status"],
-                    "created_at": format_date(item["created_at"]),
-                    "updated_at": format_date(item.get("updated_at")),
+                    "created_at": format_date(item["created_at"].isoformat() if hasattr(item["created_at"], 'isoformat') else str(item["created_at"])),
+                    "updated_at": format_date(item.get("updated_at").isoformat() if item.get("updated_at") and hasattr(item.get("updated_at"), 'isoformat') else str(item.get("updated_at"))),
                     "total_listings": stats.get("total_listings", 0) if stats else 0,
                     "new_listings": stats.get("new_listings", 0) if stats else 0,
                     "updated_listings": stats.get("updated_listings", 0)
@@ -909,8 +915,8 @@ def api_jobs():
                 "pagination": {
                     "page": page,
                     "per_page": per_page,
-                    "total": result.count,
-                    "total_pages": (result.count + per_page - 1) // per_page,
+                    "total": total_count,
+                    "total_pages": (total_count + per_page - 1) // per_page,
                 },
             }
         )
@@ -924,16 +930,15 @@ def api_map_neighborhoods():
     """Mahalle bazlı ilan istatistikleri"""
     try:
         # Tüm ilanları çek ve mahalle bazlı grupla
-        result = (
-            supabase.table("sahibinden_liste")
-            .select("konum, category, transaction, fiyat")
-            .execute()
+        # Tüm ilanları çek ve mahalle bazlı grupla
+        result = db.execute_query(
+            "SELECT konum, category, transaction, fiyat FROM sahibinden_liste"
         )
 
         # Mahalle bazlı gruplama
         neighborhoods = {}
         
-        for item in result.data:
+        for item in (result or []):
             konum = item.get("konum", "")
             if not konum:
                 continue
@@ -1016,25 +1021,31 @@ def api_map_listings():
         transaction = request.args.get("transaction")
         
         # Base query
-        query = supabase.table("sahibinden_liste").select("*")
+        # Base query
+        sql = "SELECT * FROM sahibinden_liste WHERE 1=1"
+        params = []
         
         # Filters
         if neighborhood:
-            # Mahalle filtresi (konum içinde arama)
-            query = query.ilike("konum", f"%{neighborhood}%")
+            sql += " AND konum ILIKE %s"
+            params.append(f"%{neighborhood}%")
         
         if category:
-            query = query.eq("category", category)
+            sql += " AND category = %s"
+            params.append(category)
         
         if transaction:
-            query = query.eq("transaction", transaction)
+            sql += " AND transaction = %s"
+            params.append(transaction)
         
-        # Execute (limit 100)
-        result = query.order("crawled_at", desc=True).limit(100).execute()
+        sql += " ORDER BY crawled_at DESC LIMIT 100"
+        
+        # Execute
+        result = db.execute_query(sql, params)
         
         # Format
         listings = []
-        for item in result.data:
+        for item in (result or []):
             konum = item.get("konum", "")
             mahalle = konum.replace("Merkez", "").replace("Köyler", "").replace(" Mah.", "").replace(" Mh.", "").strip()
             
@@ -1051,7 +1062,7 @@ def api_map_listings():
                 "transaction_display": get_transaction_display(item["transaction"]),
                 "link": item["link"],
                 "resim": item["resim"],
-                "crawled_at": format_date(item["crawled_at"])
+                "crawled_at": format_date(item["crawled_at"].isoformat() if hasattr(item["crawled_at"], 'isoformat') else str(item["crawled_at"]))
             })
         
         return jsonify({

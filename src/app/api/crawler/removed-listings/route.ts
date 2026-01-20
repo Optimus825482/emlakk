@@ -1,74 +1,73 @@
+import { db } from "@/db";
+import { removedListings } from "@/db/schema/crawler";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY!;
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // 1. İlanları Çek
-    let query = supabase
-      .from("removed_listings")
-      .select("*")
-      .order("removed_at", { ascending: false })
-      .limit(50);
+    // Listeleme
+    let listingsQuery = db
+      .select()
+      .from(removedListings)
+      .orderBy(desc(removedListings.removedAt))
+      .limit(50)
+      .$dynamic();
 
-    // 2. İstatistikler (Count Query)
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const sevenDaysAgo = new Date(
-      Date.now() - 7 * 24 * 60 * 60 * 1000,
-    ).toISOString();
+    // İstatistikler
+    let q24h = db
+      .select({ val: count() })
+      .from(removedListings)
+      .where(gte(removedListings.removedAt, oneDayAgo))
+      .$dynamic();
 
-    let query24h = supabase
-      .from("removed_listings")
-      .select("*", { count: "exact", head: true })
-      .gte("removed_at", oneDayAgo);
+    let q7d = db
+      .select({ val: count() })
+      .from(removedListings)
+      .where(gte(removedListings.removedAt, sevenDaysAgo))
+      .$dynamic();
 
-    let query7d = supabase
-      .from("removed_listings")
-      .select("*", { count: "exact", head: true })
-      .gte("removed_at", sevenDaysAgo);
-
-    let queryTotal = supabase
-      .from("removed_listings")
-      .select("*", { count: "exact", head: true });
+    let qTotal = db.select({ val: count() }).from(removedListings).$dynamic();
 
     if (category) {
-      query = query.eq("category", category);
-      query24h = query24h.eq("category", category);
-      query7d = query7d.eq("category", category);
-      queryTotal = queryTotal.eq("category", category);
-    }
-
-    const [listingsRes, count24hRes, count7dRes, totalRes] = await Promise.all([
-      query,
-      query24h,
-      query7d,
-      queryTotal,
-    ]);
-
-    if (listingsRes.error) {
-      console.error("Removed listings error:", listingsRes.error);
-      return NextResponse.json(
-        { error: "Kaldırılan ilanlar yüklenemedi" },
-        { status: 500 },
+      listingsQuery = listingsQuery.where(
+        eq(removedListings.category, category),
       );
+      q24h = q24h.where(
+        and(
+          eq(removedListings.category, category),
+          gte(removedListings.removedAt, oneDayAgo),
+        ),
+      );
+      q7d = q7d.where(
+        and(
+          eq(removedListings.category, category),
+          gte(removedListings.removedAt, sevenDaysAgo),
+        ),
+      );
+      qTotal = qTotal.where(eq(removedListings.category, category));
     }
+
+    const [listings, [c24h], [c7d], [cTotal]] = await Promise.all([
+      listingsQuery,
+      q24h,
+      q7d,
+      qTotal,
+    ]);
 
     return NextResponse.json(
       {
         success: true,
         data: {
-          listings: listingsRes.data || [],
-          totalRemoved: totalRes.count || 0,
-          last24h: count24hRes.count || 0,
-          last7d: count7dRes.count || 0,
+          listings: listings || [],
+          totalRemoved: Number(cTotal?.val || 0),
+          last24h: Number(c24h?.val || 0),
+          last7d: Number(c7d?.val || 0),
         },
       },
       {

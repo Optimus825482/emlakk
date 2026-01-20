@@ -65,6 +65,41 @@ export const miningJobs = pgTable("mining_jobs", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const newListings = pgTable("new_listings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  listingId: bigint("listing_id", { mode: "number" }).notNull(),
+  baslik: text("baslik"),
+  link: text("link"),
+  fiyat: bigint("fiyat", { mode: "number" }),
+  konum: text("konum"),
+  category: text("category"),
+  transaction: text("transaction"),
+  resim: text("resim"),
+  firstSeenAt: timestamp("first_seen_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const removedListings = pgTable("removed_listings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  listingId: bigint("listing_id", { mode: "number" }).notNull(),
+  baslik: text("baslik"),
+  link: text("link"),
+  fiyat: bigint("fiyat", { mode: "number" }),
+  konum: text("konum"),
+  category: text("category"),
+  transaction: text("transaction"),
+  resim: text("resim"),
+  lastSeenAt: timestamp("last_seen_at"),
+  removedAt: timestamp("removed_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  removalReason: text("removal_reason"),
+  daysActive: integer("days_active"),
+  priceChanges: integer("price_changes").default(0),
+  notes: text("notes"),
+});
+
 export const miningLogs = pgTable("mining_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
   jobId: uuid("job_id").references(() => miningJobs.id),

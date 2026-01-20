@@ -23,7 +23,7 @@ class DatabaseManager:
         self.db_url = os.getenv("DATABASE_URL")
         if not self.db_url:
             # Fallback
-            self.db_url = "postgres://postgres:518518Erkan@77.42.68.4:5432/demir_db"
+            self.db_url = "postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db"
         
         try:
             self._pool = psycopg2.pool.SimpleConnectionPool(

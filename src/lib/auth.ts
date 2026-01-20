@@ -8,7 +8,7 @@ import { z } from "zod";
 import { authConfig } from "./auth.config";
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  username: z.string().min(3),
   password: z.string().min(6),
 });
 
@@ -18,20 +18,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Credentials({
       name: "credentials",
       credentials: {
-        email: { label: "E-posta", type: "email" },
+        username: { label: "Kullanıcı Adı", type: "text" },
         password: { label: "Şifre", type: "password" },
       },
       async authorize(credentials) {
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const { email, password } = parsed.data;
+        const { username, password } = parsed.data;
 
         try {
           const [user] = await db
             .select()
             .from(users)
-            .where(eq(users.email, email))
+            .where(eq(users.username, username))
             .limit(1);
 
           if (!user || !user.isActive) return null;
