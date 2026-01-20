@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateListingDescription, ListingData } from "@/lib/deepseek";
+import { withAdmin } from "@/lib/api-auth";
 
 /**
  * POST /api/ai/generate-description
- * DeepSeek AI ile akıllı ilan açıklaması üret
+ * DeepSeek AI ile akıllı ilan açıklaması üret (Admin only)
  */
-export async function POST(request: NextRequest) {
+export const POST = withAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
 
@@ -21,11 +21,11 @@ export async function POST(request: NextRequest) {
         {
           error: "Eksik alanlar: title, type, area, price, address zorunludur",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const listingData: ListingData = {
+    const listingData = {
       title: body.title,
       type: body.type,
       transactionType: body.transactionType || "sale",
@@ -37,7 +37,20 @@ export async function POST(request: NextRequest) {
       features: body.features,
     };
 
-    const description = await generateListingDescription(listingData);
+    const { getOrchestrator } = await import("@/lib/ai/orchestrator");
+    const orchestrator = getOrchestrator();
+
+    const result = await orchestrator.generateContent({
+      listingTitle: body.title,
+      listingDescription: body.description || "",
+      price: parseFloat(body.price),
+      location: body.address,
+      propertyType: body.type,
+      platform: "instagram", // Genel açıklama için varsayılan
+      features: body.features,
+    });
+
+    const description = result.content;
 
     return NextResponse.json({
       success: true,
@@ -56,13 +69,13 @@ export async function POST(request: NextRequest) {
           error:
             "AI servisi yapılandırılmamış. Lütfen DEEPSEEK_API_KEY'i ayarlayın.",
         },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
     return NextResponse.json(
       { error: `Açıklama üretilemedi: ${errorMessage}` },
-      { status: 500 }
+      { status: 500 },
     );
   }
-}
+});

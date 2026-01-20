@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Metadata } from "next";
 import { Navbar, Footer } from "@/components/layout";
 import { Icon } from "@/components/ui/icon";
 import { ImageGallery } from "@/components/ui/image-gallery";
 import { ListingTracker } from "@/components/listing-tracker";
 import { db } from "@/db";
-import { listings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { listings, seoMetadata } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 
 const typeLabels: Record<string, string> = {
   sanayi: "Sanayi",
@@ -35,6 +36,78 @@ async function getListing(slug: string) {
     .limit(1);
 
   return result[0] || null;
+}
+
+async function getSeoData(entityId: string) {
+  try {
+    const result = await db
+      .select()
+      .from(seoMetadata)
+      .where(
+        and(
+          eq(seoMetadata.entityType, "listing"),
+          eq(seoMetadata.entityId, entityId)
+        )
+      )
+      .limit(1);
+    return result[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+// Dinamik SEO Metadata
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const listing = await getListing(slug);
+
+  if (!listing) {
+    return {
+      title: "İlan Bulunamadı | Demir Gayrimenkul",
+    };
+  }
+
+  const seo = await getSeoData(listing.id);
+  const price = parseInt(listing.price) || 0;
+  const formattedPrice =
+    price >= 1000000
+      ? `${(price / 1000000).toFixed(1)}M TL`
+      : `${price.toLocaleString("tr-TR")} TL`;
+
+  const defaultTitle = `${listing.title} | ${formattedPrice} | Demir Gayrimenkul`;
+  const defaultDescription =
+    listing.description?.substring(0, 155) ||
+    `${listing.title} - ${listing.area}m² ${
+      typeLabels[listing.type] || listing.type
+    } ${
+      listing.transactionType === "rent" ? "kiralık" : "satılık"
+    }. Hendek, Sakarya.`;
+
+  return {
+    title: seo?.metaTitle || defaultTitle,
+    description: seo?.metaDescription || defaultDescription,
+    keywords: (seo?.keywords as string[]) || [
+      "Hendek emlak",
+      listing.type,
+      listing.transactionType === "rent" ? "kiralık" : "satılık",
+      listing.district || "Hendek",
+    ],
+    openGraph: {
+      title: seo?.ogTitle || listing.title,
+      description: seo?.ogDescription || defaultDescription,
+      type: "website",
+      locale: "tr_TR",
+      images: listing.thumbnail ? [{ url: listing.thumbnail }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: seo?.twitterTitle || listing.title,
+      description: seo?.twitterDescription || defaultDescription,
+      images: listing.thumbnail ? [listing.thumbnail] : undefined,
+    },
+  };
 }
 
 export default async function IlanDetayPage({ params }: PageProps) {

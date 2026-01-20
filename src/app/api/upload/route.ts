@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import { withAdmin } from "@/lib/api-auth";
 
-// Desteklenen resim formatları
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const BUCKET_NAME = "listings";
 
-export async function POST(request: NextRequest) {
+export const POST = withAdmin(async (request: NextRequest) => {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const folder = (formData.get("folder") as string) || "images";
 
     if (!file) {
-      return NextResponse.json({ error: "Dosya bulunamadı" }, { status: 400 });
+      return NextResponse.json({ error: "Dosya bulunamadi" }, { status: 400 });
     }
 
-    // Dosya tipi kontrolü
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
         {
@@ -27,7 +26,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Dosya boyutu kontrolü
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: "Dosya boyutu 5MB'dan büyük olamaz." },
@@ -35,16 +33,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Supabase client
     const supabase = createAdminClient();
 
-    // Unique filename oluştur
     const timestamp = Date.now();
     const randomStr = Math.random().toString(36).substring(2, 8);
     const extension = file.name.split(".").pop() || "jpg";
     const fileName = `${folder}/${timestamp}-${randomStr}.${extension}`;
 
-    // Dosyayı Supabase Storage'a yükle
     const { data, error } = await supabase.storage
       .from(BUCKET_NAME)
       .upload(fileName, file, {
@@ -61,7 +56,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Public URL al
     const {
       data: { publicUrl },
     } = supabase.storage.from(BUCKET_NAME).getPublicUrl(data.path);
@@ -76,14 +70,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json(
-      { error: "Dosya yüklenirken bir hata oluştu." },
+      { error: "Dosya yuklenirken bir hata olustu." },
       { status: 500 }
     );
   }
-}
+});
 
-// Dosya silme endpoint'i
-export async function DELETE(request: NextRequest) {
+export const DELETE = withAdmin(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const url = searchParams.get("url");
@@ -94,14 +87,13 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createAdminClient();
 
-    // URL'den path çıkar
     const urlObj = new URL(url);
     const pathMatch = urlObj.pathname.match(
       /\/storage\/v1\/object\/public\/listings\/(.+)$/
     );
 
     if (!pathMatch) {
-      return NextResponse.json({ error: "Geçersiz URL" }, { status: 400 });
+      return NextResponse.json({ error: "Gecersiz URL" }, { status: 400 });
     }
 
     const filePath = decodeURIComponent(pathMatch[1]);
@@ -122,8 +114,8 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error("Delete error:", error);
     return NextResponse.json(
-      { error: "Dosya silinirken bir hata oluştu." },
+      { error: "Dosya silinirken bir hata olustu." },
       { status: 500 }
     );
   }
-}
+});

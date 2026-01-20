@@ -1,0 +1,20 @@
+{
+  "name": "sahibinden-crawler-admin",
+  "version": "1.0.0",
+  "description": "Flask-based admin panel for Sahibinden crawler with production-ready Tailwind CSS",
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --minify",
+    "watch:css": "tailwindcss -i ./static/css/input.css -o ./static/css/output.css --watch",
+    "dev": "npm run watch:css"
+  },
+  "keywords": [
+    "tailwindcss",
+    "flask",
+    "admin-panel"
+  ],
+  "author": "Demir Team",
+  "license": "MIT",
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

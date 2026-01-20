@@ -29,6 +29,43 @@ interface TeamMember {
   };
 }
 
+interface PageContent {
+  heroTitle?: string;
+  heroDescription?: string;
+  formTitle?: string;
+  formDescription?: string;
+  successTitle?: string;
+  successMessage?: string;
+  features?: { icon: string; title: string; description: string }[];
+}
+
+const defaultContent: PageContent = {
+  heroTitle: "Bize Ulaşın",
+  heroDescription:
+    "Sakarya, Hendek'teki ofisimizde sizi ağırlamaktan mutluluk duyarız. Gayrimenkul ihtiyaçlarınız için bir kahve içmeye bekleriz.",
+  formTitle: "Bize Mesaj Gönderin",
+  formDescription: "Formu doldurun, en kısa sürede size dönüş yapalım.",
+  successTitle: "Mesajınız Alındı!",
+  successMessage: "En kısa sürede sizinle iletişime geçeceğiz.",
+  features: [
+    {
+      icon: "verified",
+      title: "Güvenilir Hizmet",
+      description: "15 yıllık yerel tecrübe ve şeffaflık.",
+    },
+    {
+      icon: "support_agent",
+      title: "7/24 Destek",
+      description: "WhatsApp hattımızdan her an ulaşın.",
+    },
+    {
+      icon: "home_work",
+      title: "Geniş Portföy",
+      description: "Hayalinizdeki eve en hızlı erişim.",
+    },
+  ],
+};
+
 export default function IletisimPage() {
   const [formData, setFormData] = useState({
     name: "",
@@ -40,10 +77,20 @@ export default function IletisimPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [settings, setSettings] = useState<SiteSettings>({});
   const [broker, setBroker] = useState<TeamMember | null>(null);
+  const [content, setContent] = useState<PageContent>(defaultContent);
 
   useEffect(() => {
     async function fetchData() {
       try {
+        // Sayfa içeriğini çek
+        const contentRes = await fetch("/api/content/contact_page");
+        if (contentRes.ok) {
+          const { data } = await contentRes.json();
+          if (data?.data) {
+            setContent({ ...defaultContent, ...data.data });
+          }
+        }
+
         // Site ayarlarını çek
         const settingsRes = await fetch("/api/settings");
         if (settingsRes.ok) {
@@ -105,12 +152,10 @@ export default function IletisimPage() {
         <section className="pt-16 pb-12 px-6 lg:px-8 max-w-[1280px] mx-auto">
           <div className="max-w-3xl">
             <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-[var(--demir-slate)] mb-6">
-              Bize Ulaşın
+              {content.heroTitle}
             </h1>
             <p className="text-xl text-gray-600 font-light leading-relaxed max-w-2xl">
-              Sakarya, Hendek'teki ofisimizde sizi ağırlamaktan mutluluk
-              duyarız. Gayrimenkul ihtiyaçlarınız için bir kahve içmeye
-              bekleriz.
+              {content.heroDescription}
             </p>
           </div>
         </section>
@@ -162,11 +207,9 @@ export default function IletisimPage() {
               {/* Contact Form */}
               <div className="bg-gray-50 rounded-2xl p-8 lg:p-10 mt-4">
                 <h3 className="text-2xl font-bold text-[var(--demir-slate)] mb-2">
-                  Bize Mesaj Gönderin
+                  {content.formTitle}
                 </h3>
-                <p className="text-gray-500 mb-8">
-                  Formu doldurun, en kısa sürede size dönüş yapalım.
-                </p>
+                <p className="text-gray-500 mb-8">{content.formDescription}</p>
 
                 {isSuccess ? (
                   <div className="text-center py-8">
@@ -178,11 +221,9 @@ export default function IletisimPage() {
                       />
                     </div>
                     <h4 className="text-xl font-bold text-[var(--demir-slate)] mb-2">
-                      Mesajınız Alındı!
+                      {content.successTitle}
                     </h4>
-                    <p className="text-gray-500">
-                      En kısa sürede sizinle iletişime geçeceğiz.
-                    </p>
+                    <p className="text-gray-500">{content.successMessage}</p>
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-6">
@@ -475,45 +516,23 @@ export default function IletisimPage() {
         {/* Bottom Feature Strip */}
         <section className="border-t border-gray-200 py-12 bg-white">
           <div className="max-w-[1280px] mx-auto px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="flex items-center gap-4">
-              <div className="size-12 rounded-full bg-[var(--terracotta)]/10 flex items-center justify-center text-[var(--terracotta)]">
-                <Icon name="verified" />
-              </div>
-              <div>
-                <h4 className="font-bold text-[var(--demir-slate)]">
-                  Güvenilir Hizmet
-                </h4>
-                <p className="text-sm text-gray-500">
-                  15 yıllık yerel tecrübe ve şeffaflık.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="size-12 rounded-full bg-[var(--terracotta)]/10 flex items-center justify-center text-[var(--terracotta)]">
-                <Icon name="support_agent" />
-              </div>
-              <div>
-                <h4 className="font-bold text-[var(--demir-slate)]">
-                  7/24 Destek
-                </h4>
-                <p className="text-sm text-gray-500">
-                  WhatsApp hattımızdan her an ulaşın.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="size-12 rounded-full bg-[var(--terracotta)]/10 flex items-center justify-center text-[var(--terracotta)]">
-                <Icon name="home_work" />
-              </div>
-              <div>
-                <h4 className="font-bold text-[var(--demir-slate)]">
-                  Geniş Portföy
-                </h4>
-                <p className="text-sm text-gray-500">
-                  Hayalinizdeki eve en hızlı erişim.
-                </p>
-              </div>
-            </div>
+            {(content.features || defaultContent.features)?.map(
+              (feature, idx) => (
+                <div key={idx} className="flex items-center gap-4">
+                  <div className="size-12 rounded-full bg-[var(--terracotta)]/10 flex items-center justify-center text-[var(--terracotta)]">
+                    <Icon name={feature.icon} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-[var(--demir-slate)]">
+                      {feature.title}
+                    </h4>
+                    <p className="text-sm text-gray-500">
+                      {feature.description}
+                    </p>
+                  </div>
+                </div>
+              )
+            )}
           </div>
         </section>
       </main>

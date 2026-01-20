@@ -101,12 +101,40 @@ export class AgentOrchestrator {
   }
 
   /**
+   * AI yanıtlarından JSON verisini güvenli bir şekilde ayıklar
+   */
+  private safeJsonParse<T>(text: string): T | null {
+    if (!text) return null;
+    try {
+      // Markdown bloklarını temizle
+      const cleaned = text
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      // JSON objesini başından ve sonundan yakala
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+
+      if (start !== -1 && end !== -1) {
+        const jsonStr = cleaned.substring(start, end + 1);
+        return JSON.parse(jsonStr) as T;
+      }
+
+      return JSON.parse(cleaned) as T;
+    } catch (e) {
+      console.error("AI JSON Parse Hatası:", e, "\nYanıt:", text);
+      return null;
+    }
+  }
+
+  /**
    * Agent ile chat başlat
    */
   async chat(
     agentType: AgentType,
     messages: DeepSeekMessage[],
-    context?: AgentContext
+    context?: AgentContext,
   ): Promise<string> {
     const systemPrompt = this.buildSystemPrompt(agentType, context);
     const fullMessages: DeepSeekMessage[] = [
@@ -123,7 +151,7 @@ export class AgentOrchestrator {
   async *chatStream(
     agentType: AgentType,
     messages: DeepSeekMessage[],
-    context?: AgentContext
+    context?: AgentContext,
   ): AsyncGenerator<string, void, unknown> {
     const systemPrompt = this.buildSystemPrompt(agentType, context);
     const fullMessages: DeepSeekMessage[] = [
@@ -140,7 +168,7 @@ export class AgentOrchestrator {
   async demirAgentChat(
     userMessage: string,
     chatHistory: DeepSeekMessage[] = [],
-    visitorInfo?: { location?: string; previousInterests?: string[] }
+    visitorInfo?: { location?: string; previousInterests?: string[] },
   ): Promise<{ response: string; leadScore: number; intent: string }> {
     const contextInfo = visitorInfo
       ? `\n\nZiyaretçi Bilgisi:\n- Konum: ${
@@ -206,14 +234,14 @@ ${params.features?.length ? `Özellikler: ${params.features.join(", ")}` : ""}
       { role: "user", content: prompt },
     ]);
 
-    try {
-      // JSON parse et
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-    } catch {
-      // Fallback
+    const parsed = this.safeJsonParse<{
+      content: string;
+      hashtags: string[];
+      seoTags: string[];
+    }>(response);
+
+    if (parsed) {
+      return parsed;
     }
 
     return {
@@ -221,6 +249,96 @@ ${params.features?.length ? `Özellikler: ${params.features.join(", ")}` : ""}
       hashtags: ["DemirGayrimenkul", "Hendek", "Sakarya"],
       seoTags: [params.propertyType, params.location],
     };
+  }
+
+  /**
+   * Content Agent - Genel sosyal medya içeriği üretimi
+   */
+  async generateGeneralContent(params: {
+    type: string;
+    category?: string;
+    customPrompt?: string;
+    platforms: string[];
+    tone: string;
+    companyInfo: { name: string; [key: string]: unknown };
+  }): Promise<
+    Array<{
+      platform: string;
+      content: string;
+      hashtags?: string[];
+      imagePrompt?: string;
+    }>
+  > {
+    const contents = [];
+    for (const platform of params.platforms) {
+      const prompt = `Sen bir gayrimenkul sosyal medya uzmanısın. ${params.companyInfo.name} için ${platform} platformunda ${params.category} postu oluştur.
+      ${params.customPrompt ? `Özel konu: ${params.customPrompt}` : ""}
+      Ton: ${params.tone}
+      Çıktı formatı (JSON):
+      { "content": "içerik", "hashtags": ["h1", "h2"], "imagePrompt": "görsel önerisi" }`;
+
+      const response = await this.chat("content_agent", [
+        { role: "user", content: prompt },
+      ]);
+      const parsed = this.safeJsonParse<{
+        content: string;
+        hashtags?: string[];
+        imagePrompt?: string;
+      }>(response);
+      contents.push({ platform, ...(parsed || { content: response }) });
+    }
+    return contents;
+  }
+
+  /**
+   * SEO Agent - SEO Analiz ve Meta Veri Üretimi
+   */
+  async generateSeoMetadata(params: {
+    title: string;
+    content: string;
+    location?: string;
+    category?: string;
+  }): Promise<{
+    metaTitle: string;
+    metaDescription: string;
+    keywords: string[];
+    focusKeyword: string;
+    seoScore: number;
+  }> {
+    const prompt = `Aşağıdaki içerik için SEO optimizasyonu yap:
+    Başlık: ${params.title}
+    İçerik: ${params.content}
+    Konum: ${params.location || "Hendek, Sakarya"}
+    
+    Çıktı formatı (JSON):
+    {
+      "metaTitle": "SEO Başlığı",
+      "metaDescription": "SEO Açıklaması",
+      "keywords": ["anahtar1", "anahtar2"],
+      "focusKeyword": "odak kelime",
+      "seoScore": 0-100 arası puan
+    }`;
+
+    const response = await this.chat("content_agent", [
+      { role: "user", content: prompt },
+    ]);
+
+    const parsed = this.safeJsonParse<{
+      metaTitle: string;
+      metaDescription: string;
+      keywords: string[];
+      focusKeyword: string;
+      seoScore: number;
+    }>(response);
+    return (
+      parsed || {
+        metaTitle: params.title,
+        metaDescription: params.content.slice(0, 160),
+        keywords: [],
+        focusKeyword: "",
+        seoScore: 50,
+      }
+    );
   }
 
   /**
@@ -239,43 +357,77 @@ ${params.features?.length ? `Özellikler: ${params.features.join(", ")}` : ""}
     trends: string[];
     recommendations: string[];
     averagePrice: number;
+    visualData: {
+      priceDistribution: Array<{ range: string; count: number }>;
+      typeBreakdown: Array<{ type: string; value: number }>;
+      comparativePrices: Array<{ region: string; avgPrice: number }>;
+    };
   }> {
     const prompt = `Aşağıdaki ${
       params.region
-    } bölgesi ilan verilerini analiz et:
+    } bölgesi ilan verilerini analiz et ve görselleştirme için yapısal veri hazırla:
 
 ${JSON.stringify(params.listings, null, 2)}
 
-Analiz çıktısı (JSON):
+Analiz çıktısı tam olarak şu JSON formatında olmalıdır:
 {
-  "summary": "Genel pazar özeti",
-  "trends": ["trend1", "trend2"],
-  "recommendations": ["öneri1", "öneri2"],
-  "averagePrice": ortalama_fiyat
+  "summary": "Pazarın derinlemesine analizi",
+  "trends": ["3-5 adet trend cümlesi"],
+  "recommendations": ["Stratejik öneriler"],
+  "averagePrice": 1234567,
+  "visualData": {
+    "priceDistribution": [
+      {"range": "0-1M", "count": 5},
+      {"range": "1M-2M", "count": 12}
+    ],
+    "typeBreakdown": [
+      {"type": "Arsa", "value": 40},
+      {"type": "Konut", "value": 60}
+    ],
+    "comparativePrices": [
+      {"region": "${params.region}", "avgPrice": 1234567},
+      {"region": "Komşu Bölge 1", "avgPrice": 1100000},
+      {"region": "Komşu Bölge 2", "avgPrice": 1400000}
+    ]
+  }
 }`;
 
     const response = await this.chat("miner_agent", [
       { role: "user", content: prompt },
     ]);
 
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-    } catch {
-      // Fallback
+    const parsed = this.safeJsonParse<{
+      summary: string;
+      trends: string[];
+      recommendations: string[];
+      averagePrice: number;
+      visualData: {
+        priceDistribution: Array<{ range: string; count: number }>;
+        typeBreakdown: Array<{ type: string; value: number }>;
+        comparativePrices: Array<{ region: string; avgPrice: number }>;
+      };
+    }>(response);
+
+    if (parsed) {
+      return parsed;
     }
 
     const avgPrice =
-      params.listings.reduce((sum, l) => sum + l.price, 0) /
-      params.listings.length;
+      params.listings.length > 0
+        ? params.listings.reduce((sum, l) => sum + l.price, 0) /
+          params.listings.length
+        : 0;
 
     return {
       summary: response,
       trends: [],
       recommendations: [],
       averagePrice: avgPrice,
+      visualData: {
+        priceDistribution: [],
+        typeBreakdown: [],
+        comparativePrices: [{ region: params.region, avgPrice: avgPrice }],
+      },
     };
   }
 
@@ -284,7 +436,7 @@ Analiz çıktısı (JSON):
    */
   private async analyzeConversation(
     messages: DeepSeekMessage[],
-    lastResponse: string
+    lastResponse: string,
   ): Promise<{ leadScore: number; intent: string }> {
     const analysisPrompt = `Aşağıdaki konuşmayı analiz et ve JSON formatında yanıt ver:
 
@@ -309,9 +461,11 @@ Analiz (JSON):
         { role: "user", content: analysisPrompt },
       ]);
 
-      const jsonMatch = analysis.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = this.safeJsonParse<{ leadScore: number; intent: string }>(
+        analysis,
+      );
+
+      if (parsed) {
         return {
           leadScore: Math.min(100, Math.max(0, parsed.leadScore || 50)),
           intent: parsed.intent || "info",
@@ -329,7 +483,7 @@ Analiz (JSON):
    */
   private buildSystemPrompt(
     agentType: AgentType,
-    context?: AgentContext
+    context?: AgentContext,
   ): string {
     let prompt = AGENT_PROMPTS[agentType];
 

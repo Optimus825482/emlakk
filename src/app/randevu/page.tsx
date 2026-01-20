@@ -1,56 +1,82 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navbar, Footer } from "@/components/layout";
 import { Icon } from "@/components/ui/icon";
 
-type AppointmentType =
-  | "kahve"
-  | "property_visit"
-  | "valuation"
-  | "consultation";
-
-const appointmentTypes: {
-  key: AppointmentType;
+interface AppointmentTypeConfig {
+  key: string;
   label: string;
   icon: string;
   description: string;
   duration: string;
-}[] = [
-  {
-    key: "kahve",
-    label: "Kahve Sohbeti",
-    icon: "coffee",
-    description: "Tanışma ve genel danışmanlık",
-    duration: "30 dk",
-  },
-  {
-    key: "property_visit",
-    label: "Mülk Gezisi",
-    icon: "home",
-    description: "Yerinde mülk inceleme",
-    duration: "1 saat",
-  },
-  {
-    key: "valuation",
-    label: "Değerleme Randevusu",
-    icon: "calculate",
-    description: "Detaylı mülk değerleme",
-    duration: "45 dk",
-  },
-  {
-    key: "consultation",
-    label: "Yatırım Danışmanlığı",
-    icon: "trending_up",
-    description: "Yatırım stratejisi görüşmesi",
-    duration: "1 saat",
-  },
-];
+  isActive?: boolean;
+}
+
+interface PageContent {
+  heroTitle?: string;
+  heroHighlight?: string;
+  heroDescription?: string;
+  successTitle?: string;
+  successMessage?: string;
+  brokerName?: string;
+  brokerTitle?: string;
+  brokerPhone?: string;
+  brokerEmail?: string;
+  appointmentTypes?: AppointmentTypeConfig[];
+}
+
+const defaultContent: PageContent = {
+  heroTitle: "Randevu",
+  heroHighlight: "Oluşturun",
+  heroDescription:
+    "Mustafa Demir ile birebir görüşme için randevu alın. Gayrimenkul yatırımlarınızı birlikte planlayalım.",
+  successTitle: "Randevunuz Alındı!",
+  successMessage:
+    "En kısa sürede sizinle iletişime geçeceğiz. Randevu detayları e-posta adresinize gönderildi.",
+  brokerName: "Mustafa Demir",
+  brokerTitle: "Kurucu & Gayrimenkul Danışmanı",
+  brokerPhone: "0264 XXX XX XX",
+  brokerEmail: "mustafa@demirgayrimenkul.com",
+  appointmentTypes: [
+    {
+      key: "kahve",
+      label: "Kahve Sohbeti",
+      icon: "coffee",
+      description: "Tanışma ve genel danışmanlık",
+      duration: "30 dk",
+      isActive: true,
+    },
+    {
+      key: "property_visit",
+      label: "Mülk Gezisi",
+      icon: "home",
+      description: "Yerinde mülk inceleme",
+      duration: "1 saat",
+      isActive: true,
+    },
+    {
+      key: "valuation",
+      label: "Değerleme Randevusu",
+      icon: "calculate",
+      description: "Detaylı mülk değerleme",
+      duration: "45 dk",
+      isActive: true,
+    },
+    {
+      key: "consultation",
+      label: "Yatırım Danışmanlığı",
+      icon: "trending_up",
+      description: "Yatırım stratejisi görüşmesi",
+      duration: "1 saat",
+      isActive: true,
+    },
+  ],
+};
 
 export default function RandevuPage() {
-  const [selectedType, setSelectedType] = useState<AppointmentType | null>(
-    null
-  );
+  const [content, setContent] = useState<PageContent>(defaultContent);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -61,6 +87,28 @@ export default function RandevuPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  useEffect(() => {
+    async function fetchContent() {
+      try {
+        const res = await fetch("/api/content/appointment_page");
+        if (res.ok) {
+          const { data } = await res.json();
+          if (data?.data) {
+            setContent({ ...defaultContent, ...data.data });
+          }
+        }
+      } catch (error) {
+        console.error("İçerik yüklenemedi:", error);
+      }
+    }
+    fetchContent();
+  }, []);
+
+  const activeAppointmentTypes =
+    (content.appointmentTypes || defaultContent.appointmentTypes)?.filter(
+      (t) => t.isActive !== false
+    ) || [];
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -115,12 +163,9 @@ export default function RandevuPage() {
               />
             </div>
             <h1 className="text-3xl font-bold text-[var(--demir-slate)] mb-4">
-              Randevunuz Alındı!
+              {content.successTitle}
             </h1>
-            <p className="text-gray-600 mb-8">
-              En kısa sürede sizinle iletişime geçeceğiz. Randevu detayları
-              e-posta adresinize gönderildi.
-            </p>
+            <p className="text-gray-600 mb-8">{content.successMessage}</p>
             <a
               href="/"
               className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--demir-slate)] text-white rounded-xl font-semibold hover:bg-[var(--terracotta)] transition-colors"
@@ -147,12 +192,13 @@ export default function RandevuPage() {
               Kahve Eşliğinde
             </span>
             <h1 className="text-4xl lg:text-5xl font-bold text-[var(--demir-slate)] leading-tight mb-4">
-              Randevu{" "}
-              <span className="text-[var(--terracotta)]">Oluşturun</span>
+              {content.heroTitle}{" "}
+              <span className="text-[var(--terracotta)]">
+                {content.heroHighlight}
+              </span>
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Mustafa Demir ile birebir görüşme için randevu alın. Gayrimenkul
-              yatırımlarınızı birlikte planlayalım.
+              {content.heroDescription}
             </p>
           </div>
         </section>
@@ -167,7 +213,7 @@ export default function RandevuPage() {
                   Randevu Tipi Seçin
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {appointmentTypes.map((type) => (
+                  {activeAppointmentTypes.map((type) => (
                     <button
                       key={type.key}
                       type="button"
@@ -347,25 +393,29 @@ export default function RandevuPage() {
                   <Icon name="person" className="text-5xl" />
                 </div>
                 <div className="text-center md:text-left">
-                  <h3 className="text-2xl font-bold mb-2">Mustafa Demir</h3>
-                  <p className="text-gray-300 mb-4">
-                    Kurucu & Gayrimenkul Danışmanı
-                  </p>
+                  <h3 className="text-2xl font-bold mb-2">
+                    {content.brokerName}
+                  </h3>
+                  <p className="text-gray-300 mb-4">{content.brokerTitle}</p>
                   <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                    <a
-                      href="tel:+902641234567"
-                      className="flex items-center gap-2 text-[var(--terracotta)] hover:text-[var(--terracotta-light)]"
-                    >
-                      <Icon name="call" />
-                      0264 XXX XX XX
-                    </a>
-                    <a
-                      href="mailto:mustafa@demirgayrimenkul.com"
-                      className="flex items-center gap-2 text-[var(--terracotta)] hover:text-[var(--terracotta-light)]"
-                    >
-                      <Icon name="mail" />
-                      mustafa@demirgayrimenkul.com
-                    </a>
+                    {content.brokerPhone && (
+                      <a
+                        href={`tel:${content.brokerPhone.replace(/\s/g, "")}`}
+                        className="flex items-center gap-2 text-[var(--terracotta)] hover:text-[var(--terracotta-light)]"
+                      >
+                        <Icon name="call" />
+                        {content.brokerPhone}
+                      </a>
+                    )}
+                    {content.brokerEmail && (
+                      <a
+                        href={`mailto:${content.brokerEmail}`}
+                        className="flex items-center gap-2 text-[var(--terracotta)] hover:text-[var(--terracotta-light)]"
+                      >
+                        <Icon name="mail" />
+                        {content.brokerEmail}
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>

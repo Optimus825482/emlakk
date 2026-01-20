@@ -93,6 +93,7 @@ export const contentSectionTypeEnum = pgEnum("content_section_type", [
   "cta",
   "stats",
   "features",
+  "page", // Sayfa içerikleri için
 ]);
 
 export const contentSections = pgTable("content_sections", {

@@ -5,11 +5,8 @@ import { createValuationSchema, valuationQuerySchema } from "@/lib/validations";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import { triggerAIValuation } from "@/lib/workflow-trigger";
 import { notifyNewValuation } from "@/lib/notification-helper";
+import { log, captureError } from "@/lib/monitoring";
 
-/**
- * GET /api/valuations
- * List all valuations with filtering and pagination
- */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -34,17 +31,14 @@ export async function GET(request: NextRequest) {
       limit = 20,
     } = query.data;
 
-    // Build where conditions
     const conditions = [];
 
     if (propertyType)
       conditions.push(eq(valuations.propertyType, propertyType));
-    // Status field doesn't exist in valuations schema - skip filtering
     if (startDate)
       conditions.push(gte(valuations.createdAt, new Date(startDate)));
     if (endDate) conditions.push(lte(valuations.createdAt, new Date(endDate)));
 
-    // Get total count
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(valuations)
@@ -52,7 +46,6 @@ export async function GET(request: NextRequest) {
 
     const total = Number(countResult[0]?.count || 0);
 
-    // Get paginated results
     const offset = (page - 1) * limit;
 
     const results = await db
@@ -74,7 +67,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Valuations GET error:", error);
+    if (error instanceof Error) {
+      await captureError(error, { module: "valuations-api", method: "GET" });
+    }
     return NextResponse.json(
       { error: "Değerleme talepleri yüklenirken bir hata oluştu" },
       { status: 500 }
@@ -82,10 +77,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * POST /api/valuations
- * Create a new valuation request
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -106,18 +97,21 @@ export async function POST(request: NextRequest) {
         propertyType: data.propertyType,
         address: data.address,
         area: data.area,
-        details: data.features,
+        details: data.features as Record<string, unknown>,
         name: data.name,
         email: data.email,
         phone: data.phone,
       })
       .returning();
 
-    // AI değerleme workflow'unu tetikle
     triggerAIValuation(newValuation.id);
 
-    // Admin paneline bildirim gönder
     notifyNewValuation(newValuation.id, data.name, data.propertyType);
+
+    log("info", "Yeni değerleme talebi oluşturuldu", { 
+      module: "valuations-api", 
+      valuationId: newValuation.id 
+    });
 
     return NextResponse.json(
       {
@@ -127,7 +121,9 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Valuations POST error:", error);
+    if (error instanceof Error) {
+      await captureError(error, { module: "valuations-api", method: "POST" });
+    }
     return NextResponse.json(
       { error: "Değerleme talebi oluşturulurken bir hata oluştu" },
       { status: 500 }

@@ -1,0 +1,19 @@
+2026-01-20 03:46:52,012 - INFO - ✅ Supabase bağlantısı kuruldu
+2026-01-20 03:46:53,313 - INFO - HTTP Request: GET https://cxeakfwtrlnjcjzvqdip.supabase.co/rest/v1/sahibinden_liste?select=id "HTTP/2 200 OK"
+2026-01-20 03:46:53,316 - INFO - 📥 1000 mevcut ID yüklendi
+2026-01-20 03:46:53,316 - INFO - 🚀 Chrome başlatılıyor...
+2026-01-20 03:46:53,316 - INFO - 📍 Chromium yolu: C:\Users\erkan\undetected-chromium\chromium\chrome-win\chrome.exe
+2026-01-20 03:46:53,316 - INFO - 📍 ChromeDriver yolu: C:\Users\erkan\chromedriver\win64-146.0.7643.0\chromedriver-win64\chromedriver.exe
+2026-01-20 03:46:53,316 - INFO - ⏳ Yöntem 1: Auto version detection (önerilen)...
+2026-01-20 03:46:54,542 - INFO - ✅ Chrome hazır!
+2026-01-20 03:46:54,851 - INFO - ✓ WebDriver özelliği gizlendi
+2026-01-20 03:46:54,851 - INFO - 🔒 Chrome kapatılıyor...
+2026-01-20 03:46:55,030 - INFO - ✅ Chrome kapatıldı
+CHROME OK
+Exception ignored in: <function Chrome.__del__ at 0x000002AA16D671A0>
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 843, in __del__
+    self.quit()
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 798, in quit
+    time.sleep(0.1)
+OSError: [WinError 6] İşleyici geçersiz

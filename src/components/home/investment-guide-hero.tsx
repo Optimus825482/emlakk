@@ -93,37 +93,13 @@ const colorMap: Record<string, { bg: string; text: string; border: string }> = {
 export function InvestmentGuideHero() {
   const [stats, setStats] = useState<HendekStat[]>(defaultStats);
   const [populationHistory, setPopulationHistory] = useState<PopulationData[]>(
-    []
+    [],
   );
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        // İstatistikleri çek
-        const statsRes = await fetch("/api/hendek-stats");
-        if (statsRes.ok) {
-          const { data } = await statsRes.json();
-          if (data && data.length > 0) {
-            setStats(data);
-          }
-        }
-
-        // Nüfus geçmişini çek
-        const popRes = await fetch("/api/hendek-stats?type=population");
-        if (popRes.ok) {
-          const { data } = await popRes.json();
-          if (data && data.length > 0) {
-            setPopulationHistory(data.slice(0, 5)); // Son 5 yıl
-          }
-        }
-      } catch (error) {
-        console.error("Hendek verileri yüklenemedi:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchData();
+    // API kaldırıldığı için varsayılan verileri kullanıyoruz
+    setIsLoading(false);
   }, []);
 
   return (

@@ -17,6 +17,7 @@ interface Listing {
   city: string;
   images: string[];
   features?: Record<string, unknown>;
+  tarih?: string; // İlan tarihi (Sahibinden'den: "Bugün 14:30", "15 Ocak" vb.)
 }
 
 export function CategoryListings() {
@@ -217,9 +218,14 @@ function SanayiCard({ listing }: { listing: Listing }) {
       </div>
       <div className="p-4">
         <h4 className="text-white font-bold mb-1">{listing.title}</h4>
-        <p className="text-gray-400 text-sm mb-3">
+        <p className="text-gray-400 text-sm mb-1">
           {listing.area.toLocaleString("tr-TR")}m² • Sanayi İmarlı
         </p>
+        {listing.tarih && (
+          <p className="text-xs text-orange-400 font-medium mb-2">
+            🕐 İlan Tarihi: {listing.tarih}
+          </p>
+        )}
         <p className="text-xl font-bold text-white">
           ₺{formatPrice(listing.price)}
         </p>
@@ -261,7 +267,7 @@ function TarimCard({ listing }: { listing: Listing }) {
           <span className="text-xs text-green-600 font-semibold">
             ₺
             {Math.round(
-              parseFloat(listing.price) / listing.area
+              parseFloat(listing.price) / listing.area,
             ).toLocaleString("tr-TR")}
             /m²
           </span>
@@ -294,9 +300,14 @@ function KonutCard({ listing }: { listing: Listing }) {
         <h4 className="text-[var(--demir-slate)] font-bold mb-1 group-hover:text-[var(--terracotta)] transition-colors">
           {listing.title}
         </h4>
-        <p className="text-gray-500 text-sm mb-3">
+        <p className="text-gray-500 text-sm mb-1">
           {listing.area.toLocaleString("tr-TR")}m² • {listing.address}
         </p>
+        {listing.tarih && (
+          <p className="text-xs text-orange-500 font-medium mb-2">
+            🕐 İlan Tarihi: {listing.tarih}
+          </p>
+        )}
         <div className="flex justify-between items-center">
           <p className="text-lg font-bold text-[var(--demir-slate)]">
             ₺{formatPrice(listing.price)}

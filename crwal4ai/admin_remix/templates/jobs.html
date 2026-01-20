@@ -1,0 +1,371 @@
+{% extends "base.html" %} {% block title %}Görev Geçmişi{% endblock %} {% block
+breadcrumb %}Operasyonel Kayıtlar{% endblock %} {% block content %}
+<div
+  x-data="jobs()"
+  x-init="init()"
+  x-cloak
+  class="space-y-8 animate-fade-in pb-12"
+>
+  <!-- Premium Header -->
+  <div
+    class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6"
+  >
+    <div class="animate-slide-up">
+      <h1
+        class="text-3xl lg:text-4xl font-black font-outfit text-slate-900 dark:text-white uppercase tracking-tighter"
+      >
+        İşlem Günlüğü
+      </h1>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400 font-medium">
+        Sistem robotlarının çalışma ve performans geçmişi
+      </p>
+    </div>
+
+    <div class="animate-slide-up" style="animation-delay: 100ms">
+      <button
+        @click="loadJobs()"
+        class="p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl hover:bg-primary-500 hover:text-white transition-premium shadow-sm"
+      >
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          ></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <template x-if="loading">
+    <div class="space-y-6">
+      <template x-for="i in 5" :key="i">
+        <div class="h-48 skeleton rounded-[2.5rem]"></div>
+      </template>
+    </div>
+  </template>
+
+  <!-- Empty State -->
+  <template x-if="!loading && jobs.length === 0">
+    <div class="text-center py-32 animate-fade-in">
+      <div
+        class="w-24 h-24 mx-auto bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center text-5xl mb-6 shadow-inner"
+      >
+        📂
+      </div>
+      <h3
+        class="text-2xl font-black font-outfit text-slate-900 dark:text-white mb-2 uppercase tracking-tighter"
+      >
+        Kayıt Bulunmuyor
+      </h3>
+      <p
+        class="text-slate-500 dark:text-slate-400 max-w-xs mx-auto text-sm font-medium"
+      >
+        Henüz bir tarama işlemi gerçekleştirilmedi.
+      </p>
+    </div>
+  </template>
+
+  <!-- Jobs List -->
+  <template x-if="!loading && jobs.length > 0">
+    <div class="space-y-6">
+      <div class="grid grid-cols-1 gap-6">
+        <template x-for="(job, index) in jobs" :key="job.id">
+          <div
+            class="group premium-card bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm animate-slide-up"
+            :style="'animation-delay: ' + (index * 50) + 'ms'"
+          >
+            <div
+              class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8"
+            >
+              <!-- Left: Identity & Status -->
+              <div class="flex items-center gap-6">
+                <div
+                  class="w-16 h-16 rounded-[1.5rem] flex items-center justify-center shadow-inner shrink-0"
+                  :class="{
+                       'bg-emerald-500/10 text-emerald-500': job.status === 'completed',
+                       'bg-amber-500/10 text-amber-500': job.status === 'running',
+                       'bg-rose-500/10 text-rose-500': job.status === 'failed',
+                       'bg-slate-100 dark:bg-slate-900 text-slate-400': job.status === 'pending'
+                     }"
+                >
+                  <svg
+                    x-show="job.status === 'completed'"
+                    class="w-8 h-8"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  <svg
+                    x-show="job.status === 'running'"
+                    class="w-8 h-8 animate-spin"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    ></path>
+                  </svg>
+                  <svg
+                    x-show="job.status === 'failed'"
+                    class="w-8 h-8"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    ></path>
+                  </svg>
+                </div>
+
+                <div class="space-y-1">
+                  <div class="flex items-center gap-3">
+                    <h3
+                      class="text-sm font-black text-slate-900 dark:text-white font-mono"
+                      x-text="'JOB-' + job.id.substring(0,12)"
+                    ></h3>
+                    <span
+                      class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest"
+                      :class="{
+                              'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20': job.status === 'completed',
+                              'bg-amber-500 text-white shadow-lg shadow-amber-500/20': job.status === 'running',
+                              'bg-rose-500 text-white shadow-lg shadow-rose-500/20': job.status === 'failed',
+                              'bg-slate-400 text-white': job.status === 'pending'
+                            }"
+                      x-text="job.status"
+                    ></span>
+                  </div>
+                  <div class="flex items-center gap-4">
+                    <span
+                      class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"
+                    >
+                      <svg
+                        class="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        ></path>
+                      </svg>
+                      <span x-text="job.created_at"></span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Center: Core Stats -->
+              <div class="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-6 px-4">
+                <div class="flex flex-col">
+                  <span
+                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
+                    >Toplam Tarama</span
+                  >
+                  <span
+                    class="text-sm font-black text-slate-900 dark:text-white font-outfit"
+                    x-text="job.total_listings.toLocaleString('tr-TR')"
+                  ></span>
+                </div>
+                <div class="flex flex-col">
+                  <span
+                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
+                    >Yeni İlan</span
+                  >
+                  <span
+                    class="text-sm font-black text-emerald-600 dark:text-emerald-400 font-outfit"
+                    x-text="job.new_listings.toLocaleString('tr-TR')"
+                  ></span>
+                </div>
+                <div class="flex flex-col">
+                  <span
+                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
+                    >Pazar Güncelleme</span
+                  >
+                  <span
+                    class="text-sm font-black text-primary-600 dark:text-primary-400 font-outfit"
+                    x-text="job.updated_listings.toLocaleString('tr-TR')"
+                  ></span>
+                </div>
+                <div class="flex flex-col">
+                  <span
+                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
+                    >Kaldırılan</span
+                  >
+                  <span
+                    class="text-sm font-black text-rose-600 dark:text-rose-400 font-outfit"
+                    x-text="job.removed_listings.toLocaleString('tr-TR')"
+                  ></span>
+                </div>
+              </div>
+
+              <!-- Right: Target Categories -->
+              <div
+                class="shrink-0 max-w-[200px] flex flex-wrap gap-2 justify-end"
+              >
+                <template
+                  x-for="cat in (job.categories_completed || [])"
+                  :key="cat"
+                >
+                  <span
+                    class="px-2.5 py-1 bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-lg text-[9px] font-black uppercase tracking-widest"
+                    x-text="cat"
+                  ></span>
+                </template>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Pagination Hub -->
+      <div
+        x-show="pagination.total_pages > 1"
+        class="flex flex-col sm:flex-row items-center justify-between gap-6 pt-10"
+      >
+        <div
+          class="flex items-center gap-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md px-6 py-3 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-sm"
+        >
+          <p
+            class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
+          >
+            Toplam
+            <span
+              class="text-primary-500 font-black"
+              x-text="pagination.total.toLocaleString('tr-TR')"
+            ></span>
+            Operasyon
+          </p>
+        </div>
+
+        <div
+          class="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md p-1.5 rounded-[1.8rem] border border-slate-200/60 dark:border-slate-700/60 shadow-sm"
+        >
+          <button
+            @click="changePage(pagination.page - 1)"
+            :disabled="pagination.page === 1"
+            :class="pagination.page === 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-primary-500 hover:text-white'"
+            class="w-12 h-12 flex items-center justify-center rounded-2xl bg-transparent text-slate-500 transition-premium"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 19l-7-7 7-7"
+              ></path>
+            </svg>
+          </button>
+
+          <div
+            class="flex items-center px-6 font-black text-xs text-slate-600 dark:text-slate-300 uppercase tracking-widest"
+          >
+            Sayfa
+            <span class="text-primary-500 mx-2" x-text="pagination.page"></span>
+            / <span class="ml-2" x-text="pagination.total_pages"></span>
+          </div>
+
+          <button
+            @click="changePage(pagination.page + 1)"
+            :disabled="pagination.page === pagination.total_pages"
+            :class="pagination.page === pagination.total_pages ? 'opacity-30 cursor-not-allowed' : 'hover:bg-primary-500 hover:text-white'"
+            class="w-12 h-12 flex items-center justify-center rounded-2xl bg-transparent text-slate-500 transition-premium"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  function jobs() {
+    return {
+      loading: true,
+      jobs: [],
+      pagination: {
+        page: 1,
+        per_page: 10,
+        total: 0,
+        total_pages: 0,
+      },
+
+      async init() {
+        await this.loadJobs();
+      },
+
+      async loadJobs() {
+        this.loading = true;
+        try {
+          const params = new URLSearchParams({
+            page: this.pagination.page,
+            per_page: this.pagination.per_page,
+          });
+          const response = await fetch(`/api/jobs?${params}`);
+          const result = await response.json();
+          if (result.success) {
+            this.jobs = result.data;
+            this.pagination = result.pagination;
+          }
+        } catch (error) {
+          console.error("Jobs yüklenemedi:", error);
+          if (window.showToast)
+            window.showToast("Kayıtlar yüklenemedi", "error");
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      changePage(page) {
+        if (page < 1 || page > this.pagination.total_pages) return;
+        this.pagination.page = page;
+        this.loadJobs();
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      },
+    };
+  }
+</script>
+{% endblock %}

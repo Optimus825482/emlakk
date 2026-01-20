@@ -3,9 +3,21 @@ import { db } from "@/db";
 import { listings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { slugify, calculatePricePerSqm } from "@/lib/utils";
+import { auth } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+async function requireAdminSession() {
+  const session = await auth();
+  if (!session?.user) {
+    return { error: NextResponse.json({ error: "Yetkilendirme gerekli" }, { status: 401 }), session: null };
+  }
+  if ((session.user as { role?: string }).role !== "admin") {
+    return { error: NextResponse.json({ error: "Admin yetkisi gerekli" }, { status: 403 }), session: null };
+  }
+  return { error: null, session };
 }
 
 /**
@@ -47,11 +59,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * Update a listing
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const authCheck = await requireAdminSession();
+  if (authCheck.error) return authCheck.error;
+
   try {
     const { id } = await params;
     const body = await request.json();
 
-    // Mevcut ilanı kontrol et
     const [existing] = await db
       .select()
       .from(listings)
@@ -59,15 +73,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .limit(1);
 
     if (!existing) {
-      return NextResponse.json({ error: "İlan bulunamadı" }, { status: 404 });
+      return NextResponse.json({ error: "Ilan bulunamadi" }, { status: 404 });
     }
 
-    // Güncellenecek alanları hazırla
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
     };
 
-    // Basit alanlar
     const simpleFields = [
       "title",
       "description",
@@ -176,6 +188,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * Delete a listing
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const authCheck = await requireAdminSession();
+  if (authCheck.error) return authCheck.error;
+
   try {
     const { id } = await params;
 
@@ -185,16 +200,16 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .returning({ id: listings.id });
 
     if (!deleted) {
-      return NextResponse.json({ error: "İlan bulunamadı" }, { status: 404 });
+      return NextResponse.json({ error: "Ilan bulunamadi" }, { status: 404 });
     }
 
     return NextResponse.json({
-      message: "İlan başarıyla silindi",
+      message: "Ilan basariyla silindi",
     });
   } catch (error) {
     console.error("Listing DELETE error:", error);
     return NextResponse.json(
-      { error: "İlan silinirken bir hata oluştu" },
+      { error: "Ilan silinirken bir hata olustu" },
       { status: 500 }
     );
   }

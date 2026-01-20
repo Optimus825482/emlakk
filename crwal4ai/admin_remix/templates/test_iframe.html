@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>İframe Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 p-8">
+    <div class="max-w-7xl mx-auto">
+      <h1 class="text-2xl font-bold mb-4">🔍 İframe Test</h1>
+
+      <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <button
+          onclick="testIframe()"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Test İframe İçeriği
+        </button>
+
+        <button
+          onclick="testProxy()"
+          class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 ml-2"
+        >
+          Test Proxy İçeriği
+        </button>
+
+        <div id="result" class="mt-4 p-4 bg-gray-50 rounded"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Direkt İframe -->
+        <div class="bg-white rounded-lg shadow p-4">
+          <h3 class="font-bold mb-2">Direkt Sahibinden.com</h3>
+          <div class="border rounded overflow-hidden" style="height: 400px">
+            <iframe
+              id="directIframe"
+              src="https://www.sahibinden.com/satilik/sakarya-hendek"
+              class="w-full h-full"
+            ></iframe>
+          </div>
+        </div>
+
+        <!-- Proxy İframe -->
+        <div class="bg-white rounded-lg shadow p-4">
+          <h3 class="font-bold mb-2">Proxy Üzerinden</h3>
+          <div class="border rounded overflow-hidden" style="height: 400px">
+            <iframe
+              id="proxyIframe"
+              src="/proxy/sahibinden?url=https%3A%2F%2Fwww.sahibinden.com%2Fsatilik%2Fsakarya-hendek"
+              class="w-full h-full"
+            ></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function testIframe() {
+        const result = document.getElementById("result");
+        result.innerHTML = '<div class="text-blue-600">Test ediliyor...</div>';
+
+        try {
+          const iframe = document.getElementById("directIframe");
+          const iframeDoc =
+            iframe.contentDocument || iframe.contentWindow.document;
+
+          if (!iframeDoc) {
+            result.innerHTML =
+              '<div class="text-red-600">❌ İframe document erişilemedi (CORS hatası)</div>';
+            return;
+          }
+
+          const searchCats = iframeDoc.getElementById(
+            "searchCategoryContainer",
+          );
+
+          if (!searchCats) {
+            result.innerHTML =
+              '<div class="text-yellow-600">⚠️ searchCategoryContainer bulunamadı</div>';
+            return;
+          }
+
+          const spans = searchCats.getElementsByTagName("span");
+          let found = false;
+
+          for (let span of spans) {
+            const text = span.textContent.trim();
+            if (text.startsWith("(") && text.endsWith(")")) {
+              const count = text.replace(/[()]/g, "");
+              result.innerHTML = `<div class="text-green-600">✅ İlan sayısı bulundu: <strong>${count}</strong></div>`;
+              found = true;
+              break;
+            }
+          }
+
+          if (!found) {
+            result.innerHTML =
+              '<div class="text-yellow-600">⚠️ İlan sayısı bulunamadı</div>';
+          }
+        } catch (error) {
+          result.innerHTML = `<div class="text-red-600">❌ Hata: ${error.message}</div>`;
+          console.error("İframe test hatası:", error);
+        }
+      }
+
+      function testProxy() {
+        const result = document.getElementById("result");
+        result.innerHTML = '<div class="text-blue-600">Test ediliyor...</div>';
+
+        try {
+          const iframe = document.getElementById("proxyIframe");
+          const iframeDoc =
+            iframe.contentDocument || iframe.contentWindow.document;
+
+          if (!iframeDoc) {
+            result.innerHTML =
+              '<div class="text-red-600">❌ İframe document erişilemedi (CORS hatası)</div>';
+            return;
+          }
+
+          const searchCats = iframeDoc.getElementById(
+            "searchCategoryContainer",
+          );
+
+          if (!searchCats) {
+            result.innerHTML =
+              '<div class="text-yellow-600">⚠️ searchCategoryContainer bulunamadı</div>';
+            return;
+          }
+
+          const spans = searchCats.getElementsByTagName("span");
+          let found = false;
+
+          for (let span of spans) {
+            const text = span.textContent.trim();
+            if (text.startsWith("(") && text.endsWith(")")) {
+              const count = text.replace(/[()]/g, "");
+              result.innerHTML = `<div class="text-green-600">✅ İlan sayısı bulundu: <strong>${count}</strong></div>`;
+              found = true;
+              break;
+            }
+          }
+
+          if (!found) {
+            result.innerHTML =
+              '<div class="text-yellow-600">⚠️ İlan sayısı bulunamadı</div>';
+          }
+        } catch (error) {
+          result.innerHTML = `<div class="text-red-600">❌ Hata: ${error.message}</div>`;
+          console.error("Proxy test hatası:", error);
+        }
+      }
+    </script>
+  </body>
+</html>

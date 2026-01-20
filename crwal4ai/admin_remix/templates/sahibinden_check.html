@@ -1,0 +1,348 @@
+{% extends "base.html" %} {% block title %}Canlı Denetçi{% endblock %} {% block
+breadcrumb %}Canlı Veri Doğrulama{% endblock %} {% block content %}
+<div
+  x-data="sahibindenCheck()"
+  x-init="init()"
+  x-cloak
+  class="space-y-8 animate-fade-in pb-12"
+>
+  <!-- Premium Header -->
+  <div
+    class="flex flex-col lg:flex-row lg:items-center justify-between gap-8 bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden group"
+  >
+    <!-- Background Glow -->
+    <div
+      class="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/10 blur-[100px] rounded-full group-hover:bg-emerald-500/20 transition-premium"
+    ></div>
+
+    <div class="relative z-10">
+      <div class="flex items-center gap-3 mb-4">
+        <span
+          class="px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400"
+          >Canlı Bağlantı</span
+        >
+      </div>
+      <h1 class="text-3xl lg:text-4xl font-black font-outfit mb-2">
+        Sahibinden Denetçisi
+      </h1>
+      <p class="text-slate-400 text-sm max-w-md font-medium">
+        Platformdaki canlı verileri iframe tüneli üzerinden anlık olarak
+        doğrular.
+      </p>
+    </div>
+
+    <div class="relative z-10 flex flex-wrap gap-4">
+      <button
+        @click="checkAllCategories()"
+        :disabled="checking"
+        :class="checking ? 'opacity-30 cursor-not-allowed scale-95' : 'bg-emerald-600 hover:bg-emerald-500 hover:scale-105 shadow-xl shadow-emerald-500/30'"
+        class="px-8 py-4 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-premium flex items-center gap-3"
+      >
+        <span x-show="!checking">Denetimi Başlat</span>
+        <span x-show="checking" class="flex items-center gap-2">
+          <svg
+            class="animate-spin h-4 w-4 text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Taranıyor...
+        </span>
+      </button>
+
+      <button
+        @click="showIframe = !showIframe"
+        class="px-6 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-premium hover:bg-white/20"
+      >
+        <span x-show="!showIframe">Gözlem Penceresi</span>
+        <span x-show="showIframe">Pencereyi Kapat</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Operational Progress -->
+  <template x-if="checking">
+    <div
+      class="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm animate-slide-up"
+    >
+      <div class="flex items-end justify-between mb-4">
+        <div>
+          <span
+            class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1"
+            >Aktif Sorgu</span
+          >
+          <span
+            class="text-xl font-black font-outfit text-primary-500"
+            x-text="currentCategory"
+          ></span>
+        </div>
+        <div class="text-right">
+          <span
+            class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1"
+            >Sıra</span
+          >
+          <span
+            class="text-lg font-bold font-outfit text-slate-900 dark:text-white"
+            x-text="progress.current + ' / ' + progress.total"
+          ></span>
+        </div>
+      </div>
+      <div
+        class="h-4 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden p-1 shadow-inner"
+      >
+        <div
+          class="h-full bg-gradient-to-r from-emerald-500 to-primary-500 rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
+          :style="'width: ' + (progress.current / progress.total * 100) + '%'"
+        ></div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Inspection Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <template x-for="(data, key) in results" :key="key">
+      <div
+        class="group relative bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm hover:border-emerald-500/50 transition-premium overflow-hidden"
+      >
+        <!-- Status Indicator Glow -->
+        <div
+          class="absolute -right-8 -top-8 w-24 h-24 blur-3xl rounded-full opacity-20 transition-premium"
+          :class="data.status === 'success' ? 'bg-emerald-500' : (data.status === 'error' ? 'bg-rose-500' : 'bg-slate-400')"
+        ></div>
+
+        <div
+          class="relative z-10 flex flex-col justify-between h-full min-h-[8rem]"
+        >
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div
+                class="w-12 h-12 bg-slate-50 dark:bg-slate-900 rounded-2xl flex items-center justify-center text-2xl shadow-inner group-hover:scale-110 transition-premium"
+              >
+                <span x-show="key.includes('konut')">🏠</span>
+                <span x-show="key.includes('arsa')">🌳</span>
+                <span x-show="key.includes('isyeri')">🏢</span>
+                <span x-show="key.includes('bina')">🏗️</span>
+              </div>
+              <span
+                class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm border"
+                :class="{
+                       'bg-emerald-500/10 text-emerald-500 border-emerald-500/20': data.status === 'success',
+                       'bg-rose-500/10 text-rose-500 border-rose-500/20': data.status === 'error',
+                       'bg-slate-100 dark:bg-slate-900 text-slate-400 border-slate-200 dark:border-slate-700': data.status === 'pending'
+                     }"
+                x-text="data.status"
+              ></span>
+            </div>
+            <h3
+              class="text-sm font-black font-outfit text-slate-900 dark:text-white uppercase tracking-tighter"
+              x-text="getCategoryName(key)"
+            ></h3>
+          </div>
+
+          <div class="mt-6 flex flex-col gap-1">
+            <span
+              class="text-[9px] font-black text-slate-400 uppercase tracking-widest"
+              >Sahibinden Hacmi</span
+            >
+            <template x-if="data.count !== null">
+              <span
+                class="text-3xl font-black font-outfit text-emerald-600 dark:text-emerald-400"
+                x-text="data.count.toLocaleString('tr-TR')"
+              ></span>
+            </template>
+            <template x-if="data.count === null">
+              <span
+                class="text-3xl font-black font-outfit text-slate-200 dark:text-slate-700"
+                >---</span
+              >
+            </template>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Observation Window -->
+  <div
+    x-show="showIframe"
+    x-transition.opacity.duration.500ms
+    class="fixed inset-0 z-50 flex items-center justify-center p-6 lg:p-12 animate-fade-in"
+  >
+    <div
+      class="absolute inset-0 bg-slate-900/80 backdrop-blur-xl"
+      @click="showIframe = false"
+    ></div>
+    <div
+      class="relative w-full max-w-5xl h-full bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl border border-white/20 overflow-hidden animate-scale-in"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 px-8 py-5 border-b dark:border-slate-700 flex items-center justify-between"
+      >
+        <div>
+          <h3
+            class="text-lg font-black font-outfit text-slate-900 dark:text-white uppercase tracking-tighter"
+          >
+            Gözlem Penceresi
+          </h3>
+          <p
+            class="text-[10px] text-slate-500 uppercase font-black tracking-widest"
+          >
+            Canlı İframe Tüneli
+          </p>
+        </div>
+        <button
+          @click="showIframe = false"
+          class="p-2.5 bg-slate-100 dark:bg-slate-900 rounded-2xl hover:bg-rose-500 hover:text-white transition-premium"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+      </div>
+      <div class="w-full h-[calc(100%-80px)] bg-slate-50">
+        <iframe
+          id="sahibindenFrame"
+          class="w-full h-full border-none shadow-inner"
+          src="about:blank"
+        ></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  function sahibindenCheck() {
+    return {
+      checking: false,
+      showIframe: false,
+      currentUrl: "",
+      currentCategory: "",
+      progress: { current: 0, total: 7 },
+      results: {},
+
+      categories: {
+        konut_satilik:
+          "/proxy/sahibinden?url=https%3A%2F%2Fwww.sahibinden.com%2Fsatilik%2Fsakarya-hendek",
+        konut_kiralik:
+          "/proxy/sahibinden?url=https%3A%2F%2Fwww.sahibinden.com%2Fkiralik%2Fsakarya-hendek",
+        arsa_satilik:
+          "/proxy/sahibinden?url=https%3A%2F%2Fwww.sahibinden.com%2Farsa%2Fsakarya-hendek",
+        isyeri_satilik:
+          "/proxy/sahibinden?url=https%3A%2F%2Fwww.sahibinden.com%2Fsatilik-is-yeri%2Fsakarya-hendek",
+        isyeri_kiralik:
+          "/proxy/sahibinden?url=https%3A%2F%2Fwww.sahibinden.com%2Fkiralik-is-yeri%2Fsakarya-hendek",
+        bina_satilik:
+          "/proxy/sahibinden?url=https%3A%2F%2Fwww.sahibinden.com%2Fsatilik-bina%2Fsakarya-hendek",
+        bina_kiralik:
+          "/proxy/sahibinden?url=https%3A%2F%2Fwww.sahibinden.com%2Fkiralik-bina%2Fsakarya-hendek",
+      },
+
+      init() {
+        for (let key in this.categories) {
+          this.results[key] = { status: "pending", count: null };
+        }
+      },
+
+      async checkAllCategories() {
+        this.checking = true;
+        this.progress.current = 0;
+        for (let [key, url] of Object.entries(this.categories)) {
+          this.currentCategory = this.getCategoryName(key);
+          this.currentUrl = url;
+          try {
+            const count = await this.checkCategory(url);
+            this.results[key] = { status: "success", count: count };
+          } catch (error) {
+            console.error(`${key} hatası:`, error);
+            this.results[key] = { status: "error", count: null };
+          }
+          this.progress.current++;
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+        this.checking = false;
+        if (window.showToast)
+          window.showToast("Tüm kategoriler denetlendi!", "success");
+      },
+
+      async checkCategory(url) {
+        return new Promise((resolve, reject) => {
+          const iframe = document.getElementById("sahibindenFrame");
+          const timeout = setTimeout(() => reject(new Error("Timeout")), 15000);
+          const onLoad = () => {
+            try {
+              const iframeDoc =
+                iframe.contentDocument || iframe.contentWindow.document;
+              const searchCats = iframeDoc.getElementById(
+                "searchCategoryContainer",
+              );
+              if (searchCats) {
+                const spans = searchCats.getElementsByTagName("span");
+                for (let span of spans) {
+                  const text = span.textContent.trim();
+                  if (text.startsWith("(") && text.endsWith(")")) {
+                    const count = parseInt(text.replace(/[()]/g, ""));
+                    clearTimeout(timeout);
+                    iframe.removeEventListener("load", onLoad);
+                    resolve(count);
+                    return;
+                  }
+                }
+              }
+              clearTimeout(timeout);
+              iframe.removeEventListener("load", onLoad);
+              resolve(0);
+            } catch (error) {
+              clearTimeout(timeout);
+              iframe.removeEventListener("load", onLoad);
+              reject(error);
+            }
+          };
+          iframe.addEventListener("load", onLoad);
+          iframe.src = url;
+        });
+      },
+
+      getCategoryName(key) {
+        const names = {
+          konut_satilik: "Konut Satılık",
+          konut_kiralik: "Konut Kiralık",
+          arsa_satilik: "Arsa Satılık",
+          isyeri_satilik: "İşyeri Satılık",
+          isyeri_kiralik: "İşyeri Kiralık",
+          bina_satilik: "Bina Satılık",
+          bina_kiralik: "Bina Kiralık",
+        };
+        return names[key] || key;
+      },
+    };
+  }
+</script>
+<style>
+  [x-cloak] {
+    display: none !important;
+  }
+</style>
+{% endblock %}

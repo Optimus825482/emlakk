@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { listingDailyStats } from "@/db/schema/listing-analytics";
+import { listingDailyStats, listingViews } from "@/db/schema/listing-analytics";
 import { listings } from "@/db/schema";
 import { sql, desc, eq } from "drizzle-orm";
 
@@ -34,7 +34,6 @@ export async function GET(request: NextRequest) {
         const stats = await db
           .select({
             views: sql<number>`COALESCE(SUM(${listingDailyStats.views}), 0)`,
-            uniqueVisitors: sql<number>`COALESCE(SUM(${listingDailyStats.uniqueVisitors}), 0)`,
             phoneClicks: sql<number>`COALESCE(SUM(${listingDailyStats.phoneClicks}), 0)`,
             whatsappClicks: sql<number>`COALESCE(SUM(${listingDailyStats.whatsappClicks}), 0)`,
             emailClicks: sql<number>`COALESCE(SUM(${listingDailyStats.emailClicks}), 0)`,
@@ -45,6 +44,18 @@ export async function GET(request: NextRequest) {
           .from(listingDailyStats)
           .where(
             sql`${listingDailyStats.listingId} = ${listing.id} AND ${listingDailyStats.date} >= ${startDateStr}`
+          );
+
+        // Tekil ziyaretçi sayısı (listing_views'tan)
+        const [uniqueResult] = await db
+          .select({
+            count: sql<number>`COUNT(DISTINCT ${listingViews.visitorId})`,
+          })
+          .from(listingViews)
+          .where(
+            sql`${listingViews.listingId} = ${listing.id} AND ${
+              listingViews.viewedAt
+            } >= ${startDate.toISOString()}`
           );
 
         const data = stats[0] || {};
@@ -66,7 +77,7 @@ export async function GET(request: NextRequest) {
           slug: listing.slug,
           status: listing.status,
           views,
-          uniqueVisitors: Number(data.uniqueVisitors || 0),
+          uniqueVisitors: Number(uniqueResult?.count || 0),
           phoneClicks,
           whatsappClicks,
           emailClicks: Number(data.emailClicks || 0),

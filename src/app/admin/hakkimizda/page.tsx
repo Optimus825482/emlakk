@@ -119,12 +119,12 @@ export default function AdminHakkimizdaPage() {
   const saveFounder = async () => {
     setSaving(true);
     try {
-      console.log("Kaydedilen founder verisi:", founder);
       const response = await fetch("/api/about", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ founder }),
       });
+
 
       if (!response.ok) {
         const errorData = await response.json();

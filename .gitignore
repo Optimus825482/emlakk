@@ -42,3 +42,7 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# Chrome profiles (crawler)
+crwal4ai/uc_chrome_profile/
+**/uc_chrome_profile/

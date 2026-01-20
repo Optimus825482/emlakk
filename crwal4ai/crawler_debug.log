@@ -1,0 +1,111 @@
+2026-01-20 04:11:06,628 - INFO - ✅ Supabase bağlantısı kuruldu
+2026-01-20 04:11:07,746 - INFO - HTTP Request: GET https://cxeakfwtrlnjcjzvqdip.supabase.co/rest/v1/sahibinden_liste?select=id "HTTP/2 200 OK"
+2026-01-20 04:11:07,749 - INFO - 📥 1000 mevcut ID yüklendi
+2026-01-20 04:11:07,750 - INFO - 🚀 Chrome başlatılıyor...
+2026-01-20 04:11:07,750 - INFO - 📍 Chromium yolu: C:\Users\erkan\undetected-chromium\chromium\chrome-win\chrome.exe
+2026-01-20 04:11:07,750 - INFO - 📍 ChromeDriver yolu: C:\Users\erkan\chromedriver\win64-146.0.7643.0\chromedriver-win64\chromedriver.exe
+2026-01-20 04:11:07,750 - INFO - ⏳ Yöntem 1: Auto version detection (önerilen)...
+Traceback (most recent call last):
+  File "C:\Python313\Lib\http\client.py", line 1430, in getresponse
+    response.begin()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\http\client.py", line 331, in begin
+    version, status, reason = self._read_status()
+                              ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\http\client.py", line 292, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\socket.py", line 719, in readinto
+    return self._sock.recv_into(b)
+           ~~~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] Varolan bir bağlantı uzaktaki bir ana bilgisayar tarafından zorla kapatıldı
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\demir\yy\demir-gayrimenkul\crwal4ai\admin_remix\..\sahibinden_uc_batch_supabase.py", line 1674, in <module>
+    crawler.start_browser()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\demir\yy\demir-gayrimenkul\crwal4ai\admin_remix\..\sahibinden_uc_batch_supabase.py", line 596, in start_browser
+    self.driver = uc.Chrome(
+                  ~~~~~~~~~^
+        options=options,
+        ^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+        log_level=3,
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 466, in __init__
+    super(Chrome, self).__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        service=service,
+        ^^^^^^^^^^^^^^^^
+        options=options,
+        ^^^^^^^^^^^^^^^^
+        keep_alive=keep_alive,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\chrome\webdriver.py", line 46, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        browser_name=DesiredCapabilities.CHROME["browserName"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        keep_alive=keep_alive,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\chromium\webdriver.py", line 67, in __init__
+    super().__init__(command_executor=executor, options=options)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 257, in __init__
+    self.start_session(capabilities)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 724, in start_session
+    super(selenium.webdriver.chrome.webdriver.WebDriver, self).start_session(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        capabilities
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 352, in start_session
+    response = self.execute(Command.NEW_SESSION, caps)["value"]
+               ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 429, in execute
+    response = cast(RemoteConnection, self.command_executor).execute(driver_command, params)
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\remote_connection.py", line 405, in execute
+    return self._request(command_info[0], url, body=data)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\remote_connection.py", line 429, in _request
+    response = self._conn.request(method, url, body=body, headers=headers, timeout=self._client_config.timeout)
+  File "C:\Python313\Lib\site-packages\urllib3\_request_methods.py", line 143, in request
+    return self.request_encode_body(
+           ~~~~~~~~~~~~~~~~~~~~~~~~^
+        method, url, fields=fields, headers=headers, **urlopen_kw
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\urllib3\_request_methods.py", line 278, in request_encode_body
+    return self.urlopen(method, url, **extra_kw)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\urllib3\poolmanager.py", line 457, in urlopen
+    response = conn.urlopen(method, u.request_uri, **kw)
+  File "C:\Python313\Lib\site-packages\urllib3\connectionpool.py", line 787, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "C:\Python313\Lib\site-packages\urllib3\connectionpool.py", line 534, in _make_request
+    response = conn.getresponse()
+  File "C:\Python313\Lib\site-packages\urllib3\connection.py", line 571, in getresponse
+    httplib_response = super().getresponse()
+  File "C:\Python313\Lib\http\client.py", line 1432, in getresponse
+    self.close()
+    ~~~~~~~~~~^^
+  File "C:\Python313\Lib\site-packages\urllib3\connection.py", line 375, in close
+    def close(self) -> None:
+    
+KeyboardInterrupt

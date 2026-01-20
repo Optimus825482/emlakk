@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { listingDailyStats } from "@/db/schema/listing-analytics";
+import { listingDailyStats, listingViews } from "@/db/schema/listing-analytics";
 import { listings } from "@/db/schema";
 import { sql, desc, eq } from "drizzle-orm";
 
@@ -15,16 +15,23 @@ export async function GET() {
     startDate.setDate(startDate.getDate() - 30);
     const startDateStr = startDate.toISOString().split("T")[0];
 
-    // Toplam metrikler
+    // Toplam metrikler (daily stats'tan)
     const [totals] = await db
       .select({
         totalViews: sql<number>`COALESCE(SUM(${listingDailyStats.views}), 0)`,
-        totalUniqueVisitors: sql<number>`COALESCE(SUM(${listingDailyStats.uniqueVisitors}), 0)`,
         totalPhoneClicks: sql<number>`COALESCE(SUM(${listingDailyStats.phoneClicks}), 0)`,
         totalWhatsappClicks: sql<number>`COALESCE(SUM(${listingDailyStats.whatsappClicks}), 0)`,
       })
       .from(listingDailyStats)
       .where(sql`${listingDailyStats.date} >= ${startDateStr}`);
+
+    // Tekil ziyaretçi sayısı (listing_views'tan distinct visitor_id)
+    const [uniqueResult] = await db
+      .select({
+        count: sql<number>`COUNT(DISTINCT ${listingViews.visitorId})`,
+      })
+      .from(listingViews)
+      .where(sql`${listingViews.viewedAt} >= ${startDate.toISOString()}`);
 
     // En çok görüntülenen ilanlar
     const topListingsData = await db
@@ -58,7 +65,7 @@ export async function GET() {
 
     return NextResponse.json({
       totalViews: Number(totals?.totalViews || 0),
-      totalUniqueVisitors: Number(totals?.totalUniqueVisitors || 0),
+      totalUniqueVisitors: Number(uniqueResult?.count || 0),
       totalPhoneClicks: Number(totals?.totalPhoneClicks || 0),
       totalWhatsappClicks: Number(totals?.totalWhatsappClicks || 0),
       topListings,

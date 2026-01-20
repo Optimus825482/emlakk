@@ -60,6 +60,57 @@ export async function PATCH(
   }
 }
 
+// PUT - İçerik oluştur veya güncelle (upsert)
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ key: string }> }
+) {
+  try {
+    const { key } = await params;
+    const body = await request.json();
+
+    // Önce mevcut içeriği kontrol et
+    const [existing] = await db
+      .select()
+      .from(contentSections)
+      .where(eq(contentSections.key, key))
+      .limit(1);
+
+    let result;
+
+    if (existing) {
+      // Güncelle
+      [result] = await db
+        .update(contentSections)
+        .set({
+          data: body.data,
+          updatedAt: new Date(),
+        })
+        .where(eq(contentSections.key, key))
+        .returning();
+    } else {
+      // Yeni oluştur
+      [result] = await db
+        .insert(contentSections)
+        .values({
+          key,
+          type: "page",
+          data: body.data,
+          isActive: true,
+        })
+        .returning();
+    }
+
+    return NextResponse.json({ data: result });
+  } catch (error) {
+    console.error("Content PUT error:", error);
+    return NextResponse.json(
+      { error: "İçerik kaydedilemedi" },
+      { status: 500 }
+    );
+  }
+}
+
 // DELETE - İçerik sil
 export async function DELETE(
   request: NextRequest,

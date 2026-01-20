@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { withAdmin } from "@/lib/api-auth";
 
-/**
- * GET /api/settings
- * Get site settings (returns first row or creates default)
- */
 export async function GET() {
   try {
     let [settings] = await db.select().from(siteSettings).limit(1);
@@ -47,15 +44,10 @@ export async function GET() {
   }
 }
 
-/**
- * PATCH /api/settings
- * Update site settings
- */
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
 
-    // Get existing settings
     const [existing] = await db.select().from(siteSettings).limit(1);
 
     if (!existing) {
@@ -65,7 +57,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Update
     const [updated] = await db
       .update(siteSettings)
       .set({
@@ -86,4 +77,4 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

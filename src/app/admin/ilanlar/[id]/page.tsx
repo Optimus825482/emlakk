@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { MultiImageUpload } from "@/components/ui/multi-image-upload";
+import { ListingAIAssistant } from "@/components/admin/ListingAIAssistant";
 
 type ListingType = "sanayi" | "tarim" | "konut" | "ticari" | "arsa";
 type TransactionType = "sale" | "rent";
@@ -212,6 +213,26 @@ export default function EditIlanPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<
+    "instagram" | "twitter" | "linkedin" | "facebook"
+  >("instagram");
+  const [generatedContent, setGeneratedContent] = useState<{
+    content: string;
+    hashtags: string[];
+    seoTags: string[];
+  } | null>(null);
+  const [showContentModal, setShowContentModal] = useState(false);
+  const [isResearching, setIsResearching] = useState(false);
+  const [marketResearch, setMarketResearch] = useState<{
+    summary: string;
+    priceAnalysis: { trend: string; averageRange: string };
+    demandAnalysis: { level: string; hotAreas: string[] };
+    opportunities: string[];
+    recommendations: string[];
+    source: string;
+  } | null>(null);
+  const [showResearchModal, setShowResearchModal] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     title: "",
@@ -478,7 +499,7 @@ export default function EditIlanPage({ params }: PageProps) {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
@@ -512,6 +533,99 @@ export default function EditIlanPage({ params }: PageProps) {
       alert("AI açıklama üretilirken hata oluştu.");
     } finally {
       setIsGeneratingAI(false);
+    }
+  };
+
+  // Content Agent - Sosyal medya içerik üretimi
+  const generateSocialContent = async () => {
+    if (!formData.title || !formData.price) {
+      alert("İçerik üretmek için en az başlık ve fiyat gereklidir.");
+      return;
+    }
+    setIsGeneratingContent(true);
+    setGeneratedContent(null);
+    try {
+      const response = await fetch("/api/ai/content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingTitle: formData.title,
+          listingDescription: formData.description,
+          price: parseInt(formData.price),
+          location: `${formData.neighborhood || ""} ${
+            formData.district
+          }`.trim(),
+          propertyType: formData.type,
+          platform: selectedPlatform,
+          features: [
+            formData.area ? `${formData.area} m²` : null,
+            formData.rooms ? `${formData.rooms} oda` : null,
+            formData.zoningStatus || null,
+          ].filter(Boolean),
+        }),
+      });
+      if (!response.ok) throw new Error("İçerik üretilemedi");
+      const data = await response.json();
+      setGeneratedContent({
+        content: data.content,
+        hashtags: data.hashtags,
+        seoTags: data.seoTags,
+      });
+      setShowContentModal(true);
+    } catch (error) {
+      console.error("Content Agent hatası:", error);
+      alert("İçerik üretilirken hata oluştu. AI servisi çalışıyor mu?");
+    } finally {
+      setIsGeneratingContent(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Panoya kopyalandı!");
+  };
+
+  // Pazar Araştırması - demir_crew entegrasyonu
+  const runMarketResearch = async () => {
+    setIsResearching(true);
+    setMarketResearch(null);
+    try {
+      const response = await fetch("/api/ai/market-research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          region:
+            `${formData.neighborhood || ""} ${formData.district}`.trim() ||
+            "Hendek, Sakarya",
+          propertyType: formData.type,
+          focusAreas: ["fiyat", "trend", "talep", "rekabet"],
+          mode: "auto",
+        }),
+      });
+
+      if (!response.ok) throw new Error("Araştırma yapılamadı");
+      const data = await response.json();
+
+      setMarketResearch({
+        summary: data.analysis?.summary || "Analiz tamamlandı",
+        priceAnalysis: data.analysis?.priceAnalysis || {
+          trend: "-",
+          averageRange: "-",
+        },
+        demandAnalysis: data.analysis?.demandAnalysis || {
+          level: "orta",
+          hotAreas: [],
+        },
+        opportunities: data.analysis?.opportunities || [],
+        recommendations: data.analysis?.recommendations || [],
+        source: data.source || "unknown",
+      });
+      setShowResearchModal(true);
+    } catch (error) {
+      console.error("Pazar araştırması hatası:", error);
+      alert("Pazar araştırması yapılırken hata oluştu.");
+    } finally {
+      setIsResearching(false);
     }
   };
 
@@ -1846,6 +1960,430 @@ export default function EditIlanPage({ params }: PageProps) {
           />
         </div>
 
+        {/* 🤖 Content Agent - Sosyal Medya İçerik Üretimi */}
+        <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg p-6">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <Icon name="auto_awesome" className="text-purple-400" />
+            AI Content Agent - Sosyal Medya İçeriği
+          </h3>
+          <p className="text-slate-400 text-sm mb-4">
+            Bu ilan için otomatik sosyal medya paylaşım içeriği oluşturun
+          </p>
+
+          <div className="flex flex-wrap gap-3 mb-4">
+            {[
+              {
+                id: "instagram",
+                label: "Instagram",
+                icon: "photo_camera",
+                color: "pink",
+              },
+              {
+                id: "twitter",
+                label: "Twitter/X",
+                icon: "alternate_email",
+                color: "sky",
+              },
+              {
+                id: "linkedin",
+                label: "LinkedIn",
+                icon: "work",
+                color: "blue",
+              },
+              {
+                id: "facebook",
+                label: "Facebook",
+                icon: "groups",
+                color: "indigo",
+              },
+            ].map((platform) => (
+              <button
+                key={platform.id}
+                type="button"
+                onClick={() =>
+                  setSelectedPlatform(platform.id as typeof selectedPlatform)
+                }
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+                  selectedPlatform === platform.id
+                    ? `bg-${platform.color}-500/20 border-${platform.color}-500/50 text-${platform.color}-400`
+                    : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600"
+                }`}
+              >
+                <Icon name={platform.icon} className="text-sm" />
+                {platform.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={generateSocialContent}
+            disabled={isGeneratingContent || !formData.title}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
+          >
+            {isGeneratingContent ? (
+              <>
+                <Icon name="hourglass_empty" className="animate-pulse" />
+                İçerik Üretiliyor...
+              </>
+            ) : (
+              <>
+                <Icon name="auto_fix_high" />
+                {selectedPlatform.charAt(0).toUpperCase() +
+                  selectedPlatform.slice(1)}{" "}
+                İçeriği Üret
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Content Modal */}
+        {showContentModal && generatedContent && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-slate-700 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <Icon name="auto_awesome" className="text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      {selectedPlatform.charAt(0).toUpperCase() +
+                        selectedPlatform.slice(1)}{" "}
+                      İçeriği
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      AI Content Agent tarafından üretildi
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowContentModal(false)}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg"
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Content */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-slate-300">
+                      Paylaşım Metni
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyToClipboard(
+                          generatedContent.content +
+                            "\n\n" +
+                            generatedContent.hashtags
+                              .map((h) => `#${h}`)
+                              .join(" "),
+                        )
+                      }
+                      className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                    >
+                      <Icon name="content_copy" className="text-sm" /> Tümünü
+                      Kopyala
+                    </button>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+                    <p className="text-white whitespace-pre-wrap">
+                      {generatedContent.content}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Hashtags */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-slate-300">
+                      Hashtag&apos;ler
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        copyToClipboard(
+                          generatedContent.hashtags
+                            .map((h) => `#${h}`)
+                            .join(" "),
+                        )
+                      }
+                      className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                    >
+                      <Icon name="content_copy" className="text-sm" /> Kopyala
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {generatedContent.hashtags.map((tag, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SEO Tags */}
+                <div>
+                  <label className="text-sm font-medium text-slate-300 block mb-2">
+                    SEO Etiketleri
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {generatedContent.seoTags.map((tag, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4 border-t border-slate-700">
+                  <button
+                    type="button"
+                    onClick={generateSocialContent}
+                    disabled={isGeneratingContent}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <Icon name="refresh" /> Yeniden Üret
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowContentModal(false)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-purple-500 hover:bg-purple-400 text-white rounded-lg font-bold transition-colors"
+                  >
+                    <Icon name="check" /> Tamam
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 📊 Pazar Araştırması - demir_crew entegrasyonu */}
+        <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30 rounded-lg p-6">
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <Icon name="insights" className="text-cyan-400" />
+            Pazar Araştırması - Sosyal Medya Analizi
+          </h3>
+          <p className="text-slate-400 text-sm mb-4">
+            {formData.district || "Hendek"} bölgesi için sosyal medya ve emlak
+            sitelerinden güncel pazar analizi yapın
+          </p>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={runMarketResearch}
+              disabled={isResearching}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20"
+            >
+              {isResearching ? (
+                <>
+                  <Icon name="sync" className="animate-spin" />
+                  Araştırılıyor...
+                </>
+              ) : (
+                <>
+                  <Icon name="travel_explore" />
+                  Pazar Analizi Yap
+                </>
+              )}
+            </button>
+
+            {marketResearch && (
+              <button
+                type="button"
+                onClick={() => setShowResearchModal(true)}
+                className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+              >
+                <Icon name="visibility" />
+                Son Raporu Göster
+              </button>
+            )}
+          </div>
+
+          {marketResearch && (
+            <div className="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+              <p className="text-xs text-slate-500 mb-1">Son Analiz Özeti:</p>
+              <p className="text-slate-300 text-sm line-clamp-2">
+                {marketResearch.summary}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Market Research Modal */}
+        {showResearchModal && marketResearch && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-slate-700 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                    <Icon name="insights" className="text-cyan-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">
+                      {formData.district || "Hendek"} Pazar Analizi
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {marketResearch.source === "demir_crew"
+                        ? "CrewAI Multi-Agent Analizi"
+                        : "AI Miner Agent Analizi"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowResearchModal(false)}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg"
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Summary */}
+                <div>
+                  <h4 className="text-sm font-bold text-cyan-400 mb-2 flex items-center gap-2">
+                    <Icon name="summarize" className="text-sm" /> Özet
+                  </h4>
+                  <p className="text-white">{marketResearch.summary}</p>
+                </div>
+
+                {/* Price Analysis */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-900 rounded-lg p-4">
+                    <p className="text-xs text-slate-500 mb-1">Fiyat Trendi</p>
+                    <p
+                      className={`text-lg font-bold ${
+                        marketResearch.priceAnalysis.trend === "yükseliş"
+                          ? "text-emerald-400"
+                          : marketResearch.priceAnalysis.trend === "düşüş"
+                            ? "text-red-400"
+                            : "text-slate-300"
+                      }`}
+                    >
+                      {marketResearch.priceAnalysis.trend === "yükseliş" &&
+                        "↗️ "}
+                      {marketResearch.priceAnalysis.trend === "düşüş" && "↘️ "}
+                      {marketResearch.priceAnalysis.trend}
+                    </p>
+                  </div>
+                  <div className="bg-slate-900 rounded-lg p-4">
+                    <p className="text-xs text-slate-500 mb-1">
+                      Talep Seviyesi
+                    </p>
+                    <p
+                      className={`text-lg font-bold ${
+                        marketResearch.demandAnalysis.level === "yüksek"
+                          ? "text-emerald-400"
+                          : marketResearch.demandAnalysis.level === "düşük"
+                            ? "text-orange-400"
+                            : "text-slate-300"
+                      }`}
+                    >
+                      {marketResearch.demandAnalysis.level}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Hot Areas */}
+                {marketResearch.demandAnalysis.hotAreas.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-orange-400 mb-2 flex items-center gap-2">
+                      <Icon name="local_fire_department" className="text-sm" />{" "}
+                      Yüksek Talep Bölgeleri
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {marketResearch.demandAnalysis.hotAreas.map((area, i) => (
+                        <span
+                          key={i}
+                          className="px-3 py-1 bg-orange-500/20 text-orange-300 rounded-full text-sm"
+                        >
+                          {area}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Opportunities */}
+                {marketResearch.opportunities.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-400 mb-2 flex items-center gap-2">
+                      <Icon name="lightbulb" className="text-sm" /> Fırsatlar
+                    </h4>
+                    <ul className="space-y-2">
+                      {marketResearch.opportunities.map((opp, i) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-2 text-slate-300"
+                        >
+                          <Icon
+                            name="check_circle"
+                            className="text-emerald-400 text-sm mt-0.5"
+                          />
+                          {opp}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Recommendations */}
+                {marketResearch.recommendations.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-blue-400 mb-2 flex items-center gap-2">
+                      <Icon name="recommend" className="text-sm" /> Öneriler
+                    </h4>
+                    <ul className="space-y-2">
+                      {marketResearch.recommendations.map((rec, i) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-2 text-slate-300"
+                        >
+                          <Icon
+                            name="arrow_forward"
+                            className="text-blue-400 text-sm mt-0.5"
+                          />
+                          {rec}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4 border-t border-slate-700">
+                  <button
+                    type="button"
+                    onClick={runMarketResearch}
+                    disabled={isResearching}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <Icon name="refresh" /> Yeniden Analiz Et
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowResearchModal(false)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg font-bold transition-colors"
+                  >
+                    <Icon name="check" /> Tamam
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* SEO & Seçenekler */}
         <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -1914,6 +2452,14 @@ export default function EditIlanPage({ params }: PageProps) {
           </button>
         </div>
       </form>
+
+      {/* AI Co-pilot Assistant */}
+      <ListingAIAssistant
+        listingData={formData}
+        onUpdateField={(name, value) => {
+          setFormData((prev) => ({ ...prev, [name]: value }));
+        }}
+      />
     </div>
   );
 }

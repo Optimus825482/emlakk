@@ -1,17 +1,10 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-/**
- * Tailwind CSS class merger utility
- * Combines clsx and tailwind-merge for optimal class handling
- */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/**
- * Format price to Turkish Lira
- */
 export function formatPrice(price: number | string): string {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
   return new Intl.NumberFormat("tr-TR", {
@@ -22,16 +15,10 @@ export function formatPrice(price: number | string): string {
   }).format(numPrice);
 }
 
-/**
- * Format area with m² suffix
- */
 export function formatArea(area: number): string {
   return `${new Intl.NumberFormat("tr-TR").format(area)}m²`;
 }
 
-/**
- * Generate slug from Turkish text
- */
 export function slugify(text: string): string {
   const turkishMap: Record<string, string> = {
     ç: "c",
@@ -59,9 +46,6 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-/**
- * Calculate price per square meter
- */
 export function calculatePricePerSqm(
   price: number | string,
   area: number
@@ -70,17 +54,11 @@ export function calculatePricePerSqm(
   return Math.round(numPrice / area);
 }
 
-/**
- * Truncate text with ellipsis
- */
 export function truncate(text: string, length: number): string {
   if (text.length <= length) return text;
   return text.slice(0, length).trim() + "...";
 }
 
-/**
- * Format date to Turkish locale
- */
 export function formatDate(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat("tr-TR", {
@@ -90,9 +68,6 @@ export function formatDate(date: Date | string): string {
   }).format(d);
 }
 
-/**
- * Format relative time (e.g., "2 gün önce")
- */
 export function formatRelativeTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   const now = new Date();
@@ -107,9 +82,6 @@ export function formatRelativeTime(date: Date | string): string {
   return `${Math.floor(diffDays / 365)} yıl önce`;
 }
 
-/**
- * Listing type labels in Turkish
- */
 export const listingTypeLabels: Record<string, string> = {
   sanayi: "Sanayi",
   tarim: "Tarım",
@@ -117,9 +89,6 @@ export const listingTypeLabels: Record<string, string> = {
   ticari: "Ticari",
 };
 
-/**
- * Listing status labels in Turkish
- */
 export const listingStatusLabels: Record<string, string> = {
   active: "Aktif",
   sold: "Satıldı",
@@ -127,10 +96,37 @@ export const listingStatusLabels: Record<string, string> = {
   draft: "Taslak",
 };
 
-/**
- * Transaction type labels in Turkish
- */
 export const transactionTypeLabels: Record<string, string> = {
   sale: "Satılık",
   rent: "Kiralık",
 };
+
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: {
+    retries?: number;
+    backoff?: number;
+    factor?: number;
+    onRetry?: (error: unknown, attempt: number) => void;
+  } = {}
+): Promise<T> {
+  const { retries = 3, backoff = 500, factor = 2, onRetry } = options;
+
+  let lastError: unknown;
+  let currentBackoff = backoff;
+
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt <= retries) {
+        if (onRetry) onRetry(error, attempt);
+        await new Promise((resolve) => setTimeout(resolve, currentBackoff));
+        currentBackoff *= factor;
+      }
+    }
+  }
+
+  throw lastError;
+}

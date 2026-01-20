@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { systemSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { withAdmin } from "@/lib/api-auth";
 
-/**
- * GET /api/system-settings
- * Get system settings (returns first row or creates default)
- */
-export async function GET() {
+export const GET = withAdmin(async () => {
   try {
     let [settings] = await db.select().from(systemSettings).limit(1);
 
@@ -37,21 +34,15 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
+});
 
-/**
- * PATCH /api/system-settings
- * Update system settings
- */
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
 
-    // Get existing settings
     let [existing] = await db.select().from(systemSettings).limit(1);
 
     if (!existing) {
-      // Create if not exists
       [existing] = await db
         .insert(systemSettings)
         .values({
@@ -61,7 +52,6 @@ export async function PATCH(request: NextRequest) {
         .returning();
     }
 
-    // Prepare update data
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
     };
@@ -74,14 +64,13 @@ export async function PATCH(request: NextRequest) {
     }
     if (body.aiApiKey !== undefined) {
       updateData.aiApiKey = body.aiApiKey;
-      updateData.aiApiKeyValid = false; // Reset validation when key changes
+      updateData.aiApiKeyValid = false;
     }
     if (body.aiApiKeyValid !== undefined) {
       updateData.aiApiKeyValid = body.aiApiKeyValid;
       updateData.aiApiKeyLastChecked = new Date();
     }
 
-    // Update
     const [updated] = await db
       .update(systemSettings)
       .set(updateData)
@@ -103,7 +92,7 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 function maskApiKey(key: string): string {
   if (key.length <= 8) return "****";

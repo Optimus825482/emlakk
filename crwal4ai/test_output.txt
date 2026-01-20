@@ -1,0 +1,259 @@
+2026-01-20 02:52:18,951 - INFO - 
+############################################################
+2026-01-20 02:52:18,951 - INFO - # CHROME DIAGNOSTIC SCRIPT
+2026-01-20 02:52:18,952 - INFO - ############################################################
+2026-01-20 02:52:18,952 - INFO - 
+============================================================
+2026-01-20 02:52:18,952 - INFO - TEST 1: Basic Selenium Chrome (no undetected_chromedriver)
+2026-01-20 02:52:18,952 - INFO - ============================================================
+2026-01-20 02:52:19,268 - INFO - ✓ Selenium imported successfully
+2026-01-20 02:52:19,268 - INFO - ✓ Chrome options set
+2026-01-20 02:52:19,268 - INFO - ✓ Binary path: C:\Users\erkan\undetected-chromium\chromium\chrome-win\chrome.exe
+2026-01-20 02:52:19,268 - INFO - ✓ Driver path: C:\Users\erkan\chromedriver\win64-146.0.7643.0\chromedriver-win64\chromedriver.exe
+2026-01-20 02:52:19,268 - INFO - ⏳ Starting Chrome with basic Selenium...
+2026-01-20 02:52:20,625 - INFO - ✅ Chrome started successfully!
+2026-01-20 02:52:20,670 - INFO - ✓ Current URL: data:,
+2026-01-20 02:52:22,670 - INFO - ⏳ Navigating to test URL...
+2026-01-20 02:52:23,052 - INFO - ✅ Page loaded: Bir dakika lütfen...
+2026-01-20 02:52:23,058 - INFO - ✓ Page URL: https://www.sahibinden.com/satilik-arsa/sakarya-hendek?pagingSize=50&sorting=date_desc
+2026-01-20 02:52:28,188 - INFO - ✅ Chrome closed successfully
+2026-01-20 02:52:28,188 - INFO - 
+============================================================
+2026-01-20 02:52:28,188 - INFO - TEST 2: undetected_chromedriver (auto version)
+2026-01-20 02:52:28,188 - INFO - ============================================================
+2026-01-20 02:52:28,417 - INFO - ✓ undetected_chromedriver imported
+2026-01-20 02:52:28,417 - INFO - ✓ Options configured
+2026-01-20 02:52:28,417 - INFO - ⏳ Starting Chrome with undetected_chromedriver (auto version)...
+2026-01-20 02:52:31,763 - ERROR - ❌ undetected_chromedriver auto test failed: Message: session not created: cannot connect to chrome at 127.0.0.1:59316
+from session not created: This version of ChromeDriver only supports Chrome version 143
+Current browser version is 146.0.7644.0; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x511213
+	0x511254
+	0x2fe6dd
+	0x33a958
+	0x339992
+	0x32fbe5
+	0x32fa16
+	0x377826
+	0x377047
+	0x36b2e6
+	0x33d321
+	0x33e1d4
+	0x765254
+	0x76080b
+	0x77d0ea
+	0x52b118
+	0x53311d
+	0x519518
+	0x5196d9
+	0x503a68
+	0x76167ba9
+	0x7744c3ab
+	0x7744c32f
+
+Traceback (most recent call last):
+  File "D:\demir\yy\demir-gayrimenkul\crwal4ai\test_chrome_diagnostic.py", line 95, in test_undetected_basic
+    driver = uc.Chrome(options=options, version_main=None, use_subprocess=False)
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 466, in __init__
+    super(Chrome, self).__init__(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        service=service,
+        ^^^^^^^^^^^^^^^^
+        options=options,
+        ^^^^^^^^^^^^^^^^
+        keep_alive=keep_alive,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\chrome\webdriver.py", line 46, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        browser_name=DesiredCapabilities.CHROME["browserName"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        keep_alive=keep_alive,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\chromium\webdriver.py", line 67, in __init__
+    super().__init__(command_executor=executor, options=options)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 257, in __init__
+    self.start_session(capabilities)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 724, in start_session
+    super(selenium.webdriver.chrome.webdriver.WebDriver, self).start_session(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        capabilities
+        ^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 352, in start_session
+    response = self.execute(Command.NEW_SESSION, caps)["value"]
+               ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 432, in execute
+    self.error_handler.check_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 232, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.SessionNotCreatedException: Message: session not created: cannot connect to chrome at 127.0.0.1:59316
+from session not created: This version of ChromeDriver only supports Chrome version 143
+Current browser version is 146.0.7644.0; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+Symbols not available. Dumping unresolved backtrace:
+	0x511213
+	0x511254
+	0x2fe6dd
+	0x33a958
+	0x339992
+	0x32fbe5
+	0x32fa16
+	0x377826
+	0x377047
+	0x36b2e6
+	0x33d321
+	0x33e1d4
+	0x765254
+	0x76080b
+	0x77d0ea
+	0x52b118
+	0x53311d
+	0x519518
+	0x5196d9
+	0x503a68
+	0x76167ba9
+	0x7744c3ab
+	0x7744c32f
+
+2026-01-20 02:52:31,768 - INFO - 
+============================================================
+2026-01-20 02:52:31,768 - INFO - TEST 3: undetected_chromedriver (manual driver 146)
+2026-01-20 02:52:31,768 - INFO - ============================================================
+2026-01-20 02:52:31,768 - INFO - ✓ undetected_chromedriver imported
+2026-01-20 02:52:31,768 - INFO - ✓ Options configured
+2026-01-20 02:52:31,768 - INFO - ✓ Manual driver path: C:\Users\erkan\chromedriver\win64-146.0.7643.0\chromedriver-win64\chromedriver.exe
+2026-01-20 02:52:31,768 - INFO - ⏳ Starting Chrome with undetected_chromedriver (manual driver 146)...
+2026-01-20 02:52:33,067 - INFO - ✅ Chrome started successfully!
+2026-01-20 02:52:33,089 - INFO - ✓ Current URL: chrome://new-tab-page/
+2026-01-20 02:52:35,090 - INFO - ⏳ Navigating to test URL...
+2026-01-20 02:52:35,382 - INFO - ✅ Page loaded: Bir dakika lütfen...
+2026-01-20 02:52:35,388 - INFO - ✓ Page URL: https://www.sahibinden.com/satilik-arsa/sakarya-hendek?pagingSize=50&sorting=date_desc
+2026-01-20 02:52:42,345 - INFO - ✅ Page content loaded (found expected elements)
+2026-01-20 02:52:44,501 - INFO - ✅ Chrome closed successfully
+2026-01-20 02:52:44,501 - INFO - 
+============================================================
+2026-01-20 02:52:44,501 - INFO - TEST 4: ChromeDriver Version Check
+2026-01-20 02:52:44,501 - INFO - ============================================================
+2026-01-20 02:52:44,501 - INFO - Checking ChromeDriver: C:\Users\erkan\chromedriver\win64-146.0.7643.0\chromedriver-win64\chromedriver.exe
+2026-01-20 02:52:47,667 - ERROR - ❌ Version check failed: Message: session not created: This version of ChromeDriver only supports Chrome version 146
+Current browser version is 144.0.7559.60 with binary path C:\Program Files\Google\Chrome\Application\chrome.exe; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x7ff6cddd10f5+14745]
+	chromedriver!GetHandleVerifier [0x7ff6cddd1160+147b0]
+	chromedriver!(No symbol) [0x7ff6cdb3d76d]
+	chromedriver!(No symbol) [0x7ff6cdb85a2d]
+	chromedriver!(No symbol) [0x7ff6cdb84775]
+	chromedriver!(No symbol) [0x7ff6cdb7ec90]
+	chromedriver!(No symbol) [0x7ff6cdb795c9]
+	chromedriver!(No symbol) [0x7ff6cdbcfad1]
+	chromedriver!(No symbol) [0x7ff6cdbcf336]
+	chromedriver!(No symbol) [0x7ff6cdb89088]
+	chromedriver!(No symbol) [0x7ff6cdb89f73]
+	chromedriver!GetHandleVerifier [0x7ff6ce0ca580+30dbd0]
+	chromedriver!GetHandleVerifier [0x7ff6ce0c4c4d+30829d]
+	chromedriver!GetHandleVerifier [0x7ff6ce0e46da+327d2a]
+	chromedriver!GetHandleVerifier [0x7ff6cdded205+30855]
+	chromedriver!GetHandleVerifier [0x7ff6cddf63ec+39a3c]
+	chromedriver!GetHandleVerifier [0x7ff6cddda4f4+1db44]
+	chromedriver!GetHandleVerifier [0x7ff6cddda6a6+1dcf6]
+	chromedriver!GetHandleVerifier [0x7ff6cddbf4b7+2b07]
+	KERNEL32!BaseThreadInitThunk [0x7ff880da259d+1d]
+	ntdll!RtlUserThreadStart [0x7ff881c8af78+28]
+
+Traceback (most recent call last):
+  File "D:\demir\yy\demir-gayrimenkul\crwal4ai\test_chrome_diagnostic.py", line 212, in test_chromedriver_version
+    driver = webdriver.Chrome(service=service)
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\chrome\webdriver.py", line 46, in __init__
+    super().__init__(
+    ~~~~~~~~~~~~~~~~^
+        browser_name=DesiredCapabilities.CHROME["browserName"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        keep_alive=keep_alive,
+        ^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\chromium\webdriver.py", line 67, in __init__
+    super().__init__(command_executor=executor, options=options)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 257, in __init__
+    self.start_session(capabilities)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 352, in start_session
+    response = self.execute(Command.NEW_SESSION, caps)["value"]
+               ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\webdriver.py", line 432, in execute
+    self.error_handler.check_response(response)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 232, in check_response
+    raise exception_class(message, screen, stacktrace)
+selenium.common.exceptions.SessionNotCreatedException: Message: session not created: This version of ChromeDriver only supports Chrome version 146
+Current browser version is 144.0.7559.60 with binary path C:\Program Files\Google\Chrome\Application\chrome.exe; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+	chromedriver!GetHandleVerifier [0x7ff6cddd10f5+14745]
+	chromedriver!GetHandleVerifier [0x7ff6cddd1160+147b0]
+	chromedriver!(No symbol) [0x7ff6cdb3d76d]
+	chromedriver!(No symbol) [0x7ff6cdb85a2d]
+	chromedriver!(No symbol) [0x7ff6cdb84775]
+	chromedriver!(No symbol) [0x7ff6cdb7ec90]
+	chromedriver!(No symbol) [0x7ff6cdb795c9]
+	chromedriver!(No symbol) [0x7ff6cdbcfad1]
+	chromedriver!(No symbol) [0x7ff6cdbcf336]
+	chromedriver!(No symbol) [0x7ff6cdb89088]
+	chromedriver!(No symbol) [0x7ff6cdb89f73]
+	chromedriver!GetHandleVerifier [0x7ff6ce0ca580+30dbd0]
+	chromedriver!GetHandleVerifier [0x7ff6ce0c4c4d+30829d]
+	chromedriver!GetHandleVerifier [0x7ff6ce0e46da+327d2a]
+	chromedriver!GetHandleVerifier [0x7ff6cdded205+30855]
+	chromedriver!GetHandleVerifier [0x7ff6cddf63ec+39a3c]
+	chromedriver!GetHandleVerifier [0x7ff6cddda4f4+1db44]
+	chromedriver!GetHandleVerifier [0x7ff6cddda6a6+1dcf6]
+	chromedriver!GetHandleVerifier [0x7ff6cddbf4b7+2b07]
+	KERNEL32!BaseThreadInitThunk [0x7ff880da259d+1d]
+	ntdll!RtlUserThreadStart [0x7ff881c8af78+28]
+
+2026-01-20 02:52:47,670 - INFO - 
+############################################################
+2026-01-20 02:52:47,670 - INFO - # TEST SUMMARY
+2026-01-20 02:52:47,670 - INFO - ############################################################
+2026-01-20 02:52:47,670 - INFO - basic_selenium: ✅ PASSED
+2026-01-20 02:52:47,670 - INFO - undetected_auto: ❌ FAILED
+2026-01-20 02:52:47,670 - INFO - undetected_manual_146: ✅ PASSED
+2026-01-20 02:52:47,670 - INFO - version_check: ❌ FAILED
+2026-01-20 02:52:47,670 - INFO - 
+============================================================
+2026-01-20 02:52:47,670 - INFO - RECOMMENDATION
+2026-01-20 02:52:47,670 - INFO - ============================================================
+2026-01-20 02:52:47,670 - INFO - ✓ Basic Selenium works - Chrome/ChromeDriver compatible
+2026-01-20 02:52:47,670 - INFO - ✓ undetected_chromedriver (manual 146) works
+2026-01-20 02:52:47,670 - INFO -   → Your current config should work
+2026-01-20 02:52:47,670 - INFO - 
+
+2026-01-20 02:52:47,671 - INFO - ensuring close
+2026-01-20 02:52:47,671 - INFO - ensuring close
+Exception ignored in: <function Chrome.__del__ at 0x00000199B054EB60>
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 843, in __del__
+    self.quit()
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 798, in quit
+    time.sleep(0.1)
+OSError: [WinError 6] İşleyici geçersiz
+Exception ignored in: <function Chrome.__del__ at 0x00000199B054EB60>
+Traceback (most recent call last):
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 843, in __del__
+    self.quit()
+  File "C:\Python313\Lib\site-packages\undetected_chromedriver\__init__.py", line 798, in quit
+    time.sleep(0.1)
+OSError: [WinError 6] İşleyici geçersiz

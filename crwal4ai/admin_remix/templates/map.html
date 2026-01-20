@@ -1,0 +1,642 @@
+{% extends "base.html" %} {% block title %}Hendek Emlak Haritası{% endblock %}
+{% block extra_head %}
+<!-- Leaflet CSS -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+/>
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+/>
+
+<style>
+  #map {
+    height: calc(100vh - 280px);
+    min-height: 600px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .map-sidebar {
+    height: calc(100vh - 280px);
+    min-height: 600px;
+    overflow-y: auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  }
+
+  .neighborhood-item {
+    transition: all 0.2s;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+
+  .neighborhood-item:hover {
+    background: #f3f4f6;
+    border-left-color: #3b82f6;
+  }
+
+  .neighborhood-item.active {
+    background: #eff6ff;
+    border-left-color: #3b82f6;
+  }
+
+  .stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .stat-badge.satilik {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  .stat-badge.kiralik {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .custom-popup {
+    min-width: 280px;
+  }
+
+  .custom-popup .popup-image {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+
+  .custom-popup .popup-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    color: #1f2937;
+    line-height: 1.4;
+  }
+
+  .custom-popup .popup-price {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #059669;
+    margin-bottom: 8px;
+  }
+
+  .custom-popup .popup-location {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+
+  .custom-popup .popup-category {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 4px;
+  }
+
+  .custom-popup .popup-link {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 8px 16px;
+    background: #3b82f6;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+
+  .custom-popup .popup-link:hover {
+    background: #2563eb;
+  }
+
+  .filter-section {
+    background: white;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    margin-bottom: 16px;
+  }
+
+  .filter-btn {
+    padding: 8px 16px;
+    border: 2px solid #e5e7eb;
+    background: white;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .filter-btn:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+  }
+
+  .filter-btn.active {
+    border-color: #3b82f6;
+    background: #3b82f6;
+    color: white;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .stat-card {
+    background: #f9fafb;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .stat-card .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .stat-card .stat-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+
+  .loading-spinner {
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    text-align: center;
+  }
+</style>
+{% endblock %} {% block content %}
+<div class="container-fluid px-4 py-6">
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">
+      🗺️ Hendek Emlak Haritası
+    </h1>
+    <p class="text-gray-600">
+      Mahalle bazlı ilan dağılımı ve detaylı istatistikler
+    </p>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-section">
+    <div class="flex flex-wrap gap-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2"
+          >Kategori</label
+        >
+        <div class="flex gap-2">
+          <button
+            class="filter-btn active"
+            data-filter="category"
+            data-value=""
+          >
+            Tümü
+          </button>
+          <button class="filter-btn" data-filter="category" data-value="konut">
+            Konut
+          </button>
+          <button class="filter-btn" data-filter="category" data-value="arsa">
+            Arsa
+          </button>
+          <button class="filter-btn" data-filter="category" data-value="isyeri">
+            İşyeri
+          </button>
+          <button class="filter-btn" data-filter="category" data-value="bina">
+            Bina
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2"
+          >İşlem Tipi</label
+        >
+        <div class="flex gap-2">
+          <button
+            class="filter-btn active"
+            data-filter="transaction"
+            data-value=""
+          >
+            Tümü
+          </button>
+          <button
+            class="filter-btn"
+            data-filter="transaction"
+            data-value="satilik"
+          >
+            Satılık
+          </button>
+          <button
+            class="filter-btn"
+            data-filter="transaction"
+            data-value="kiralik"
+          >
+            Kiralık
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Sidebar -->
+    <div class="lg:col-span-3">
+      <div class="map-sidebar p-4">
+        <div class="mb-4">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Mahalleler</h3>
+          <input
+            type="text"
+            id="neighborhoodSearch"
+            placeholder="Mahalle ara..."
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+
+        <div id="neighborhoodList" class="space-y-2">
+          <!-- Mahalle listesi buraya yüklenecek -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="lg:col-span-9">
+      <div id="map"></div>
+
+      <!-- Map Stats -->
+      <div class="stats-grid mt-4">
+        <div class="stat-card">
+          <div class="stat-value" id="totalListings">0</div>
+          <div class="stat-label">Toplam İlan</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="totalNeighborhoods">0</div>
+          <div class="stat-label">Mahalle</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="avgPrice">0 TL</div>
+          <div class="stat-label">Ortalama Fiyat</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="selectedNeighborhood">-</div>
+          <div class="stat-label">Seçili Mahalle</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay" style="display: none">
+  <div class="loading-spinner">
+    <div
+      class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"
+    ></div>
+    <p class="text-gray-700 font-medium">Harita yükleniyor...</p>
+  </div>
+</div>
+{% endblock %} {% block extra_scripts %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+  // Global variables
+  let map;
+  let markers = new L.MarkerClusterGroup({
+    maxClusterRadius: 50,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+  });
+  let neighborhoodsData = [];
+  let listingsData = [];
+  let currentFilters = {
+    category: "",
+    transaction: "",
+    neighborhood: "",
+  };
+
+  // Hendek koordinatları
+  const HENDEK_CENTER = [40.8, 30.7667];
+
+  // Mahalle koordinatları (yaklaşık)
+  const NEIGHBORHOOD_COORDS = {
+    Yeni: [40.805, 30.77],
+    Kemaliye: [40.8, 30.765],
+    Çağlayan: [40.798, 30.772],
+    Başpınar: [40.802, 30.76],
+    Rasimpaşa: [40.807, 30.768],
+    Mahmutbey: [40.803, 30.775],
+    Güldibi: [40.795, 30.77],
+    Köprübaşı: [40.81, 30.765],
+    Çiftlik: [40.797, 30.768],
+    Yukarıhüseyinşeyh: [40.82, 30.78],
+    Beylice: [40.785, 30.76],
+    Akarca: [40.815, 30.79],
+    Muradiye: [40.79, 30.755],
+    Dikmen: [40.825, 30.77],
+    Yukarıçalıca: [40.83, 30.765],
+    Şeyhler: [40.78, 30.775],
+  };
+
+  // Initialize map
+  function initMap() {
+    map = L.map("map").setView(HENDEK_CENTER, 13);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
+      maxZoom: 19,
+    }).addTo(map);
+
+    map.addLayer(markers);
+  }
+
+  // Load neighborhoods
+  async function loadNeighborhoods() {
+    try {
+      showLoading();
+      const response = await fetch("/api/map/neighborhoods");
+      const data = await response.json();
+
+      if (data.success) {
+        neighborhoodsData = data.data;
+        renderNeighborhoodList();
+        updateStats();
+        loadListings();
+      }
+    } catch (error) {
+      console.error("Error loading neighborhoods:", error);
+      alert("Mahalle verileri yüklenirken hata oluştu");
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // Render neighborhood list
+  function renderNeighborhoodList() {
+    const container = document.getElementById("neighborhoodList");
+    const searchTerm = document
+      .getElementById("neighborhoodSearch")
+      .value.toLowerCase();
+
+    const filtered = neighborhoodsData.filter((n) =>
+      n.name.toLowerCase().includes(searchTerm),
+    );
+
+    container.innerHTML = filtered
+      .map(
+        (neighborhood) => `
+        <div class="neighborhood-item p-3 rounded-lg border border-gray-200" 
+             data-neighborhood="${neighborhood.name}"
+             onclick="selectNeighborhood('${neighborhood.name}')">
+            <div class="flex justify-between items-start mb-2">
+                <h4 class="font-semibold text-gray-900">${neighborhood.name}</h4>
+                <span class="text-lg font-bold text-blue-600">${neighborhood.total}</span>
+            </div>
+            <div class="flex gap-2 mb-2">
+                <span class="stat-badge satilik">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/>
+                    </svg>
+                    ${neighborhood.satilik}
+                </span>
+                <span class="stat-badge kiralik">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/>
+                    </svg>
+                    ${neighborhood.kiralik}
+                </span>
+            </div>
+            <div class="text-sm text-gray-600">
+                Ort: ${formatPrice(neighborhood.avg_price)}
+            </div>
+        </div>
+    `,
+      )
+      .join("");
+  }
+
+  // Load listings
+  async function loadListings() {
+    try {
+      const params = new URLSearchParams();
+      if (currentFilters.category)
+        params.append("category", currentFilters.category);
+      if (currentFilters.transaction)
+        params.append("transaction", currentFilters.transaction);
+      if (currentFilters.neighborhood)
+        params.append("neighborhood", currentFilters.neighborhood);
+
+      const response = await fetch(`/api/map/listings?${params}`);
+      const data = await response.json();
+
+      if (data.success) {
+        listingsData = data.data;
+        renderMarkers();
+      }
+    } catch (error) {
+      console.error("Error loading listings:", error);
+    }
+  }
+
+  // Render markers
+  function renderMarkers() {
+    markers.clearLayers();
+
+    listingsData.forEach((listing) => {
+      const coords = NEIGHBORHOOD_COORDS[listing.mahalle] || HENDEK_CENTER;
+
+      // Rastgele offset ekle (aynı mahallede birden fazla ilan varsa)
+      const lat = coords[0] + (Math.random() - 0.5) * 0.01;
+      const lng = coords[1] + (Math.random() - 0.5) * 0.01;
+
+      // Marker rengi (kategori bazlı)
+      const color = getMarkerColor(listing.category);
+
+      const marker = L.circleMarker([lat, lng], {
+        radius: 8,
+        fillColor: color,
+        color: "#fff",
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.8,
+      });
+
+      // Popup content
+      const popupContent = `
+            <div class="custom-popup">
+                ${listing.resim ? `<img src="${listing.resim}" class="popup-image" alt="${listing.baslik}">` : ""}
+                <div class="popup-title">${listing.baslik}</div>
+                <div class="popup-price">${listing.fiyat_formatted}</div>
+                <div class="popup-location">📍 ${listing.konum}</div>
+                <div class="mt-2">
+                    <span class="popup-category" style="background: ${color}; color: white;">
+                        ${listing.category_display}
+                    </span>
+                    <span class="popup-category" style="background: #f3f4f6; color: #374151;">
+                        ${listing.transaction_display}
+                    </span>
+                </div>
+                <a href="${listing.link}" target="_blank" class="popup-link">
+                    İlanı Görüntüle →
+                </a>
+            </div>
+        `;
+
+      marker.bindPopup(popupContent, {
+        maxWidth: 300,
+        className: "custom-leaflet-popup",
+      });
+
+      markers.addLayer(marker);
+    });
+  }
+
+  // Get marker color by category
+  function getMarkerColor(category) {
+    const colors = {
+      konut: "#3b82f6",
+      arsa: "#10b981",
+      isyeri: "#f59e0b",
+      bina: "#8b5cf6",
+    };
+    return colors[category] || "#6b7280";
+  }
+
+  // Select neighborhood
+  function selectNeighborhood(name) {
+    currentFilters.neighborhood =
+      currentFilters.neighborhood === name ? "" : name;
+
+    // Update UI
+    document.querySelectorAll(".neighborhood-item").forEach((item) => {
+      item.classList.toggle(
+        "active",
+        item.dataset.neighborhood === name && currentFilters.neighborhood,
+      );
+    });
+
+    // Update stats
+    document.getElementById("selectedNeighborhood").textContent =
+      currentFilters.neighborhood || "-";
+
+    // Reload listings
+    loadListings();
+
+    // Zoom to neighborhood
+    if (currentFilters.neighborhood && NEIGHBORHOOD_COORDS[name]) {
+      map.setView(NEIGHBORHOOD_COORDS[name], 15);
+    } else {
+      map.setView(HENDEK_CENTER, 13);
+    }
+  }
+
+  // Update stats
+  function updateStats() {
+    const totalListings = neighborhoodsData.reduce(
+      (sum, n) => sum + n.total,
+      0,
+    );
+    const avgPrice =
+      neighborhoodsData.reduce((sum, n) => sum + n.avg_price, 0) /
+      neighborhoodsData.length;
+
+    document.getElementById("totalListings").textContent = totalListings;
+    document.getElementById("totalNeighborhoods").textContent =
+      neighborhoodsData.length;
+    document.getElementById("avgPrice").textContent = formatPrice(
+      Math.round(avgPrice),
+    );
+  }
+
+  // Format price
+  function formatPrice(price) {
+    if (!price) return "Belirtilmemiş";
+    return new Intl.NumberFormat("tr-TR", {
+      style: "currency",
+      currency: "TRY",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  }
+
+  // Show/hide loading
+  function showLoading() {
+    document.getElementById("loadingOverlay").style.display = "flex";
+  }
+
+  function hideLoading() {
+    document.getElementById("loadingOverlay").style.display = "none";
+  }
+
+  // Filter buttons
+  document.addEventListener("DOMContentLoaded", () => {
+    // Initialize map
+    initMap();
+    loadNeighborhoods();
+
+    // Filter buttons
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const filterType = btn.dataset.filter;
+        const value = btn.dataset.value;
+
+        // Update active state
+        btn.parentElement
+          .querySelectorAll(".filter-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        // Update filter
+        currentFilters[filterType] = value;
+
+        // Reload listings
+        loadListings();
+      });
+    });
+
+    // Search
+    document
+      .getElementById("neighborhoodSearch")
+      .addEventListener("input", renderNeighborhoodList);
+  });
+</script>
+{% endblock %}

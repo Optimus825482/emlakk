@@ -26,6 +26,12 @@ const coreModules = [
     badgeKey: null,
   },
   {
+    href: "/admin/harita",
+    icon: "map",
+    label: "Emlak Haritası",
+    badgeKey: null,
+  },
+  {
     href: "/admin/randevular",
     icon: "calendar_month",
     label: "Randevular",
@@ -46,13 +52,29 @@ const coreModules = [
 ];
 
 const contentModules = [
-  { href: "/admin/anasayfa", icon: "home", label: "Ana Sayfa" },
-  { href: "/admin/icerik", icon: "article", label: "İçerik Yönetimi" },
-  { href: "/admin/hakkimizda", icon: "info", label: "Hakkımızda" },
-  { href: "/admin/hendek", icon: "location_city", label: "Hendek Verileri" },
+  {
+    href: "/admin/sayfalar",
+    icon: "web_stories",
+    label: "Web Sitesi Sayfa Yönetimi",
+  },
+  {
+    href: "/admin/seo",
+    icon: "travel_explore",
+    label: "SEO Yönetimi",
+  },
+  {
+    href: "/admin/sosyal-medya",
+    icon: "share",
+    label: "Sosyal Medya",
+  },
 ];
 
 const tools = [
+  {
+    href: "/admin/sahibinden-inceleme",
+    icon: "search",
+    label: "Sahibinden İnceleme",
+  },
   {
     href: "/admin/ilan-analitik",
     icon: "insights",
@@ -116,7 +138,7 @@ export function AdminSidebar() {
                     "flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors",
                     isActive
                       ? "bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400"
-                      : "text-slate-400 hover:bg-slate-700 hover:text-white"
+                      : "text-slate-400 hover:bg-slate-700 hover:text-white",
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -151,7 +173,7 @@ export function AdminSidebar() {
                     "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
                     isActive
                       ? "bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400"
-                      : "text-slate-400 hover:bg-slate-700 hover:text-white"
+                      : "text-slate-400 hover:bg-slate-700 hover:text-white",
                   )}
                 >
                   <Icon name={item.icon} className="text-[20px]" />
@@ -179,7 +201,7 @@ export function AdminSidebar() {
                     "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
                     isActive
                       ? "bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400"
-                      : "text-slate-400 hover:bg-slate-700 hover:text-white"
+                      : "text-slate-400 hover:bg-slate-700 hover:text-white",
                   )}
                 >
                   <Icon name={item.icon} className="text-[20px]" />
