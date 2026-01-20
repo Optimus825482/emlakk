@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+./.swc/
+./.ruff_cache/
+
 # vercel
 .vercel
 
@@ -45,4 +48,8 @@ next-env.d.ts
 
 # Chrome profiles (crawler)
 crwal4ai/uc_chrome_profile/
+crwal4ai/uc_chrome_profile_4c8afaa6
+**/uc_chrome_profile_4c8afaa6
 **/uc_chrome_profile/
+
+./docs
