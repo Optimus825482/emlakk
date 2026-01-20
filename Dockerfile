@@ -1,5 +1,5 @@
 # Build Stage
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 WORKDIR /app
 
 # Install system dependencies
@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY package*.json ./
-RUN npm config set registry https://registry.npmmirror.com/ && \
+RUN rm -f package-lock.json && \
+    npm config set registry https://registry.npmmirror.com/ && \
     npm config set fetch-retry-maxtimeout 600000 && \
     npm config set fetch-retry-mintimeout 10000 && \
     npm install
