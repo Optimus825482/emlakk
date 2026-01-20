@@ -1,4 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { db } from "@/db";
+import { sahibindenListe } from "@/db/schema/crawler";
+import { desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 // Hendek Neighborhood Coordinates (Approximate Centers)
@@ -50,21 +52,21 @@ const HENDEK_LOCATIONS: Record<string, { lat: number; lng: number }> = {
 };
 
 export async function GET() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
-  );
-
   try {
-    const { data: listings, error } = await supabase
-      .from("sahibinden_liste")
-      .select(
-        "id, baslik, fiyat, konum, resim, koordinatlar, category, transaction",
-      )
-      .order("id", { ascending: false })
+    const listings = await db
+      .select({
+        id: sahibindenListe.id,
+        baslik: sahibindenListe.baslik,
+        fiyat: sahibindenListe.fiyat,
+        konum: sahibindenListe.konum,
+        resim: sahibindenListe.resim,
+        koordinatlar: sahibindenListe.koordinatlar,
+        category: sahibindenListe.category,
+        transaction: sahibindenListe.transaction,
+      })
+      .from(sahibindenListe)
+      .orderBy(desc(sahibindenListe.id))
       .limit(1000);
-
-    if (error) throw error;
 
     const mappedListings = listings.map((item) => {
       let lat = null;

@@ -7,10 +7,14 @@ const globalForDb = globalThis as unknown as {
   queryClient: Sql | undefined;
 };
 
+const isSupabase =
+  env.DATABASE_URL.includes("supabase.com") ||
+  env.DATABASE_URL.includes("pooler.supabase.com");
+
 const queryClient =
   globalForDb.queryClient ??
   postgres(env.DATABASE_URL, {
-    ssl: "require",
+    ssl: isSupabase ? "require" : false,
     max: 10,
     idle_timeout: 20,
     connect_timeout: 60,

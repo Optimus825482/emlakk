@@ -17,7 +17,8 @@ Kullanım:
 """
 
 from flask import Flask, render_template, jsonify, request, make_response
-from supabase import create_client, Client
+from db_manager import db
+import json
 from dotenv import load_dotenv
 import os
 import subprocess
@@ -33,10 +34,13 @@ load_dotenv(".env")
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "dev-secret-key-change-in-production"
 
-# Supabase
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Database setup
+# DATABASE_URL is expected in .env or provided by environment
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    # PUBLIC URL provided by user
+    DATABASE_URL = "postgres://postgres:518518Erkan@77.42.68.4:5432/demir_db"
+os.environ["DATABASE_URL"] = DATABASE_URL
 
 # Crawler state
 crawler_running = False
@@ -141,25 +145,21 @@ def api_crawler_status():
         # Eğer job varsa detaylarını al
         if current_job_id:
             try:
-                job_result = (
-                    supabase.table("mining_jobs")
-                    .select("*")
-                    .eq("id", current_job_id)
-                    .execute()
+                job_data = db.execute_one(
+                    "SELECT * FROM mining_jobs WHERE id = %s",
+                    (current_job_id,)
                 )
 
-                if job_result.data and len(job_result.data) > 0:
-                    job_data = job_result.data[0]
+                if job_data:
                     status["job"] = {
                         "id": job_data["id"],
                         "status": job_data["status"],
-                        "created_at": format_date(job_data["created_at"]),
+                        "created_at": format_date(job_data["created_at"].isoformat() if hasattr(job_data["created_at"], 'isoformat') else str(job_data["created_at"])),
                         "stats": job_data.get("stats", {}),
                         "progress": job_data.get("progress", {}),
                     }
             except Exception as job_error:
-                # Job bulunamadıysa devam et
-                pass
+                print(f"Error getting job status: {job_error}")
 
         return jsonify({"success": True, "data": status})
 
@@ -187,20 +187,27 @@ def api_crawler_start():
         current_job_id = job_id
 
         # Job kaydı oluştur
-        job_data = {
-            "id": job_id,
-            "job_type": "manual_crawler",  # Job type eklendi (NOT NULL constraint için)
-            "status": "running",
-            "config": {
-                "categories": categories,
-                "max_pages": max_pages,
-                "force": force,
-                "reverse_sort": reverse_sort,
-            },
-            "stats": {},
-            "progress": {"current": 0, "total": 0, "percentage": 0},
-        }
-        supabase.table("mining_jobs").insert(job_data).execute()
+        job_sql = """
+            INSERT INTO mining_jobs (id, job_type, status, config, stats, progress)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        db.execute_query(
+            job_sql, 
+            (
+                job_id, 
+                "manual_crawler", 
+                "running", 
+                json.dumps({
+                    "categories": categories,
+                    "max_pages": max_pages,
+                    "force": force,
+                    "reverse_sort": reverse_sort,
+                }),
+                json.dumps({}),
+                json.dumps({"current": 0, "total": 0, "percentage": 0})
+            ),
+            fetch=False
+        )
 
         # Crawler'ı background thread'de başlat
         def run_crawler():
@@ -342,21 +349,28 @@ def api_crawler_start_parallel():
         current_job_id = job_id
 
         # Job kaydı oluştur
-        job_data = {
-            "id": job_id,
-            "job_type": "parallel_crawler",
-            "status": "running",
-            "config": {
-                "categories": categories,
-                "max_pages": max_pages,
-                "workers": 2,
-                "turbo": turbo,
-                "sync": sync,
-            },
-            "stats": {},
-            "progress": {"current": 0, "total": len(categories), "percentage": 0},
-        }
-        supabase.table("mining_jobs").insert(job_data).execute()
+        job_sql = """
+            INSERT INTO mining_jobs (id, job_type, status, config, stats, progress)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        db.execute_query(
+            job_sql,
+            (
+                job_id,
+                "parallel_crawler",
+                "running",
+                json.dumps({
+                    "categories": categories,
+                    "max_pages": max_pages,
+                    "workers": 2,
+                    "turbo": turbo,
+                    "sync": sync,
+                }),
+                json.dumps({}),
+                json.dumps({"current": 0, "total": len(categories), "percentage": 0})
+            ),
+            fetch=False
+        )
 
         # Paralel Crawler'ı background thread'de başlat
         def run_parallel_crawler():
@@ -427,14 +441,18 @@ def api_crawler_start_parallel():
                     ).eq("id", job_id).execute()
 
             except subprocess.TimeoutExpired:
-                supabase.table("mining_jobs").update(
-                    {"status": "failed", "error": "Timeout (1 saat)"}
-                ).eq("id", job_id).execute()
+                db.execute_query(
+                    "UPDATE mining_jobs SET status = %s, error = %s WHERE id = %s",
+                    ("failed", "Timeout (1 saat)", job_id),
+                    fetch=False
+                )
 
             except Exception as e:
-                supabase.table("mining_jobs").update(
-                    {"status": "failed", "error": str(e)[:500]}
-                ).eq("id", job_id).execute()
+                db.execute_query(
+                    "UPDATE mining_jobs SET status = %s, error = %s WHERE id = %s",
+                    ("failed", str(e)[:500], job_id),
+                    fetch=False
+                )
 
             finally:
                 crawler_running = False
@@ -474,14 +492,11 @@ def api_category_counts():
         ]
 
         for category, transaction, key in categories:
-            result = (
-                supabase.table("sahibinden_liste")
-                .select("*", count="exact")
-                .eq("category", category)
-                .eq("transaction", transaction)
-                .execute()
+            res = db.execute_one(
+                "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s",
+                (category, transaction)
             )
-            counts[key] = result.count or 0
+            counts[key] = res["count"] if res else 0
 
         return jsonify({"success": True, "data": counts})
 
@@ -499,33 +514,22 @@ def api_dashboard():
         days_ago = (datetime.now() - timedelta(days=days)).isoformat()
 
         # 1. Toplam İlan Sayısı
-        total_res = (
-            supabase.table("sahibinden_liste")
-            .select("id", count="exact")
-            .limit(1)
-            .execute()
-        )
-        total_count = total_res.count or 0
+        total_res = db.execute_one("SELECT COUNT(*) as count FROM sahibinden_liste")
+        total_count = total_res["count"] if total_res else 0
 
-        # 2. Yeni İlanlar (Yeni Listings tablosundan gerçek veri)
-        new_listings_res = (
-            supabase.table("new_listings")
-            .select("id", count="exact")
-            .gte("created_at", days_ago)
-            .limit(1)
-            .execute()
+        # 2. Yeni İlanlar
+        new_res = db.execute_one(
+            "SELECT COUNT(*) as count FROM new_listings WHERE created_at >= %s",
+            (days_ago,)
         )
-        new_listings_count = new_listings_res.count or 0
+        new_listings_count = new_res["count"] if new_res else 0
 
         # 3. Kaldırılan İlanlar
-        removed_res = (
-            supabase.table("removed_listings")
-            .select("id", count="exact")
-            .gte("removed_at", days_ago)
-            .limit(1)
-            .execute()
+        rem_res = db.execute_one(
+            "SELECT COUNT(*) as count FROM removed_listings WHERE removed_at >= %s",
+            (days_ago,)
         )
-        removed_listings_count = removed_res.count or 0
+        removed_listings_count = rem_res["count"] if rem_res else 0
 
         # 4. Kategori Dağılımı (Optimized SQL-like counts)
         # Not: Bu kısım kategori bazlı özetleri toplar
@@ -533,67 +537,45 @@ def api_dashboard():
         category_data = {}
 
         for cat in categories:
-            # Mevcut Veritabanı Sayısı (Satılık/Kiralık)
-            sat_res = (
-                supabase.table("sahibinden_liste")
-                .select("id", count="exact")
-                .eq("category", cat)
-                .eq("transaction", "satilik")
-                .limit(1)
-                .execute()
-            )
-            kir_res = (
-                supabase.table("sahibinden_liste")
-                .select("id", count="exact")
-                .eq("category", cat)
-                .eq("transaction", "kiralik")
-                .limit(1)
-                .execute()
-            )
+            # Mevcut Veritabanı Sayısı
+            sat_count = db.execute_one(
+                "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s",
+                (cat, "satilik")
+            )["count"]
+            kir_count = db.execute_one(
+                "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s",
+                (cat, "kiralik")
+            )["count"]
 
-            # Yeni Bulunanlar (Gelen gün filtresine göre new_listings tablosundan)
-            new_sat_res = (
-                supabase.table("new_listings")
-                .select("id", count="exact")
-                .eq("category", cat)
-                .eq("transaction", "satilik")
-                .gte("created_at", days_ago)
-                .limit(1)
-                .execute()
-            )
-            new_kir_res = (
-                supabase.table("new_listings")
-                .select("id", count="exact")
-                .eq("category", cat)
-                .eq("transaction", "kiralik")
-                .gte("created_at", days_ago)
-                .limit(1)
-                .execute()
-            )
+            # Yeni Bulunanlar
+            new_sat = db.execute_one(
+                "SELECT COUNT(*) as count FROM new_listings WHERE category = %s AND transaction = %s AND created_at >= %s",
+                (cat, "satilik", days_ago)
+            )["count"]
+            new_kir = db.execute_one(
+                "SELECT COUNT(*) as count FROM new_listings WHERE category = %s AND transaction = %s AND created_at >= %s",
+                (cat, "kiralik", days_ago)
+            )["count"]
 
             category_data[cat] = {
-                "satilik": sat_res.count or 0,
-                "kiralik": kir_res.count or 0,
-                "new_satilik": new_sat_res.count or 0,
-                "new_kiralik": new_kir_res.count or 0,
+                "satilik": sat_count,
+                "kiralik": kir_count,
+                "new_satilik": new_sat,
+                "new_kiralik": new_kir,
             }
 
         # 5. Son İşlem (Mining Jobs)
-        last_job_res = (
-            supabase.table("mining_jobs")
-            .select("*")
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
+        last_job_data = db.execute_one(
+            "SELECT * FROM mining_jobs ORDER BY created_at DESC LIMIT 1"
         )
 
         last_job = None
-        if last_job_res.data:
-            job = last_job_res.data[0]
+        if last_job_data:
+            job = last_job_data
             last_job = {
                 "id": job.get("id"),
                 "status": job.get("status"),
-                "created_at": format_date(job.get("created_at")),
+                "created_at": format_date(job.get("created_at").isoformat() if hasattr(job.get("created_at"), 'isoformat') else str(job.get("created_at"))),
                 "stats": job.get("stats") or {},
                 "config": job.get("config") or {},
             }
@@ -628,27 +610,30 @@ def api_listings():
         transaction = request.args.get("transaction")
         search = request.args.get("search")
 
-        # Base query
-        query = supabase.table("sahibinden_liste").select("*", count="exact")
+        # Build SQL query with filters and pagination
+        sql = "SELECT *, COUNT(*) OVER() as full_count FROM sahibinden_liste WHERE 1=1"
+        params = []
 
-        # Filters
         if category:
-            query = query.eq("category", category)
+            sql += " AND category = %s"
+            params.append(category)
         if transaction:
-            query = query.eq("transaction", transaction)
+            sql += " AND transaction = %s"
+            params.append(transaction)
         if search:
-            query = query.ilike("baslik", f"%{search}%")
+            sql += " AND baslik ILIKE %s"
+            params.append(f"%{search}%")
 
-        # Pagination
-        start = (page - 1) * per_page
-        end = start + per_page - 1
+        sql += " ORDER BY crawled_at DESC LIMIT %s OFFSET %s"
+        params.extend([per_page, (page - 1) * per_page])
 
         # Execute
-        result = query.order("crawled_at", desc=True).range(start, end).execute()
+        results = db.execute_query(sql, params)
+        total_count = results[0]["full_count"] if results else 0
 
         # Format
         listings = []
-        for item in result.data:
+        for item in (results or []):
             listings.append(
                 {
                     "id": item["id"],
@@ -659,7 +644,7 @@ def api_listings():
                     "category": get_category_display(item["category"]),
                     "transaction": get_transaction_display(item["transaction"]),
                     "tarih": item["tarih"],
-                    "crawled_at": format_date(item["crawled_at"]),
+                    "crawled_at": format_date(item["crawled_at"].isoformat() if hasattr(item["crawled_at"], 'isoformat') else str(item["crawled_at"])),
                     "link": item["link"],
                     "resim": item["resim"],
                 }
@@ -672,8 +657,8 @@ def api_listings():
                 "pagination": {
                     "page": page,
                     "per_page": per_page,
-                    "total": result.count,
-                    "total_pages": (result.count + per_page - 1) // per_page,
+                    "total": total_count,
+                    "total_pages": (total_count + per_page - 1) // per_page,
                 },
             }
         )
@@ -694,21 +679,15 @@ def api_new_listings():
         date_threshold = (datetime.now() - timedelta(days=days)).isoformat()
 
         # Query
-        start = (page - 1) * per_page
-        end = start + per_page - 1
+        sql = "SELECT *, COUNT(*) OVER() as full_count FROM new_listings WHERE first_seen_at >= %s ORDER BY first_seen_at DESC LIMIT %s OFFSET %s"
+        params = [date_threshold, per_page, (page - 1) * per_page]
 
-        result = (
-            supabase.table("new_listings")
-            .select("*", count="exact")
-            .gte("first_seen_at", date_threshold)
-            .order("first_seen_at", desc=True)
-            .range(start, end)
-            .execute()
-        )
+        results = db.execute_query(sql, params)
+        total_count = results[0]["full_count"] if results else 0
 
         # Format
         listings = []
-        for item in result.data:
+        for item in (results or []):
             listings.append(
                 {
                     "listing_id": item["listing_id"],
@@ -717,7 +696,7 @@ def api_new_listings():
                     "konum": item["konum"],
                     "category": get_category_display(item["category"]),
                     "transaction": get_transaction_display(item["transaction"]),
-                    "first_seen_at": format_date(item["first_seen_at"]),
+                    "first_seen_at": format_date(item["first_seen_at"].isoformat() if hasattr(item["first_seen_at"], 'isoformat') else str(item["first_seen_at"])),
                     "link": item["link"],
                     "resim": item["resim"],
                 }
@@ -730,8 +709,8 @@ def api_new_listings():
                 "pagination": {
                     "page": page,
                     "per_page": per_page,
-                    "total": result.count,
-                    "total_pages": (result.count + per_page - 1) // per_page,
+                    "total": total_count,
+                    "total_pages": (total_count + per_page - 1) // per_page,
                 },
             }
         )
@@ -752,21 +731,15 @@ def api_removed_listings():
         date_threshold = (datetime.now() - timedelta(days=days)).isoformat()
 
         # Query
-        start = (page - 1) * per_page
-        end = start + per_page - 1
+        sql = "SELECT *, COUNT(*) OVER() as full_count FROM removed_listings WHERE removed_at >= %s ORDER BY removed_at DESC LIMIT %s OFFSET %s"
+        params = [date_threshold, per_page, (page - 1) * per_page]
 
-        result = (
-            supabase.table("removed_listings")
-            .select("*", count="exact")
-            .gte("removed_at", date_threshold)
-            .order("removed_at", desc=True)
-            .range(start, end)
-            .execute()
-        )
+        results = db.execute_query(sql, params)
+        total_count = results[0]["full_count"] if results else 0
 
         # Format
         listings = []
-        for item in result.data:
+        for item in (results or []):
             listings.append(
                 {
                     "listing_id": item["listing_id"],
@@ -775,7 +748,7 @@ def api_removed_listings():
                     "konum": item["konum"],
                     "category": get_category_display(item["category"]),
                     "transaction": get_transaction_display(item["transaction"]),
-                    "removed_at": format_date(item["removed_at"]),
+                    "removed_at": format_date(item["removed_at"].isoformat() if hasattr(item["removed_at"], 'isoformat') else str(item["removed_at"])),
                     "days_active": item.get("days_active"),
                     "price_changes": item.get("price_changes", 0),
                     "link": item["link"],
@@ -790,8 +763,8 @@ def api_removed_listings():
                 "pagination": {
                     "page": page,
                     "per_page": per_page,
-                    "total": result.count,
-                    "total_pages": (result.count + per_page - 1) // per_page,
+                    "total": total_count,
+                    "total_pages": (total_count + per_page - 1) // per_page,
                 },
             }
         )

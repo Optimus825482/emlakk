@@ -1,10 +1,10 @@
 FROM python:3.12-slim
 
-# Çekirdek bağımlılıklar (Chrome için gerekli kütüphaneler)
+# Çekirdek bağımlılıklar (Chrome için gerekli kütüphaneler + curl)
 RUN apt-get update && apt-get install -y \
     wget gnupg unzip libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
     libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 \
-    libpango-1.0-0 libcairo2 libxshmfence1 x11-utils xvfb \
+    libpango-1.0-0 libcairo2 libxshmfence1 x11-utils xvfb curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Google Chrome Kurulumu (GPG anahtar yöntemi ile)
@@ -30,6 +30,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Sanal Ekran (Headless Chrome alternatifi)
 ENV DISPLAY=:99
 EXPOSE 5001
+
+# Sağlık Kontrolü (Health Check)
+# Port 5001'in yanıt verip vermediğini kontrol eder
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:5001/ || exit 1
 
 # Başlatma Komutu: Xvfb başlat, beklet ve sonra Flask Admin Panel'i çalıştır
 CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & sleep 2; python app.py"]

@@ -28,13 +28,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from supabase import create_client, Client
+from db_manager import db
+import json
 
 from sahibinden_uc_batch_supabase import (
     SahibindenSupabaseCrawler,
     HENDEK_CATEGORIES,
-    SUPABASE_URL,
-    SUPABASE_KEY,
 )
 from rate_limiter import AdaptiveRateLimiter, RateLimiterConfig
 
@@ -160,77 +159,82 @@ class ParallelCrawlerRunner:
             "errors": [],
         }
 
-    def _init_supabase(self):
-        if SUPABASE_KEY:
-            self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    def _init_db(self):
+        # db is already initialized
+        pass
 
     def _create_job_record(self):
-        if not self.supabase:
-            return
         try:
-            self.supabase.table("mining_jobs").upsert(
-                {
-                    "id": self.job_id,
-                    "job_type": "parallel_crawler",
-                    "status": "running",
-                    "config": {
+            db.execute_query(
+                """
+                INSERT INTO mining_jobs (id, job_type, status, config, stats, progress)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET
+                    job_type = EXCLUDED.job_type,
+                    status = EXCLUDED.status,
+                    config = EXCLUDED.config,
+                    stats = EXCLUDED.stats,
+                    progress = EXCLUDED.progress,
+                    updated_at = NOW()
+                """,
+                (
+                    self.job_id,
+                    "parallel_crawler",
+                    "running",
+                    json.dumps({
                         "categories": self.categories,
                         "max_pages": self.max_pages,
                         "workers": 2,
                         "turbo": self.turbo,
                         "sync": self.sync,
-                    },
-                    "stats": self.stats,
-                    "progress": {
+                    }),
+                    json.dumps(self.stats),
+                    json.dumps({
                         "current": 0,
                         "total": len(self.categories),
                         "percentage": 0,
-                    },
-                },
-                on_conflict="id",
-            ).execute()
+                    })
+                ),
+                fetch=False
+            )
         except Exception as e:
             logger.warning(f"Job record olusturulamadi: {e}")
 
     def _update_job_progress(self, current: int, total: int, message: str = ""):
-        if not self.supabase:
-            return
         try:
             percentage = int((current / total * 100)) if total > 0 else 0
-            self.supabase.table("mining_jobs").update(
-                {
-                    "progress": {
-                        "current": current,
-                        "total": total,
-                        "percentage": percentage,
-                        "message": message,
-                    },
-                    "stats": self.stats,
-                    "updated_at": datetime.now().isoformat(),
-                }
-            ).eq("id", self.job_id).execute()
+            progress_data = {
+                "current": current,
+                "total": total,
+                "percentage": percentage,
+                "message": message,
+            }
+            db.execute_query(
+                "UPDATE mining_jobs SET progress = %s, stats = %s, updated_at = NOW() WHERE id = %s",
+                (json.dumps(progress_data), json.dumps(self.stats), self.job_id),
+                fetch=False
+            )
         except Exception as e:
             logger.debug(f"Progress update failed: {e}")
 
     def _finalize_job(self, status: str = "completed", error: str = None):
-        if not self.supabase:
-            return
         try:
-            update_data = {
-                "status": status,
-                "stats": self.stats,
-                "progress": {
-                    "current": len(self.stats["categories_completed"]),
-                    "total": len(self.categories),
-                    "percentage": 100 if status == "completed" else 0,
-                },
-                "updated_at": datetime.now().isoformat(),
+            progress_data = {
+                "current": len(self.stats["categories_completed"]),
+                "total": len(self.categories),
+                "percentage": 100 if status == "completed" else 0,
             }
+            sql = "UPDATE mining_jobs SET status = %s, stats = %s, progress = %s, updated_at = NOW()"
+            params = [status, json.dumps(self.stats), json.dumps(progress_data)]
+            
             if error:
-                update_data["error"] = error[:500]
-            self.supabase.table("mining_jobs").update(update_data).eq(
-                "id", self.job_id
-            ).execute()
+                sql += ", error = %s"
+                params.append(error[:500])
+                
+            sql += " WHERE id = %s"
+            params.append(self.job_id)
+            
+            db.execute_query(sql, params, fetch=False)
         except Exception as e:
             logger.warning(f"Job finalize failed: {e}")
 
