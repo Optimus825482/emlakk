@@ -1,17 +1,16 @@
 # Build Stage
-FROM node:22-slim AS builder
+FROM node:22-bookworm AS builder
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
-COPY package*.json ./
-RUN rm -f package-lock.json && \
-    npm config set registry https://registry.npmmirror.com/ && \
-    npm config set fetch-retry-maxtimeout 600000 && \
-    npm config set fetch-retry-mintimeout 10000 && \
-    npm install
+COPY package.json ./
+RUN corepack enable && \
+    yarn config set registry https://registry.npmmirror.com/ && \
+    yarn config set network-timeout 600000 && \
+    yarn install
 
 # Copy source
 COPY . .
@@ -31,13 +30,14 @@ ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build
-RUN npm run build
+RUN yarn build
 
 # Production Stage
-FROM node:20-slim AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN corepack enable
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -50,4 +50,4 @@ COPY --from=builder /app/package.json ./package.json
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["yarn", "start"]
