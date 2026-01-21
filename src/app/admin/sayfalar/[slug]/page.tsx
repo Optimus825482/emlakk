@@ -69,7 +69,7 @@ function AnasayfaEditor({
 }) {
   const [heroData, setHeroData] = useState<Record<string, string>>({});
   const [manifestoData, setManifestoData] = useState<Record<string, string>>(
-    {}
+    {},
   );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -85,12 +85,14 @@ function AnasayfaEditor({
         fetch("/api/hero"),
         fetch("/api/manifesto"),
       ]);
-      const hero = await heroRes.json();
-      const manifesto = await manifestoRes.json();
-      setHeroData(hero || {});
-      setManifestoData(manifesto || {});
+      const heroResult = await heroRes.json();
+      const manifestoResult = await manifestoRes.json();
+      console.log("AnasayfaEditor - Hero API response:", heroResult);
+      console.log("AnasayfaEditor - Manifesto API response:", manifestoResult);
+      setHeroData(heroResult.data || heroResult || {});
+      setManifestoData(manifestoResult.data || manifestoResult || {});
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("AnasayfaEditor - Fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -99,13 +101,21 @@ function AnasayfaEditor({
   async function saveHero() {
     setSaving("hero");
     try {
-      await fetch("/api/hero", {
+      const response = await fetch("/api/hero", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(heroData),
       });
+      const result = await response.json();
+      console.log("AnasayfaEditor - Hero save response:", result);
+      if (result.success) {
+        alert("Hero bölümü kaydedildi!");
+      } else {
+        alert("Kaydetme hatası: " + (result.error || "Bilinmeyen hata"));
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error("AnasayfaEditor - Hero save error:", error);
+      alert("Kaydetme hatası!");
     } finally {
       setSaving(null);
     }
@@ -114,13 +124,21 @@ function AnasayfaEditor({
   async function saveManifesto() {
     setSaving("manifesto");
     try {
-      await fetch("/api/manifesto", {
+      const response = await fetch("/api/manifesto", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(manifestoData),
       });
+      const result = await response.json();
+      console.log("AnasayfaEditor - Manifesto save response:", result);
+      if (result.success) {
+        alert("Manifesto kaydedildi!");
+      } else {
+        alert("Kaydetme hatası: " + (result.error || "Bilinmeyen hata"));
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error("AnasayfaEditor - Manifesto save error:", error);
+      alert("Kaydetme hatası!");
     } finally {
       setSaving(null);
     }
@@ -351,10 +369,11 @@ function HakkimizdaEditor({
   async function fetchData() {
     try {
       const res = await fetch("/api/about");
-      const data = await res.json();
-      setFounder(data.founder || {});
+      const result = await res.json();
+      console.log("HakkimizdaEditor - API response:", result);
+      setFounder(result.data?.founder || {});
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("HakkimizdaEditor - Fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -363,13 +382,21 @@ function HakkimizdaEditor({
   async function save() {
     setSaving(true);
     try {
-      await fetch("/api/about", {
+      const response = await fetch("/api/about", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ founder }),
       });
+      const result = await response.json();
+      console.log("HakkimizdaEditor - Save response:", result);
+      if (result.success) {
+        alert("Kaydedildi!");
+      } else {
+        alert("Kaydetme hatası: " + (result.error || "Bilinmeyen hata"));
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error("HakkimizdaEditor - Save error:", error);
+      alert("Kaydetme hatası!");
     } finally {
       setSaving(false);
     }
@@ -489,17 +516,19 @@ function HendekEditor({
   async function fetchData() {
     try {
       const res = await fetch("/api/hendek-stats");
-      const { data } = await res.json();
-      setStats(data || []);
+      const result = await res.json();
+      console.log("HendekEditor - API response:", result);
+      setStats(result.data || []);
 
       // Son crawl zamanını kontrol et
       const crawlRes = await fetch("/api/hendek-stats/crawl-status");
       if (crawlRes.ok) {
         const crawlData = await crawlRes.json();
+        console.log("HendekEditor - Crawl status:", crawlData);
         setLastCrawl(crawlData.lastCrawl);
       }
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("HendekEditor - Fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -508,14 +537,21 @@ function HendekEditor({
   async function saveStat(stat: HendekStat) {
     setSaving(stat.id);
     try {
-      await fetch("/api/hendek-stats", {
+      const response = await fetch("/api/hendek-stats", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(stat),
       });
-      await fetchData();
+      const result = await response.json();
+      console.log("HendekEditor - Save stat response:", result);
+      if (result.success) {
+        await fetchData();
+      } else {
+        alert("Kaydetme hatası: " + (result.error || "Bilinmeyen hata"));
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error("HendekEditor - Save stat error:", error);
+      alert("Kaydetme hatası!");
     } finally {
       setSaving(null);
     }
@@ -543,10 +579,10 @@ function HendekEditor({
   function updateStat(
     id: string,
     field: string,
-    value: string | number | boolean | null
+    value: string | number | boolean | null,
   ) {
     setStats((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, [field]: value } : s))
+      prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)),
     );
   }
 
@@ -651,7 +687,7 @@ function HendekEditor({
                       updateStat(
                         stat.id,
                         "numericValue",
-                        parseInt(e.target.value) || null
+                        parseInt(e.target.value) || null,
                       )
                     }
                     className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:border-emerald-500"
@@ -757,16 +793,17 @@ function RehberEditor({
     try {
       const res = await fetch("/api/content/investment_guide_page");
       if (res.ok) {
-        const { data } = await res.json();
-        if (data?.data) {
+        const result = await res.json();
+        console.log("RehberEditor - API response:", result);
+        if (result.data) {
           setContent({
-            title: data.data.title || "Hendek Yatırım Rehberi",
+            title: result.data.title || "Hendek Yatırım Rehberi",
             subtitle:
-              data.data.subtitle || "Veriye Dayalı Akıllı Yatırım Kararları",
-            description: data.data.description || "",
-            comingSoonText: data.data.comingSoonText || "",
-            features: data.data.features || [],
-            progressItems: data.data.progressItems || [
+              result.data.subtitle || "Veriye Dayalı Akıllı Yatırım Kararları",
+            description: result.data.description || "",
+            comingSoonText: result.data.comingSoonText || "",
+            features: result.data.features || [],
+            progressItems: result.data.progressItems || [
               { label: "Pazar Araştırması", progress: 100 },
               { label: "Veri Analizi", progress: 85 },
               { label: "İçerik Hazırlığı", progress: 60 },
@@ -776,7 +813,7 @@ function RehberEditor({
         }
       }
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("RehberEditor - Fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -785,14 +822,20 @@ function RehberEditor({
   async function save() {
     setSaving(true);
     try {
-      await fetch("/api/content/investment_guide_page", {
+      const response = await fetch("/api/content/investment_guide_page", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: content }),
       });
-      alert("Kaydedildi!");
+      const result = await response.json();
+      console.log("RehberEditor - Save response:", result);
+      if (result.success) {
+        alert("Kaydedildi!");
+      } else {
+        alert("Kaydetme hatası: " + (result.error || "Bilinmeyen hata"));
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error("RehberEditor - Save error:", error);
       alert("Kaydetme hatası!");
     } finally {
       setSaving(false);
@@ -802,7 +845,7 @@ function RehberEditor({
   function updateFeature(
     index: number,
     field: keyof RehberFeature,
-    value: string
+    value: string,
   ) {
     const newFeatures = [...content.features];
     newFeatures[index] = { ...newFeatures[index], [field]: value };
@@ -829,7 +872,7 @@ function RehberEditor({
   function updateProgress(
     index: number,
     field: "label" | "progress",
-    value: string | number
+    value: string | number,
   ) {
     const newItems = [...content.progressItems];
     newItems[index] = { ...newItems[index], [field]: value };
@@ -995,7 +1038,7 @@ function RehberEditor({
                         updateProgress(
                           idx,
                           "progress",
-                          parseInt(e.target.value) || 0
+                          parseInt(e.target.value) || 0,
                         )
                       }
                       className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-emerald-500"
@@ -1102,28 +1145,30 @@ function IletisimEditor({
       // İçerik
       const contentRes = await fetch("/api/content/contact_page");
       if (contentRes.ok) {
-        const { data } = await contentRes.json();
-        if (data?.data) {
-          setContent({ ...content, ...data.data });
+        const contentResult = await contentRes.json();
+        console.log("IletisimEditor - Content API response:", contentResult);
+        if (contentResult.data) {
+          setContent({ ...content, ...contentResult.data });
         }
       }
 
       // Site ayarları
       const settingsRes = await fetch("/api/settings");
       if (settingsRes.ok) {
-        const { data } = await settingsRes.json();
-        if (data) {
+        const settingsResult = await settingsRes.json();
+        console.log("IletisimEditor - Settings API response:", settingsResult);
+        if (settingsResult.data) {
           setSettings({
-            phone: data.phone || "",
-            email: data.email || "",
-            whatsapp: data.whatsapp || "",
-            address: data.address || "",
-            mapEmbedUrl: data.mapEmbedUrl || "",
+            phone: settingsResult.data.phone || "",
+            email: settingsResult.data.email || "",
+            whatsapp: settingsResult.data.whatsapp || "",
+            address: settingsResult.data.address || "",
+            mapEmbedUrl: settingsResult.data.mapEmbedUrl || "",
           });
         }
       }
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("IletisimEditor - Fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -1132,14 +1177,21 @@ function IletisimEditor({
   async function saveContent() {
     setSaving(true);
     try {
-      await fetch("/api/content/contact_page", {
+      const response = await fetch("/api/content/contact_page", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: content }),
       });
-      alert("İçerik kaydedildi!");
+      const result = await response.json();
+      console.log("IletisimEditor - Save content response:", result);
+      if (result.success) {
+        alert("İçerik kaydedildi!");
+      } else {
+        alert("Kaydetme hatası: " + (result.error || "Bilinmeyen hata"));
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error("IletisimEditor - Save content error:", error);
+      alert("Kaydetme hatası!");
     } finally {
       setSaving(false);
     }
@@ -1148,14 +1200,21 @@ function IletisimEditor({
   async function saveSettings() {
     setSaving(true);
     try {
-      await fetch("/api/settings", {
+      const response = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
-      alert("Ayarlar kaydedildi!");
+      const result = await response.json();
+      console.log("IletisimEditor - Save settings response:", result);
+      if (result.success) {
+        alert("Ayarlar kaydedildi!");
+      } else {
+        alert("Kaydetme hatası: " + (result.error || "Bilinmeyen hata"));
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error("IletisimEditor - Save settings error:", error);
+      alert("Kaydetme hatası!");
     } finally {
       setSaving(false);
     }
@@ -1515,13 +1574,14 @@ function RandevuEditor({
     try {
       const res = await fetch("/api/content/appointment_page");
       if (res.ok) {
-        const { data } = await res.json();
-        if (data?.data) {
-          setContent({ ...content, ...data.data });
+        const result = await res.json();
+        console.log("RandevuEditor - API response:", result);
+        if (result.data) {
+          setContent({ ...content, ...result.data });
         }
       }
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("RandevuEditor - Fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -1530,14 +1590,21 @@ function RandevuEditor({
   async function save() {
     setSaving(true);
     try {
-      await fetch("/api/content/appointment_page", {
+      const response = await fetch("/api/content/appointment_page", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: content }),
       });
-      alert("Kaydedildi!");
+      const result = await response.json();
+      console.log("RandevuEditor - Save response:", result);
+      if (result.success) {
+        alert("Kaydedildi!");
+      } else {
+        alert("Kaydetme hatası: " + (result.error || "Bilinmeyen hata"));
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error("RandevuEditor - Save error:", error);
+      alert("Kaydetme hatası!");
     } finally {
       setSaving(false);
     }
@@ -1546,7 +1613,7 @@ function RandevuEditor({
   function updateAppointmentType(
     index: number,
     field: string,
-    value: string | boolean
+    value: string | boolean,
   ) {
     const newTypes = [...content.appointmentTypes];
     newTypes[index] = { ...newTypes[index], [field]: value };
@@ -1700,7 +1767,7 @@ function RandevuEditor({
                           updateAppointmentType(
                             idx,
                             "isActive",
-                            e.target.checked
+                            e.target.checked,
                           )
                         }
                         className="rounded border-slate-600 bg-slate-900 text-emerald-500"
@@ -1841,10 +1908,11 @@ function GenericPageEditor({
   async function fetchData() {
     try {
       const res = await fetch(`/api/page-content?page=${slug}`);
-      const { data } = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
+      const result = await res.json();
+      console.log("GenericPageEditor - API response:", result);
+      if (Array.isArray(result.data) && result.data.length > 0) {
         const merged: Record<string, string> = {};
-        data.forEach((item: Record<string, string>) => {
+        result.data.forEach((item: Record<string, string>) => {
           Object.keys(item).forEach((key) => {
             if (item[key]) merged[`${item.sectionKey}_${key}`] = item[key];
           });
@@ -1852,7 +1920,7 @@ function GenericPageEditor({
         setContent(merged);
       }
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("GenericPageEditor - Fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -1861,7 +1929,7 @@ function GenericPageEditor({
   async function save() {
     setSaving(true);
     try {
-      await fetch("/api/page-content", {
+      const response = await fetch("/api/page-content", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1872,8 +1940,16 @@ function GenericPageEditor({
           description: content.hero_description,
         }),
       });
+      const result = await response.json();
+      console.log("GenericPageEditor - Save response:", result);
+      if (result.success) {
+        alert("Kaydedildi!");
+      } else {
+        alert("Kaydetme hatası: " + (result.error || "Bilinmeyen hata"));
+      }
     } catch (error) {
-      console.error("Save error:", error);
+      console.error("GenericPageEditor - Save error:", error);
+      alert("Kaydetme hatası!");
     } finally {
       setSaving(false);
     }
@@ -2057,14 +2133,15 @@ function PopulationHistoryChart() {
   async function fetchPopulationData() {
     try {
       const res = await fetch("/api/hendek-stats?type=population");
-      const { data: populationData } = await res.json();
+      const result = await res.json();
+      console.log("PopulationHistoryChart - API response:", result);
       // Yıla göre artan sırala (eski -> yeni)
-      const sorted = (populationData || []).sort(
-        (a: PopulationData, b: PopulationData) => a.year - b.year
+      const sorted = (result.data || []).sort(
+        (a: PopulationData, b: PopulationData) => a.year - b.year,
       );
       setData(sorted);
     } catch (error) {
-      console.error("Population fetch error:", error);
+      console.error("PopulationHistoryChart - Fetch error:", error);
     } finally {
       setLoading(false);
     }

@@ -8,6 +8,7 @@ import { ListingTracker } from "@/components/listing-tracker";
 import { db } from "@/db";
 import { listings, seoMetadata } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { formatPrice, formatPricePerSqm, formatArea } from "@/lib/format";
 
 const typeLabels: Record<string, string> = {
   sanayi: "Sanayi",
@@ -46,8 +47,8 @@ async function getSeoData(entityId: string) {
       .where(
         and(
           eq(seoMetadata.entityType, "listing"),
-          eq(seoMetadata.entityId, entityId)
-        )
+          eq(seoMetadata.entityId, entityId),
+        ),
       )
       .limit(1);
     return result[0] || null;
@@ -71,10 +72,7 @@ export async function generateMetadata({
 
   const seo = await getSeoData(listing.id);
   const price = parseInt(listing.price) || 0;
-  const formattedPrice =
-    price >= 1000000
-      ? `${(price / 1000000).toFixed(1)}M TL`
-      : `${price.toLocaleString("tr-TR")} TL`;
+  const formattedPrice = formatPrice(price).replace("₺", "") + " TL";
 
   const defaultTitle = `${listing.title} | ${formattedPrice} | Demir Gayrimenkul`;
   const defaultDescription =
@@ -327,15 +325,13 @@ export default async function IlanDetayPage({ params }: PageProps) {
                       : "Satış Fiyatı"}
                   </p>
                   <p className="text-4xl font-bold text-[var(--demir-slate)]">
-                    {price >= 1000000
-                      ? `₺${(price / 1000000).toFixed(1)}M`
-                      : `₺${price.toLocaleString("tr-TR")}`}
+                    {formatPrice(price)}
                     {listing.transactionType === "rent" && (
                       <span className="text-lg font-normal">/ay</span>
                     )}
                   </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    ₺{pricePerSqm.toLocaleString("tr-TR")}/m²
+                    {formatPricePerSqm(price, listing.area)}
                   </p>
                 </div>
 
@@ -346,7 +342,7 @@ export default async function IlanDetayPage({ params }: PageProps) {
                       className="text-[var(--terracotta)] text-2xl mb-1"
                     />
                     <p className="text-lg font-bold text-[var(--demir-slate)]">
-                      {listing.area.toLocaleString("tr-TR")}m²
+                      {formatArea(listing.area)}
                     </p>
                     <p className="text-xs text-gray-500">Alan</p>
                   </div>

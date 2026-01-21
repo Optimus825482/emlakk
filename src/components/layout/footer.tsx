@@ -46,6 +46,7 @@ export function Footer() {
         const response = await fetch("/api/settings");
         if (response.ok) {
           const result = await response.json();
+          console.log("Footer - Settings API response:", result);
           if (result.data) {
             setSettings({ ...defaultSettings, ...result.data });
           }
@@ -101,7 +102,7 @@ export function Footer() {
                 <a
                   href={`https://wa.me/${settings.whatsapp.replace(
                     /[^0-9]/g,
-                    ""
+                    "",
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"

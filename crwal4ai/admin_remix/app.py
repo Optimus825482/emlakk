@@ -232,85 +232,104 @@ def api_crawler_start():
                 if force:
                     print("⚡ Force mode detected")
                     cmd.append("--force")
-                    # Force modunda otomatik sync de yapalım mı?
-                    # Kullanıcı "Fix it" dediğinde muhtemelen bunu istiyor
-                    # Ama şimdilik ayrı tutalım veya force ise sync de true yapalım
-                    # cmd.append('--sync') <--- Kullanıcı seçmeli olmalı
 
                 if reverse_sort:
                     print("🔄 Reverse sort detected")
                     cmd.append("--reverse-sort")
 
-                # Sync parametresi (API'den gelmeli)
-                # Kullanıcı "Ekle" dediği için bu özellik açık olmalı.
                 if data.get("sync", False):
                     print("🗑️ Sync mode detected (implying Turbo)")
                     cmd.append("--sync")
-                    # Sync modunda otomatik turbo:
                     cmd.append("--turbo")
 
-                # Manual turbo
                 if data.get("turbo", False):
                     cmd.append("--turbo")
 
                 # Crawler'ı çalıştır
-                print(f"Executing: {' '.join(cmd)}")
+                print(f"🚀 Executing crawler: {' '.join(cmd)}")
                 script_dir = os.path.dirname(script_path)
                 log_file = os.path.join(script_dir, "crawler_debug.log")
+                error_log_file = os.path.join(script_dir, "crawler_error.log")
                 
                 # Windows'ta detached process (penceresiz)
                 creationflags = 0
                 if sys.platform == "win32":
                     creationflags = 0x00000008  # DETACHED_PROCESS
 
-                with open(log_file, "w", encoding="utf-8") as f:
+                # STDOUT ve STDERR'i ayrı dosyalara yaz
+                with open(log_file, "w", encoding="utf-8") as stdout_f, \
+                     open(error_log_file, "w", encoding="utf-8") as stderr_f:
+                    
+                    print(f"📝 Logs: {log_file}")
+                    print(f"📝 Errors: {error_log_file}")
+                    
                     result = subprocess.run(
                         cmd,
-                        stdout=f,
-                        stderr=subprocess.STDOUT,
+                        stdout=stdout_f,
+                        stderr=stderr_f,
                         text=True,
                         timeout=3600,  # 1 saat timeout
-                        cwd=script_dir,  # Çalışma dizinini script'in olduğu yer yap
+                        cwd=script_dir,
                         creationflags=creationflags,
                     )
 
-                # Debug logu oku (sonra güncellemek için)
+                # Debug logu oku
                 try:
                     with open(log_file, "r", encoding="utf-8") as f:
                         debug_log = f.read()
-                except:
-                    debug_log = "Log file read error"
+                except Exception as e:
+                    debug_log = f"Log file read error: {str(e)}"
+
+                # Error logu oku
+                try:
+                    with open(error_log_file, "r", encoding="utf-8") as f:
+                        error_log = f.read()
+                except Exception as e:
+                    error_log = f"Error log read error: {str(e)}"
+
+                # Logları birleştir
+                full_log = f"=== STDOUT ===\n{debug_log}\n\n=== STDERR ===\n{error_log}"
+                
+                print(f"✅ Crawler finished with return code: {result.returncode}")
+                print(f"📊 Log preview: {full_log[:500]}")
 
                 # Job'u güncelle
                 if result.returncode == 0:
                     db.execute_query(
                         "UPDATE mining_jobs SET status = 'completed', error = %s WHERE id = %s",
-                        (debug_log[-5000:] if debug_log else "No output", job_id),
+                        (full_log[-5000:] if full_log else "No output", job_id),
                         fetch=False
                     )
                 else:
                     db.execute_query(
                         "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
-                        (debug_log[-5000:], job_id),
+                        (full_log[-5000:], job_id),
                         fetch=False
                     )
 
-            except subprocess.TimeoutExpired:
+            except subprocess.TimeoutExpired as e:
+                error_msg = f"Timeout (1 saat): {str(e)}"
+                print(f"❌ {error_msg}")
                 db.execute_query(
-                    "UPDATE mining_jobs SET status = 'failed', error = 'Timeout (1 saat)' WHERE id = %s",
-                    (job_id,),
+                    "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
+                    (error_msg, job_id),
                     fetch=False
                 )
 
             except Exception as e:
+                error_msg = f"Crawler exception: {str(e)}"
+                print(f"❌ {error_msg}")
+                import traceback
+                traceback.print_exc()
                 db.execute_query(
                     "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
-                    (str(e)[:500], job_id),
+                    (error_msg[:500], job_id),
                     fetch=False
                 )
 
             finally:
                 crawler_running = False
+                print(f"🏁 Crawler thread finished for job {job_id}")
 
         # Thread başlat
         thread = threading.Thread(target=run_crawler, daemon=True)

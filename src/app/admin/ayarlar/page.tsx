@@ -60,7 +60,7 @@ const AI_PROVIDERS: { value: AIProvider; label: string; icon: string }[] = [
 export default function AdminAyarlarPage() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -210,23 +210,35 @@ export default function AdminAyarlarPage() {
 
     try {
       setSaving(true);
+      console.log("Kaydediliyor:", settings);
+
       const response = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
 
+      console.log("Response status:", response.status);
+      const result = await response.json();
+      console.log("Response data:", result);
+
       if (response.ok) {
         setMessage({ type: "success", text: "Ayarlar başarıyla kaydedildi!" });
         setTimeout(() => setMessage(null), 3000);
+        // Güncel veriyi yeniden yükle
+        await fetchSettings();
       } else {
-        setMessage({ type: "error", text: "Ayarlar kaydedilemedi!" });
+        setMessage({
+          type: "error",
+          text: result.error || "Ayarlar kaydedilemedi!",
+        });
       }
     } catch (error) {
       console.error("Kaydetme hatası:", error);
       setMessage({ type: "error", text: "Bir hata oluştu!" });
     } finally {
       setSaving(false);
+      setTimeout(() => setMessage(null), 5000);
     }
   }
 
@@ -311,7 +323,7 @@ export default function AdminAyarlarPage() {
   function updateNestedSettings(
     parent: "socialMedia" | "workingHours",
     field: string,
-    value: string
+    value: string,
   ) {
     if (!settings) return;
     setSettings({
@@ -525,7 +537,7 @@ export default function AdminAyarlarPage() {
                       updateNestedSettings(
                         "workingHours",
                         "weekdays",
-                        e.target.value
+                        e.target.value,
                       )
                     }
                     placeholder="09:00 - 18:00"
@@ -543,7 +555,7 @@ export default function AdminAyarlarPage() {
                       updateNestedSettings(
                         "workingHours",
                         "saturday",
-                        e.target.value
+                        e.target.value,
                       )
                     }
                     placeholder="10:00 - 14:00"
@@ -561,7 +573,7 @@ export default function AdminAyarlarPage() {
                       updateNestedSettings(
                         "workingHours",
                         "sunday",
-                        e.target.value
+                        e.target.value,
                       )
                     }
                     placeholder="Kapalı"
@@ -597,7 +609,7 @@ export default function AdminAyarlarPage() {
                     updateNestedSettings(
                       "socialMedia",
                       "instagram",
-                      e.target.value
+                      e.target.value,
                     )
                   }
                   placeholder="https://instagram.com/..."
@@ -624,7 +636,7 @@ export default function AdminAyarlarPage() {
                     updateNestedSettings(
                       "socialMedia",
                       "linkedin",
-                      e.target.value
+                      e.target.value,
                     )
                   }
                   placeholder="https://linkedin.com/company/..."
@@ -651,7 +663,7 @@ export default function AdminAyarlarPage() {
                     updateNestedSettings(
                       "socialMedia",
                       "facebook",
-                      e.target.value
+                      e.target.value,
                     )
                   }
                   placeholder="https://facebook.com/..."
@@ -678,7 +690,7 @@ export default function AdminAyarlarPage() {
                     updateNestedSettings(
                       "socialMedia",
                       "youtube",
-                      e.target.value
+                      e.target.value,
                     )
                   }
                   placeholder="https://youtube.com/..."
@@ -1165,8 +1177,8 @@ export default function AdminAyarlarPage() {
                         {systemSettings.aiApiKeyValid
                           ? `Aktif: ${systemSettings.aiProvider} / ${systemSettings.aiModel}`
                           : systemSettings.hasApiKey
-                          ? "API key doğrulanmadı"
-                          : "API key girilmedi"}
+                            ? "API key doğrulanmadı"
+                            : "API key girilmedi"}
                       </span>
                     </div>
                     {systemSettings.hasApiKey && (

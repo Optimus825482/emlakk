@@ -1,6 +1,7 @@
 /**
  * Workflow Trigger Helper
- * Workflow'ları arka planda tetiklemek için yardımcı fonksiyonlar
+ * NOT: Workflow sistemi kaldırıldı. Bu fonksiyonlar artık hiçbir şey yapmıyor.
+ * Geriye dönük uyumluluk için bırakıldı.
  */
 
 type WorkflowType =
@@ -16,42 +17,39 @@ interface TriggerParams {
 
 /**
  * Workflow'u arka planda tetikler (fire-and-forget)
- * API response'u beklemeden devam eder
+ * NOT: Workflow sistemi kaldırıldı, bu fonksiyon artık hiçbir şey yapmıyor
  */
 export async function triggerWorkflow(
   workflow: WorkflowType,
-  params: TriggerParams
+  params: TriggerParams,
 ): Promise<void> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-  // Fire-and-forget - response beklemiyoruz
-  fetch(`${baseUrl}/api/workflows/trigger`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ workflow, params }),
-  }).catch((error) => {
-    // Hata olursa sadece logla, ana işlemi etkilemesin
-    console.error(`Workflow trigger error (${workflow}):`, error);
-  });
+  // No-op: Workflow sistemi kaldırıldı
+  console.log(`[DEPRECATED] Workflow trigger ignored: ${workflow}`, params);
 }
 
 /**
  * Randevu oluşturulduğunda hatırlatma workflow'unu tetikler
+ * NOT: Workflow sistemi kaldırıldı, bu fonksiyon artık hiçbir şey yapmıyor
  */
 export function triggerAppointmentReminder(appointmentId: string): void {
-  triggerWorkflow("appointment-reminder", { appointmentId });
+  // No-op: Workflow sistemi kaldırıldı
+  console.log(`[DEPRECATED] Appointment reminder ignored:`, appointmentId);
 }
 
 /**
  * Değerleme talebi oluşturulduğunda AI değerleme workflow'unu tetikler
+ * NOT: Workflow sistemi kaldırıldı, bu fonksiyon artık hiçbir şey yapmıyor
  */
 export function triggerAIValuation(valuationId: string): void {
-  triggerWorkflow("ai-valuation", { valuationId });
+  // No-op: Workflow sistemi kaldırıldı
+  console.log(`[DEPRECATED] AI valuation ignored:`, valuationId);
 }
 
 /**
  * İlan oluşturulduğunda/güncellendiğinde açıklama oluşturma workflow'unu tetikler
+ * NOT: Workflow sistemi kaldırıldı, bu fonksiyon artık hiçbir şey yapmıyor
  */
 export function triggerListingDescription(listingId: string): void {
-  triggerWorkflow("listing-description", { listingId });
+  // No-op: Workflow sistemi kaldırıldı
+  console.log(`[DEPRECATED] Listing description ignored:`, listingId);
 }

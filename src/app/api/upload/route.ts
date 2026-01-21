@@ -16,6 +16,68 @@ const MAX_HEIGHT = 1920;
 const THUMBNAIL_WIDTH = 400;
 const THUMBNAIL_HEIGHT = 300;
 
+// Brightness analysis settings
+const BRIGHTNESS_THRESHOLD = 100; // 0-255 arası, bu değerin altındaki resimler karanlık kabul edilir
+const BRIGHTNESS_BOOST = 1.3; // Karanlık resimlere uygulanacak parlaklık çarpanı
+const CONTRAST_BOOST = 1.2; // Karanlık resimlere uygulanacak kontrast çarpanı
+
+/**
+ * Resmin ortalama parlaklığını hesaplar (0-255 arası)
+ */
+async function analyzeBrightness(buffer: Buffer): Promise<number> {
+  try {
+    const { data, info } = await sharp(buffer)
+      .resize(100, 100, { fit: "inside" }) // Hız için küçült
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    let totalBrightness = 0;
+    const pixelCount = info.width * info.height;
+    const channels = info.channels;
+
+    // Her pixel için parlaklık hesapla (RGB ortalaması)
+    for (let i = 0; i < data.length; i += channels) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      // Luminance formula: 0.299*R + 0.587*G + 0.114*B
+      const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+      totalBrightness += brightness;
+    }
+
+    return totalBrightness / pixelCount;
+  } catch (error) {
+    console.error("Brightness analysis failed:", error);
+    return 128; // Orta değer döndür (hata durumunda)
+  }
+}
+
+/**
+ * Karanlık resimleri otomatik olarak iyileştirir
+ */
+async function enhanceDarkImage(
+  image: sharp.Sharp,
+  brightness: number,
+): Promise<sharp.Sharp> {
+  const brightnessAdjust = Math.round((BRIGHTNESS_BOOST - 1) * 100);
+  const contrastAdjust = Math.round((CONTRAST_BOOST - 1) * 100);
+
+  console.log(
+    `🌙 Karanlık resim tespit edildi (parlaklık: ${Math.round(brightness)}/255)`,
+  );
+  console.log(
+    `✨ Resim iyileştirildi: +${brightnessAdjust}% parlaklık, +${contrastAdjust}% kontrast`,
+  );
+
+  return image
+    .modulate({
+      brightness: BRIGHTNESS_BOOST, // Parlaklığı artır
+      saturation: 1.1, // Hafif renk doygunluğu artır
+    })
+    .linear(CONTRAST_BOOST, -(128 * CONTRAST_BOOST - 128)) // Kontrast artır
+    .sharpen(); // Hafif keskinleştir
+}
+
 export const POST = withAdmin(async (request: NextRequest) => {
   try {
     const formData = await request.formData();
@@ -60,10 +122,16 @@ export const POST = withAdmin(async (request: NextRequest) => {
     // Optimize image with Sharp
     let optimizedBuffer: Buffer;
     let finalExtension = "webp"; // Default to WebP for best compression
+    let brightnessEnhanced = false;
+    let originalBrightness = 0;
 
     try {
       const image = sharp(buffer);
       const metadata = await image.metadata();
+
+      // Parlaklık analizi yap
+      originalBrightness = await analyzeBrightness(buffer);
+      console.log(`📊 Resim parlaklığı: ${Math.round(originalBrightness)}/255`);
 
       // Resize if too large
       let resizeOptions: { width?: number; height?: number } = {};
@@ -74,13 +142,22 @@ export const POST = withAdmin(async (request: NextRequest) => {
         resizeOptions.height = MAX_HEIGHT;
       }
 
+      // Resize uygula
+      let processedImage = image.resize(
+        resizeOptions.width || resizeOptions.height ? resizeOptions : undefined,
+      );
+
+      // Karanlık resim ise iyileştir
+      if (originalBrightness < BRIGHTNESS_THRESHOLD) {
+        processedImage = await enhanceDarkImage(
+          processedImage,
+          originalBrightness,
+        );
+        brightnessEnhanced = true;
+      }
+
       // Optimize and convert to WebP
-      optimizedBuffer = await image
-        .resize(
-          resizeOptions.width || resizeOptions.height
-            ? resizeOptions
-            : undefined,
-        )
+      optimizedBuffer = await processedImage
         .webp({ quality: IMAGE_QUALITY })
         .toBuffer();
 
@@ -138,6 +215,11 @@ export const POST = withAdmin(async (request: NextRequest) => {
       type: "image/webp",
       optimized: true,
       savings: Math.round((1 - optimizedBuffer.length / file.size) * 100),
+      brightness: {
+        original: Math.round(originalBrightness),
+        enhanced: brightnessEnhanced,
+        threshold: BRIGHTNESS_THRESHOLD,
+      },
     });
   } catch (error) {
     console.error("Upload error:", error);

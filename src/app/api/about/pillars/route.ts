@@ -11,12 +11,12 @@ export async function GET() {
       .from(visionPillars)
       .orderBy(asc(visionPillars.sortOrder));
 
-    return NextResponse.json(pillars);
+    return NextResponse.json({ success: true, data: pillars });
   } catch (error) {
     console.error("Pillars fetch error:", error);
     return NextResponse.json(
-      { error: "Veriler yüklenirken hata oluştu" },
-      { status: 500 }
+      { success: false, error: "Veriler yüklenirken hata oluştu" },
+      { status: 500 },
     );
   }
 }
@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
 
     if (!icon || !title || !description) {
       return NextResponse.json(
-        { error: "Icon, başlık ve açıklama gerekli" },
-        { status: 400 }
+        { success: false, error: "Icon, başlık ve açıklama gerekli" },
+        { status: 400 },
       );
     }
 
@@ -44,12 +44,15 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json(newPillar, { status: 201 });
+    return NextResponse.json(
+      { success: true, data: newPillar },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Pillar create error:", error);
     return NextResponse.json(
-      { error: "Oluşturma sırasında hata oluştu" },
-      { status: 500 }
+      { success: false, error: "Oluşturma sırasında hata oluştu" },
+      { status: 500 },
     );
   }
 }
@@ -81,7 +84,7 @@ export async function PUT(request: NextRequest) {
     console.error("Pillar update error:", error);
     return NextResponse.json(
       { error: "Güncelleme sırasında hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -103,7 +106,7 @@ export async function DELETE(request: NextRequest) {
     console.error("Pillar delete error:", error);
     return NextResponse.json(
       { error: "Silme sırasında hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

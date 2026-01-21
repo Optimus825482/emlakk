@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
+import { formatPrice, formatPricePerSqm, formatArea } from "@/lib/format";
 
 interface Listing {
   id: string;
@@ -30,9 +31,9 @@ export function CategoryListings() {
     async function fetchListings() {
       try {
         const [sanayiRes, tarimRes, konutRes] = await Promise.all([
-          fetch("/api/listings?propertyType=sanayi&limit=4"),
-          fetch("/api/listings?propertyType=tarim&limit=4"),
-          fetch("/api/listings?propertyType=konut&limit=4"),
+          fetch("/api/listings?type=sanayi&limit=4&status=active"),
+          fetch("/api/listings?type=tarim&limit=4&status=active"),
+          fetch("/api/listings?type=konut&limit=4&status=active"),
         ]);
 
         if (sanayiRes.ok) {
@@ -219,7 +220,7 @@ function SanayiCard({ listing }: { listing: Listing }) {
       <div className="p-4">
         <h4 className="text-white font-bold mb-1">{listing.title}</h4>
         <p className="text-gray-400 text-sm mb-1">
-          {listing.area.toLocaleString("tr-TR")}m² • Sanayi İmarlı
+          {formatArea(listing.area)} • Sanayi İmarlı
         </p>
         {listing.tarih && (
           <p className="text-xs text-orange-400 font-medium mb-2">
@@ -227,7 +228,7 @@ function SanayiCard({ listing }: { listing: Listing }) {
           </p>
         )}
         <p className="text-xl font-bold text-white">
-          ₺{formatPrice(listing.price)}
+          {formatPrice(listing.price)}
         </p>
       </div>
     </Link>
@@ -258,18 +259,14 @@ function TarimCard({ listing }: { listing: Listing }) {
           {listing.title}
         </h4>
         <p className="text-gray-500 text-sm mb-3">
-          {listing.area.toLocaleString("tr-TR")}m² • {listing.city}
+          {formatArea(listing.area)} • {listing.city}
         </p>
         <div className="flex justify-between items-center">
           <p className="text-lg font-bold text-[var(--demir-slate)]">
-            ₺{formatPrice(listing.price)}
+            {formatPrice(listing.price)}
           </p>
           <span className="text-xs text-green-600 font-semibold">
-            ₺
-            {Math.round(
-              parseFloat(listing.price) / listing.area,
-            ).toLocaleString("tr-TR")}
-            /m²
+            {formatPricePerSqm(listing.price, listing.area)}
           </span>
         </div>
       </div>
@@ -301,7 +298,7 @@ function KonutCard({ listing }: { listing: Listing }) {
           {listing.title}
         </h4>
         <p className="text-gray-500 text-sm mb-1">
-          {listing.area.toLocaleString("tr-TR")}m² • {listing.address}
+          {formatArea(listing.area)} • {listing.address}
         </p>
         {listing.tarih && (
           <p className="text-xs text-orange-500 font-medium mb-2">
@@ -310,18 +307,10 @@ function KonutCard({ listing }: { listing: Listing }) {
         )}
         <div className="flex justify-between items-center">
           <p className="text-lg font-bold text-[var(--demir-slate)]">
-            ₺{formatPrice(listing.price)}
+            {formatPrice(listing.price)}
           </p>
         </div>
       </div>
     </Link>
   );
-}
-
-function formatPrice(price: string): string {
-  const num = parseFloat(price);
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + "M";
-  }
-  return num.toLocaleString("tr-TR");
 }

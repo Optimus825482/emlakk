@@ -32,16 +32,19 @@ export async function GET() {
       .limit(1);
 
     return NextResponse.json({
-      founder: founder || null,
-      pillars,
-      principles,
-      manifesto: manifestoData || null,
+      success: true,
+      data: {
+        founder: founder || null,
+        pillars,
+        principles,
+        manifesto: manifestoData || null,
+      },
     });
   } catch (error) {
     console.error("About page fetch error:", error);
     return NextResponse.json(
-      { error: "Veriler yüklenirken hata oluştu" },
-      { status: 500 }
+      { success: false, error: "Veriler yüklenirken hata oluştu" },
+      { status: 500 },
     );
   }
 }
@@ -55,7 +58,7 @@ export async function PUT(request: NextRequest) {
     if (!founderData) {
       return NextResponse.json(
         { error: "Kurucu bilgileri gerekli" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -95,12 +98,15 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      data: { message: "Güncellendi" },
+    });
   } catch (error) {
     console.error("Founder update error:", error);
     return NextResponse.json(
       { error: "Güncelleme sırasında hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

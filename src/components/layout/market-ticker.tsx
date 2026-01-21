@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { formatPrice } from "@/lib/format";
 
 interface Listing {
   id: string;
@@ -53,7 +54,7 @@ export function MarketTicker() {
             // İstatistikleri hesapla
             const prices = data
               .map((l: { price: string }) =>
-                parseInt(l.price?.replace(/\D/g, "") || "0")
+                parseInt(l.price?.replace(/\D/g, "") || "0"),
               )
               .filter((p: number) => p > 0);
 
@@ -61,14 +62,14 @@ export function MarketTicker() {
               prices.length > 0
                 ? Math.round(
                     prices.reduce((a: number, b: number) => a + b, 0) /
-                      prices.length
+                      prices.length,
                   )
                 : 0;
 
             setStats({
               totalListings: pagination?.total || data.length,
               monthlySales: Math.floor(Math.random() * 20) + 10, // Bu gerçek veriden gelmeli
-              avgPrice: formatPrice(avgPrice),
+              avgPrice: formatPrice(avgPrice).replace("₺", ""), // ₺ işareti zaten gösteriliyor
             });
           }
         }
@@ -80,15 +81,6 @@ export function MarketTicker() {
     }
     fetchData();
   }, []);
-
-  function formatPrice(price: number): string {
-    if (price >= 1000000) {
-      return `₺${(price / 1000000).toFixed(1)}M`;
-    } else if (price >= 1000) {
-      return `₺${(price / 1000).toFixed(0)}K`;
-    }
-    return `₺${price}`;
-  }
 
   // Loading state
   if (isLoading) {
@@ -162,7 +154,7 @@ export function MarketTicker() {
                   </span>
                   <span className="text-[var(--hazelnut)] font-bold">
                     {formatPrice(
-                      parseInt(listing.price?.replace(/\D/g, "") || "0")
+                      parseInt(listing.price?.replace(/\D/g, "") || "0"),
                     )}
                   </span>
                 </Link>
@@ -172,14 +164,12 @@ export function MarketTicker() {
               </span>
             ))}
 
-            {/* Ortalama Fiyat */}
+            {/* Fiyat */}
             <span className="text-gray-600">•</span>
             <span className="flex items-center gap-2 text-sm">
-              <span className="text-[var(--terracotta)] font-bold">
-                ORT. FİYAT
-              </span>
+              <span className="text-[var(--terracotta)] font-bold">FİYAT</span>
               <span className="text-[var(--hazelnut)] font-bold">
-                {stats.avgPrice}
+                ₺{stats.avgPrice}
               </span>
             </span>
           </div>

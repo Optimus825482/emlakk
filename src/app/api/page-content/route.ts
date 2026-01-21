@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (!pageSlug) {
       return NextResponse.json(
         { error: "page parametresi gerekli" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
         .where(
           and(
             eq(pageContents.pageSlug, pageSlug),
-            eq(pageContents.sectionKey, sectionKey)
-          )
+            eq(pageContents.sectionKey, sectionKey),
+          ),
         );
     } else {
       query = await db
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     if (!pageSlug || !sectionKey) {
       return NextResponse.json(
         { error: "pageSlug ve sectionKey gerekli" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     console.error("Page content POST error:", error);
     return NextResponse.json(
       { error: "İçerik oluşturulamadı" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -98,7 +98,7 @@ export async function PUT(request: NextRequest) {
         .where(eq(pageContents.id, id))
         .returning();
 
-      return NextResponse.json({ data: updated });
+      return NextResponse.json({ success: true, data: updated });
     } else if (pageSlug && sectionKey) {
       // pageSlug + sectionKey ile upsert
       const existing = await db
@@ -107,8 +107,8 @@ export async function PUT(request: NextRequest) {
         .where(
           and(
             eq(pageContents.pageSlug, pageSlug),
-            eq(pageContents.sectionKey, sectionKey)
-          )
+            eq(pageContents.sectionKey, sectionKey),
+          ),
         );
 
       if (existing.length > 0) {
@@ -118,26 +118,26 @@ export async function PUT(request: NextRequest) {
           .where(eq(pageContents.id, existing[0].id))
           .returning();
 
-        return NextResponse.json({ data: updated });
+        return NextResponse.json({ success: true, data: updated });
       } else {
         const [created] = await db
           .insert(pageContents)
           .values({ pageSlug, sectionKey, ...data })
           .returning();
 
-        return NextResponse.json({ data: created });
+        return NextResponse.json({ success: true, data: created });
       }
     }
 
     return NextResponse.json(
       { error: "id veya pageSlug+sectionKey gerekli" },
-      { status: 400 }
+      { status: 400 },
     );
   } catch (error) {
     console.error("Page content PUT error:", error);
     return NextResponse.json(
       { error: "İçerik güncellenemedi" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

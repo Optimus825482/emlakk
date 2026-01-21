@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 // GET - Tek içerik getir
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ key: string }> }
+  { params }: { params: Promise<{ key: string }> },
 ) {
   try {
     const { key } = await params;
@@ -31,7 +31,7 @@ export async function GET(
 // PATCH - İçerik güncelle
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ key: string }> }
+  { params }: { params: Promise<{ key: string }> },
 ) {
   try {
     const { key } = await params;
@@ -50,12 +50,12 @@ export async function PATCH(
       return NextResponse.json({ error: "İçerik bulunamadı" }, { status: 404 });
     }
 
-    return NextResponse.json({ data: updated });
+    return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     console.error("Content PATCH error:", error);
     return NextResponse.json(
       { error: "İçerik güncellenemedi" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -63,7 +63,7 @@ export async function PATCH(
 // PUT - İçerik oluştur veya güncelle (upsert)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ key: string }> }
+  { params }: { params: Promise<{ key: string }> },
 ) {
   try {
     const { key } = await params;
@@ -101,12 +101,12 @@ export async function PUT(
         .returning();
     }
 
-    return NextResponse.json({ data: result });
+    return NextResponse.json({ success: true, data: result });
   } catch (error) {
     console.error("Content PUT error:", error);
     return NextResponse.json(
       { error: "İçerik kaydedilemedi" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -114,7 +114,7 @@ export async function PUT(
 // DELETE - İçerik sil
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ key: string }> }
+  { params }: { params: Promise<{ key: string }> },
 ) {
   try {
     const { key } = await params;

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
+import { formatPrice, formatPricePerSqm, formatArea } from "@/lib/format";
 
 interface Listing {
   id: string;
@@ -29,8 +30,12 @@ export function FeaturedListings() {
   useEffect(() => {
     async function fetchListings() {
       try {
-        const params = new URLSearchParams({ featured: "true", limit: "6" });
-        if (filter !== "all") params.set("propertyType", filter);
+        const params = new URLSearchParams({
+          isFeatured: "true",
+          limit: "6",
+          status: "active",
+        });
+        if (filter !== "all") params.set("type", filter);
 
         const response = await fetch(`/api/listings?${params.toString()}`);
         if (response.ok) {
@@ -127,20 +132,19 @@ export function FeaturedListings() {
                               {mainListing.title}
                             </h3>
                             <p className="text-gray-200 text-lg font-[var(--font-body)]">
-                              {mainListing.area.toLocaleString("tr-TR")}m² •{" "}
+                              {formatArea(mainListing.area)} •{" "}
                               {mainListing.address}
                             </p>
                           </div>
                           <div className="text-right">
                             <p className="text-3xl font-bold">
-                              ₺{formatPrice(mainListing.price)}
+                              {formatPrice(mainListing.price)}
                             </p>
                             <p className="text-sm text-gray-300">
-                              ₺
-                              {Math.round(
-                                parseFloat(mainListing.price) / mainListing.area
-                              ).toLocaleString("tr-TR")}
-                              /m²
+                              {formatPricePerSqm(
+                                mainListing.price,
+                                mainListing.area,
+                              )}
                             </p>
                           </div>
                         </div>
@@ -263,11 +267,11 @@ function SideListingCard({ listing }: { listing: Listing }) {
           {listing.title}
         </h3>
         <p className="text-gray-500 text-sm mb-4 font-[var(--font-body)]">
-          {listing.area.toLocaleString("tr-TR")}m² • {listing.city}
+          {formatArea(listing.area)} • {listing.city}
         </p>
         <div className="flex items-center justify-between">
           <span className="text-xl font-bold text-[var(--demir-slate)]">
-            ₺{formatPrice(listing.price)}
+            {formatPrice(listing.price)}
           </span>
         </div>
       </div>
@@ -283,12 +287,4 @@ function getTypeLabel(type: string): string {
     ticari: "Ticari",
   };
   return labels[type] || type;
-}
-
-function formatPrice(price: string): string {
-  const num = parseFloat(price);
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + "M";
-  }
-  return num.toLocaleString("tr-TR");
 }

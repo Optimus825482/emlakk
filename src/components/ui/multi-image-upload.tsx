@@ -68,6 +68,13 @@ export function MultiImageUpload({
         const data = await response.json();
         if (data.url) {
           newUrls.push(data.url);
+
+          // Parlaklık iyileştirmesi yapıldıysa bildir
+          if (data.brightness?.enhanced) {
+            console.log(
+              `✨ Resim otomatik iyileştirildi (Parlaklık: ${data.brightness.original}/255 → İyileştirildi)`,
+            );
+          }
         }
       } catch (err) {
         console.error("Upload error:", err);
@@ -99,7 +106,7 @@ export function MultiImageUpload({
       setDragActive(false);
       handleUpload(e.dataTransfer.files);
     },
-    [value, maxImages]
+    [value, maxImages],
   );
 
   const removeImage = (index: number) => {

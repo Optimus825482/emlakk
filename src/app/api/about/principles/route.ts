@@ -11,12 +11,12 @@ export async function GET() {
       .from(companyPrinciples)
       .orderBy(asc(companyPrinciples.sortOrder));
 
-    return NextResponse.json(principles);
+    return NextResponse.json({ success: true, data: principles });
   } catch (error) {
     console.error("Principles fetch error:", error);
     return NextResponse.json(
-      { error: "Veriler yüklenirken hata oluştu" },
-      { status: 500 }
+      { success: false, error: "Veriler yüklenirken hata oluştu" },
+      { status: 500 },
     );
   }
 }
@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
 
     if (!icon || !title) {
       return NextResponse.json(
-        { error: "Icon ve başlık gerekli" },
-        { status: 400 }
+        { success: false, error: "Icon ve başlık gerekli" },
+        { status: 400 },
       );
     }
 
@@ -43,12 +43,15 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json(newPrinciple, { status: 201 });
+    return NextResponse.json(
+      { success: true, data: newPrinciple },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("Principle create error:", error);
     return NextResponse.json(
-      { error: "Oluşturma sırasında hata oluştu" },
-      { status: 500 }
+      { success: false, error: "Oluşturma sırasında hata oluştu" },
+      { status: 500 },
     );
   }
 }
@@ -79,7 +82,7 @@ export async function PUT(request: NextRequest) {
     console.error("Principle update error:", error);
     return NextResponse.json(
       { error: "Güncelleme sırasında hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -101,7 +104,7 @@ export async function DELETE(request: NextRequest) {
     console.error("Principle delete error:", error);
     return NextResponse.json(
       { error: "Silme sırasında hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

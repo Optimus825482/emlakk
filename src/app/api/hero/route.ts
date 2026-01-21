@@ -57,7 +57,7 @@ export async function GET() {
     console.error("Hero GET error:", error);
     return NextResponse.json(
       { error: "Hero verileri alınamadı" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -87,8 +87,11 @@ export async function PUT(request: NextRequest) {
         .returning();
 
       return NextResponse.json({
-        id: updated.id,
-        ...body,
+        success: true,
+        data: {
+          id: updated.id,
+          ...body,
+        },
       });
     } else {
       // Yeni kayıt oluştur
@@ -105,15 +108,18 @@ export async function PUT(request: NextRequest) {
         .returning();
 
       return NextResponse.json({
-        id: created.id,
-        ...body,
+        success: true,
+        data: {
+          id: created.id,
+          ...body,
+        },
       });
     }
   } catch (error) {
     console.error("Hero PUT error:", error);
     return NextResponse.json(
       { error: "Hero verileri kaydedilemedi" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

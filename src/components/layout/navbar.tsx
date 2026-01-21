@@ -22,12 +22,13 @@ export function Navbar() {
       try {
         const response = await fetch("/api/settings");
         if (response.ok) {
-          const { data } = await response.json();
-          if (data) {
+          const result = await response.json();
+          console.log("Navbar - Settings API response:", result);
+          if (result.data) {
             setSettings({
-              siteName: data.siteName || "DEMİR",
-              siteTagline: data.siteTagline || "Gayrimenkul",
-              logo: data.logo,
+              siteName: result.data.siteName || "DEMİR",
+              siteTagline: result.data.siteTagline || "Gayrimenkul",
+              logo: result.data.logo,
             });
           }
         }

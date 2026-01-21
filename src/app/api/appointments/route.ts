@@ -128,10 +128,13 @@ export async function POST(request: NextRequest) {
         name: data.name,
         email: data.email,
         phone: data.phone,
-        date: data.preferredDate,
-        time: data.preferredTime || "10:00",
+        date:
+          data.preferredDate ||
+          data.date ||
+          new Date().toISOString().split("T")[0],
+        time: data.preferredTime || data.time || "10:00",
         message: data.message,
-        listingId: data.listingId,
+        listingId: data.listingId || data.propertyId,
         status: "pending",
       })
       .returning();

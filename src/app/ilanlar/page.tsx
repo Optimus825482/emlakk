@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { db } from "@/db";
 import { listings } from "@/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
+import { formatPrice, formatPricePerSqm, formatArea } from "@/lib/format";
 
 const typeLabels: Record<string, string> = {
   sanayi: "Sanayi",
@@ -32,7 +33,7 @@ async function getListings(type?: string) {
   if (type && ["sanayi", "tarim", "konut", "ticari", "arsa"].includes(type)) {
     // Note: "arsa" type requires database migration to add to enum
     conditions.push(
-      eq(listings.type, type as (typeof listings.type.enumValues)[number])
+      eq(listings.type, type as (typeof listings.type.enumValues)[number]),
     );
   }
 
@@ -42,7 +43,7 @@ async function getListings(type?: string) {
     .where(
       sql`${listings.status} = 'active'${
         type ? sql` AND ${listings.type} = ${type}` : sql``
-      }`
+      }`,
     )
     .orderBy(desc(listings.isFeatured), desc(listings.createdAt));
 
@@ -204,17 +205,15 @@ function ListingCard({ listing }: { listing: ListingData }) {
           {listing.title}
         </h3>
         <p className="text-gray-500 text-sm mb-4 font-[var(--font-body)] line-clamp-1">
-          {listing.area.toLocaleString("tr-TR")}m² •{" "}
+          {formatArea(listing.area)} •{" "}
           {listing.description?.slice(0, 50) || "Detaylar için tıklayın"}
         </p>
         <div className="flex items-center justify-between">
           <span className="text-xl font-bold text-[var(--demir-slate)]">
-            {price >= 1000000
-              ? `₺${(price / 1000000).toFixed(1)}M`
-              : `₺${price.toLocaleString("tr-TR")}`}
+            {formatPrice(price)}
           </span>
           <span className="text-xs text-gray-500">
-            ₺{pricePerSqm.toLocaleString("tr-TR")}/m²
+            {formatPricePerSqm(price, listing.area)}
           </span>
         </div>
       </div>

@@ -12,12 +12,12 @@ export async function GET() {
       .where(eq(manifesto.isActive, true))
       .limit(1);
 
-    return NextResponse.json(data || null);
+    return NextResponse.json({ data: data || null });
   } catch (error) {
     console.error("Manifesto fetch error:", error);
     return NextResponse.json(
       { error: "Veriler yüklenirken hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest) {
     console.error("Manifesto update error:", error);
     return NextResponse.json(
       { error: "Güncelleme sırasında hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

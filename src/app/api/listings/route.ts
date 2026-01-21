@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { listings, type ListingType, type ListingStatus } from "@/db/schema";
-import { createListingSchema, listingQuerySchema, type CreateListing } from "@/lib/validations";
+import {
+  createListingSchema,
+  listingQuerySchema,
+  type CreateListing,
+} from "@/lib/validations";
 import { slugify, calculatePricePerSqm } from "@/lib/utils";
 import { eq, and, gte, lte, sql, desc, asc } from "drizzle-orm";
 import { triggerListingDescription } from "@/lib/workflow-trigger";
@@ -29,13 +33,13 @@ export async function GET(request: NextRequest) {
           error: "Geçersiz sorgu parametreleri",
           details: query.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const {
       type,
-      status = "active",
+      status,
       transactionType,
       minPrice,
       maxPrice,
@@ -52,9 +56,12 @@ export async function GET(request: NextRequest) {
     const conditions = [];
 
     if (type) conditions.push(eq(listings.type, type as ListingType));
+    // Status filtresi sadece belirtilmişse uygula (admin tüm ilanları görebilmeli)
     if (status) conditions.push(eq(listings.status, status as ListingStatus));
     if (transactionType)
-      conditions.push(eq(listings.transactionType, transactionType as "sale" | "rent"));
+      conditions.push(
+        eq(listings.transactionType, transactionType as "sale" | "rent"),
+      );
     if (minPrice) conditions.push(gte(listings.price, minPrice.toString()));
     if (maxPrice) conditions.push(lte(listings.price, maxPrice.toString()));
     if (minArea) conditions.push(gte(listings.area, parseInt(minArea)));
@@ -65,7 +72,7 @@ export async function GET(request: NextRequest) {
       conditions.push(
         sql`(${listings.title} ILIKE ${`%${search}%`} OR ${
           listings.address
-        } ILIKE ${`%${search}%`})`
+        } ILIKE ${`%${search}%`})`,
       );
     }
 
@@ -105,7 +112,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json(
       { error: "İlanlar yüklenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -118,7 +125,7 @@ export const POST = withAdmin(async (request: NextRequest) => {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Gecersiz veri", details: validation.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -140,12 +147,10 @@ export const POST = withAdmin(async (request: NextRequest) => {
       counter++;
     }
 
-    const pricePerSqm = calculatePricePerSqm(data.price, data.area || 0).toString();
-
-    const featuresObj: Record<string, string | number | boolean | undefined> = {};
-    if (data.features) {
-      data.features.forEach((f, i) => { featuresObj[`feature_${i}`] = f; });
-    }
+    const pricePerSqm = calculatePricePerSqm(
+      data.price,
+      data.area || 0,
+    ).toString();
 
     const insertData = {
       title: data.title,
@@ -160,7 +165,7 @@ export const POST = withAdmin(async (request: NextRequest) => {
       neighborhood: data.neighborhood,
       latitude: data.latitude?.toString(),
       longitude: data.longitude?.toString(),
-      features: Object.keys(featuresObj).length > 0 ? featuresObj : undefined,
+      features: data.features || undefined,
       images: data.images,
       isFeatured: data.isFeatured,
       slug,
@@ -185,14 +190,19 @@ export const POST = withAdmin(async (request: NextRequest) => {
       location: newListing.address || undefined,
       category: newListing.type,
       price: parseInt(newListing.price) || undefined,
-      features: Object.values(newListing.features || {}).filter((v): v is string => typeof v === "string"),
+      features: Object.values(newListing.features || {}).filter(
+        (v): v is string => typeof v === "string",
+      ),
     });
 
-    log("info", "Ilan olusturuldu", { module: "listings-api", listingId: newListing.id });
+    log("info", "Ilan olusturuldu", {
+      module: "listings-api",
+      listingId: newListing.id,
+    });
 
     return NextResponse.json(
       { data: newListing, message: "Ilan basariyla olusturuldu" },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     if (error instanceof Error) {
@@ -200,7 +210,7 @@ export const POST = withAdmin(async (request: NextRequest) => {
     }
     return NextResponse.json(
       { error: "Ilan olusturulurken bir hata olustu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 });

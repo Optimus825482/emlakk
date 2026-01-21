@@ -39,7 +39,7 @@ export async function GET() {
     console.error("Settings GET error:", error);
     return NextResponse.json(
       { error: "Ayarlar yüklenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -47,15 +47,19 @@ export async function GET() {
 export const PATCH = withAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
+    console.log("PATCH /api/settings - Gelen veri:", body);
 
     const [existing] = await db.select().from(siteSettings).limit(1);
 
     if (!existing) {
+      console.error("PATCH /api/settings - Ayarlar bulunamadı");
       return NextResponse.json(
         { error: "Ayarlar bulunamadı" },
-        { status: 404 }
+        { status: 404 },
       );
     }
+
+    console.log("PATCH /api/settings - Mevcut ayarlar:", existing);
 
     const [updated] = await db
       .update(siteSettings)
@@ -66,7 +70,10 @@ export const PATCH = withAdmin(async (request: NextRequest) => {
       .where(eq(siteSettings.id, existing.id))
       .returning();
 
+    console.log("PATCH /api/settings - Güncellendi:", updated);
+
     return NextResponse.json({
+      success: true,
       data: updated,
       message: "Ayarlar güncellendi",
     });
@@ -74,7 +81,10 @@ export const PATCH = withAdmin(async (request: NextRequest) => {
     console.error("Settings PATCH error:", error);
     return NextResponse.json(
       { error: "Ayarlar güncellenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 });
+
+// PUT metodu da ekle (PATCH ile aynı işi yapar, eski kod uyumluluğu için)
+export const PUT = PATCH;

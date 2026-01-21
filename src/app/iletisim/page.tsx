@@ -94,8 +94,9 @@ export default function IletisimPage() {
         // Site ayarlarını çek
         const settingsRes = await fetch("/api/settings");
         if (settingsRes.ok) {
-          const { data } = await settingsRes.json();
-          setSettings(data || {});
+          const result = await settingsRes.json();
+          console.log("Settings API response:", result);
+          setSettings(result.data || {});
         }
 
         // Ekip üyelerini çek (ilk üye broker olarak gösterilecek)
@@ -114,7 +115,7 @@ export default function IletisimPage() {
   }, []);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -531,7 +532,7 @@ export default function IletisimPage() {
                     </p>
                   </div>
                 </div>
-              )
+              ),
             )}
           </div>
         </section>

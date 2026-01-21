@@ -449,7 +449,20 @@ export default function YeniIlanPage() {
         router.push("/admin/ilanlar");
       } else {
         const error = await response.json();
-        alert(error.error || "İlan oluşturulurken hata oluştu");
+        console.error("Validation error:", error);
+
+        // Validation hatalarını kullanıcıya göster
+        if (error.details?.fieldErrors) {
+          const fieldErrors = Object.entries(error.details.fieldErrors)
+            .map(
+              ([field, errors]) =>
+                `${field}: ${(errors as string[]).join(", ")}`,
+            )
+            .join("\n");
+          alert(`Geçersiz veri:\n\n${fieldErrors}`);
+        } else {
+          alert(error.error || "İlan oluşturulurken hata oluştu");
+        }
       }
     } catch (error) {
       console.error("İlan oluşturma hatası:", error);
