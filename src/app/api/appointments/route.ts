@@ -44,9 +44,7 @@ export async function GET(request: NextRequest) {
     if (type) {
       // Map frontend type to DB enum for filtering
       const dbType = mapAppointmentType(type);
-      conditions.push(
-        eq(appointments.type, dbType as typeof appointments.type.$inferSelect),
-      );
+      conditions.push(eq(appointments.type, dbType as any));
     }
     if (status) conditions.push(eq(appointments.status, status));
     if (startDate) conditions.push(gte(appointments.date, startDate));
