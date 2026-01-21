@@ -31,14 +31,29 @@ const propertyId = process.env.GA_PROPERTY_ID;
 
 // Analytics client singleton
 let analyticsClient: BetaAnalyticsDataClient | null = null;
+let analyticsEnabled = true;
 
-function getClient(): BetaAnalyticsDataClient {
+function getClient(): BetaAnalyticsDataClient | null {
+  if (!analyticsEnabled) {
+    return null;
+  }
+
   if (!analyticsClient) {
-    const credentials = getCredentials();
-    if (!credentials) {
-      throw new Error("Google Analytics credentials not configured");
+    try {
+      const credentials = getCredentials();
+      if (!credentials) {
+        console.warn(
+          "Google Analytics credentials not configured - analytics disabled",
+        );
+        analyticsEnabled = false;
+        return null;
+      }
+      analyticsClient = new BetaAnalyticsDataClient({ credentials });
+    } catch (error) {
+      console.error("Failed to initialize Google Analytics client:", error);
+      analyticsEnabled = false;
+      return null;
     }
-    analyticsClient = new BetaAnalyticsDataClient({ credentials });
   }
   return analyticsClient;
 }
@@ -76,143 +91,187 @@ export interface DailyData {
  * Son 7 günlük genel istatistikler
  */
 export async function getAnalyticsOverview(
-  days: number = 7
+  days: number = 7,
 ): Promise<AnalyticsOverview> {
-  if (!propertyId) {
-    throw new Error("GA_PROPERTY_ID not configured");
+  try {
+    if (!propertyId) {
+      throw new Error("GA_PROPERTY_ID not configured");
+    }
+
+    const client = getClient();
+    if (!client) {
+      throw new Error("Analytics client not available");
+    }
+
+    const [response] = await client.runReport({
+      property: `properties/${propertyId}`,
+      dateRanges: [{ startDate: `${days}daysAgo`, endDate: "today" }],
+      metrics: [
+        { name: "totalUsers" },
+        { name: "newUsers" },
+        { name: "sessions" },
+        { name: "screenPageViews" },
+        { name: "averageSessionDuration" },
+        { name: "bounceRate" },
+      ],
+    });
+
+    const row = response.rows?.[0];
+    const values = row?.metricValues || [];
+
+    return {
+      totalUsers: parseInt(values[0]?.value || "0"),
+      newUsers: parseInt(values[1]?.value || "0"),
+      sessions: parseInt(values[2]?.value || "0"),
+      pageViews: parseInt(values[3]?.value || "0"),
+      avgSessionDuration: parseFloat(values[4]?.value || "0"),
+      bounceRate: parseFloat(values[5]?.value || "0"),
+    };
+  } catch (error) {
+    console.error("Analytics API error:", error);
+    // Return default values when analytics fails
+    return {
+      totalUsers: 0,
+      newUsers: 0,
+      sessions: 0,
+      pageViews: 0,
+      avgSessionDuration: 0,
+      bounceRate: 0,
+    };
   }
-
-  const client = getClient();
-
-  const [response] = await client.runReport({
-    property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: `${days}daysAgo`, endDate: "today" }],
-    metrics: [
-      { name: "totalUsers" },
-      { name: "newUsers" },
-      { name: "sessions" },
-      { name: "screenPageViews" },
-      { name: "averageSessionDuration" },
-      { name: "bounceRate" },
-    ],
-  });
-
-  const row = response.rows?.[0];
-  const values = row?.metricValues || [];
-
-  return {
-    totalUsers: parseInt(values[0]?.value || "0"),
-    newUsers: parseInt(values[1]?.value || "0"),
-    sessions: parseInt(values[2]?.value || "0"),
-    pageViews: parseInt(values[3]?.value || "0"),
-    avgSessionDuration: parseFloat(values[4]?.value || "0"),
-    bounceRate: parseFloat(values[5]?.value || "0"),
-  };
 }
 
 /**
  * En çok görüntülenen sayfalar
  */
 export async function getTopPages(limit: number = 10): Promise<PageViewData[]> {
-  if (!propertyId) {
-    throw new Error("GA_PROPERTY_ID not configured");
+  try {
+    if (!propertyId) {
+      throw new Error("GA_PROPERTY_ID not configured");
+    }
+
+    const client = getClient();
+    if (!client) {
+      throw new Error("Analytics client not available");
+    }
+
+    const [response] = await client.runReport({
+      property: `properties/${propertyId}`,
+      dateRanges: [{ startDate: "30daysAgo", endDate: "today" }],
+      dimensions: [{ name: "pagePath" }, { name: "pageTitle" }],
+      metrics: [{ name: "screenPageViews" }],
+      orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
+      limit,
+    });
+
+    return (response.rows || []).map((row) => ({
+      pagePath: row.dimensionValues?.[0]?.value || "",
+      pageTitle: row.dimensionValues?.[1]?.value || "",
+      views: parseInt(row.metricValues?.[0]?.value || "0"),
+    }));
+  } catch (error) {
+    console.error("Analytics API error:", error);
+    return [];
   }
-
-  const client = getClient();
-
-  const [response] = await client.runReport({
-    property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: "30daysAgo", endDate: "today" }],
-    dimensions: [{ name: "pagePath" }, { name: "pageTitle" }],
-    metrics: [{ name: "screenPageViews" }],
-    orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
-    limit,
-  });
-
-  return (response.rows || []).map((row) => ({
-    pagePath: row.dimensionValues?.[0]?.value || "",
-    pageTitle: row.dimensionValues?.[1]?.value || "",
-    views: parseInt(row.metricValues?.[0]?.value || "0"),
-  }));
 }
 
 /**
  * Trafik kaynakları
  */
 export async function getTrafficSources(
-  limit: number = 10
+  limit: number = 10,
 ): Promise<TrafficSource[]> {
-  if (!propertyId) {
-    throw new Error("GA_PROPERTY_ID not configured");
+  try {
+    if (!propertyId) {
+      throw new Error("GA_PROPERTY_ID not configured");
+    }
+
+    const client = getClient();
+    if (!client) {
+      throw new Error("Analytics client not available");
+    }
+
+    const [response] = await client.runReport({
+      property: `properties/${propertyId}`,
+      dateRanges: [{ startDate: "30daysAgo", endDate: "today" }],
+      dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
+      metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      limit,
+    });
+
+    return (response.rows || []).map((row) => ({
+      source: row.dimensionValues?.[0]?.value || "(direct)",
+      medium: row.dimensionValues?.[1]?.value || "(none)",
+      sessions: parseInt(row.metricValues?.[0]?.value || "0"),
+      users: parseInt(row.metricValues?.[1]?.value || "0"),
+    }));
+  } catch (error) {
+    console.error("Analytics API error:", error);
+    return [];
   }
-
-  const client = getClient();
-
-  const [response] = await client.runReport({
-    property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: "30daysAgo", endDate: "today" }],
-    dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
-    metrics: [{ name: "sessions" }, { name: "totalUsers" }],
-    orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
-    limit,
-  });
-
-  return (response.rows || []).map((row) => ({
-    source: row.dimensionValues?.[0]?.value || "(direct)",
-    medium: row.dimensionValues?.[1]?.value || "(none)",
-    sessions: parseInt(row.metricValues?.[0]?.value || "0"),
-    users: parseInt(row.metricValues?.[1]?.value || "0"),
-  }));
 }
 
 /**
  * Günlük veri trendi
  */
 export async function getDailyTrend(days: number = 30): Promise<DailyData[]> {
-  if (!propertyId) {
-    throw new Error("GA_PROPERTY_ID not configured");
+  try {
+    if (!propertyId) {
+      throw new Error("GA_PROPERTY_ID not configured");
+    }
+
+    const client = getClient();
+    if (!client) {
+      throw new Error("Analytics client not available");
+    }
+
+    const [response] = await client.runReport({
+      property: `properties/${propertyId}`,
+      dateRanges: [{ startDate: `${days}daysAgo`, endDate: "today" }],
+      dimensions: [{ name: "date" }],
+      metrics: [
+        { name: "totalUsers" },
+        { name: "sessions" },
+        { name: "screenPageViews" },
+      ],
+      orderBys: [{ dimension: { dimensionName: "date" }, desc: false }],
+    });
+
+    return (response.rows || []).map((row) => ({
+      date: row.dimensionValues?.[0]?.value || "",
+      users: parseInt(row.metricValues?.[0]?.value || "0"),
+      sessions: parseInt(row.metricValues?.[1]?.value || "0"),
+      pageViews: parseInt(row.metricValues?.[2]?.value || "0"),
+    }));
+  } catch (error) {
+    console.error("Analytics API error:", error);
+    return [];
   }
-
-  const client = getClient();
-
-  const [response] = await client.runReport({
-    property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: `${days}daysAgo`, endDate: "today" }],
-    dimensions: [{ name: "date" }],
-    metrics: [
-      { name: "totalUsers" },
-      { name: "sessions" },
-      { name: "screenPageViews" },
-    ],
-    orderBys: [{ dimension: { dimensionName: "date" }, desc: false }],
-  });
-
-  return (response.rows || []).map((row) => ({
-    date: row.dimensionValues?.[0]?.value || "",
-    users: parseInt(row.metricValues?.[0]?.value || "0"),
-    sessions: parseInt(row.metricValues?.[1]?.value || "0"),
-    pageViews: parseInt(row.metricValues?.[2]?.value || "0"),
-  }));
 }
 
 /**
  * Realtime aktif kullanıcılar
  */
 export async function getRealtimeUsers(): Promise<number> {
-  if (!propertyId) {
-    throw new Error("GA_PROPERTY_ID not configured");
-  }
-
-  const client = getClient();
-
   try {
+    if (!propertyId) {
+      return 0;
+    }
+
+    const client = getClient();
+    if (!client) {
+      return 0;
+    }
+
     const [response] = await client.runRealtimeReport({
       property: `properties/${propertyId}`,
       metrics: [{ name: "activeUsers" }],
     });
 
     return parseInt(response.rows?.[0]?.metricValues?.[0]?.value || "0");
-  } catch {
+  } catch (error) {
+    console.error("Analytics API error:", error);
     return 0;
   }
 }
