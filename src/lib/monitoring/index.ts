@@ -50,7 +50,7 @@ export function log(level: LogLevel, message: string, context?: LogContext) {
 
 export async function captureError(
   error: Error,
-  context?: Record<string, unknown>
+  context?: Record<string, unknown>,
 ) {
   log("error", error.message, {
     module: "error-capture",
@@ -114,7 +114,7 @@ export async function sendAlert(payload: AlertPayload): Promise<boolean> {
                       type: "mrkdwn",
                       text: `\`\`\`${JSON.stringify(context, null, 2).slice(
                         0,
-                        500
+                        500,
                       )}\`\`\``,
                     },
                   },
@@ -180,29 +180,6 @@ export function createTimer(name: string) {
       return duration;
     },
   };
-}
-
-export async function checkCrawlerHealth(): Promise<{
-  healthy: boolean;
-  details: Record<string, unknown>;
-}> {
-  try {
-    const response = await fetch(`${env.CRAWLER_API_URL}/health`, {
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!response.ok) {
-      return { healthy: false, details: { status: response.status } };
-    }
-
-    const data = await response.json();
-    return { healthy: true, details: data };
-  } catch (error) {
-    return {
-      healthy: false,
-      details: { error: error instanceof Error ? error.message : "Unknown" },
-    };
-  }
 }
 
 export async function sendDailySummary(stats: {

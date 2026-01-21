@@ -13,7 +13,6 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(1).optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   DEEPSEEK_API_KEY: z.string().min(1).optional(),
-  CRAWLER_API_URL: z.string().url().default("http://localhost:8000"),
   CRON_SECRET: z.string().min(1).optional(),
   MINING_PASSWORD: z.string().min(1).optional(),
   SLACK_WEBHOOK_URL: z.string().url().optional(),
