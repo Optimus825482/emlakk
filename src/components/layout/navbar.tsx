@@ -105,17 +105,6 @@ export function Navbar() {
               </Link>
 
               <Link
-                href="/harita"
-                className="px-4 py-2 text-sm font-medium text-[var(--demir-slate)] hover:text-[var(--terracotta)] transition-colors rounded-lg hover:bg-[var(--terracotta)]/5 flex items-center gap-1.5"
-              >
-                <Icon
-                  name="map"
-                  className="text-[var(--terracotta)] text-base"
-                />
-                Emlak Haritası
-              </Link>
-
-              <Link
                 href="/degerleme"
                 className="px-4 py-2 text-sm font-medium text-[var(--demir-slate)] hover:text-[var(--terracotta)] transition-colors rounded-lg hover:bg-[var(--terracotta)]/5 flex items-center gap-1.5"
               >
