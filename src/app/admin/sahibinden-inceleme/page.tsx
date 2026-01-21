@@ -91,127 +91,34 @@ export default function SahibindenIncelemePage() {
     loadCategoryData(activeCategory);
   }, [activeCategory]);
 
-  // Kategori verilerini yükle (PARALEL + CACHE + FAIL-SAFE)
+  // Kategori verilerini yükle - Crawler API kaldırıldı
   const loadCategoryData = async (categoryId: string) => {
     setCategoryData((prev) => ({
       ...prev,
-      [categoryId]: { ...prev[categoryId], isLoading: true },
+      [categoryId]: {
+        comparison: {
+          sahibinden: 0,
+          database: 0,
+          diff: 0,
+          status: "synced" as const,
+        },
+        newListings: [],
+        removedListings: [],
+        lastUpdate: new Date().toISOString(),
+        isLoading: false,
+      },
     }));
 
-    try {
-      // API çağrılarını bağımsız yap (biri patlarsa diğerleri etkilenmesin)
-      const fetchComparison = fetch("/api/crawler/live-comparison", {
-        cache: "no-store",
-      })
-        .then((res) => res.json())
-        .catch((err) => ({
-          success: false,
-          error: "Bağlantı hatası",
-          data: [],
-        }));
-
-      const fetchNew = fetch(
-        `/api/crawler/new-listings?category=${categoryId}`,
-        {
-          cache: "no-store",
-        },
-      ).then((res) => res.json());
-
-      const fetchRemoved = fetch(
-        `/api/crawler/removed-listings?category=${categoryId}`,
-        { cache: "no-store" },
-      ).then((res) => res.json());
-
-      // Hepsini bekle
-      const [comparisonData, newListingsData, removedListingsData] =
-        await Promise.all([fetchComparison, fetchNew, fetchRemoved]);
-
-      // Kategori için tüm transaction'ları topla
-      const categoryComparisons =
-        comparisonData.data?.filter(
-          (item: any) => item.category === categoryId,
-        ) || [];
-
-      // Toplam sayıları hesapla
-      const totalDatabase = categoryComparisons.reduce(
-        (sum: number, item: any) => sum + (item.database || 0),
-        0,
-      );
-      const totalSahibinden = categoryComparisons.reduce(
-        (sum: number, item: any) => sum + (item.sahibinden || 0),
-        0,
-      );
-      // Sahibinden verisi çekilemediyse (0) ve DB'de veri varsa, farkı gösterme (hatalı eksi bakiye görünmesin)
-      const totalDiff =
-        totalSahibinden === 0 && comparisonData.success === false
-          ? 0
-          : totalSahibinden - totalDatabase;
-
-      let status: "new" | "removed" | "synced" = "synced";
-      if (totalDiff > 0) status = "new";
-      else if (totalDiff < 0) status = "removed";
-
-      setCategoryData((prev) => ({
-        ...prev,
-        [categoryId]: {
-          comparison: {
-            sahibinden: totalSahibinden,
-            database: totalDatabase,
-            diff: totalDiff,
-            status,
-          },
-          newListings: newListingsData.data?.listings || [],
-          removedListings: removedListingsData.data?.listings || [],
-          lastUpdate: new Date().toISOString(),
-          isLoading: false,
-        },
-      }));
-
-      if (comparisonData.success === false) {
-        console.warn("Live comparison failed:", comparisonData.error);
-        // İsterseniz burada kullanıcıya toast gösterebilirsiniz
-      }
-    } catch (error) {
-      console.error("Veri yükleme hatası:", error);
-      setCategoryData((prev) => ({
-        ...prev,
-        [categoryId]: { ...prev[categoryId], isLoading: false },
-      }));
-    }
+    // Crawler sistemi Flask Admin Panel'e taşındı
+    console.warn("Crawler API kaldırıldı - Flask Admin Panel kullanın");
   };
 
-  // Crawler başlat
+  // Crawler başlat - API kaldırıldı
   const startCrawler = async () => {
-    if (selectedTransactions.length === 0) {
-      alert("Lütfen en az bir kategori seçin!");
-      return;
-    }
-
-    setCrawlerStatus("running");
-
-    try {
-      const response = await fetch("/api/crawler/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          categories: selectedTransactions,
-          maxPages: 999, // TÜM sayfaları tara (crawler otomatik olarak son sayfada duracak)
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        pollJobStatus(result.jobId);
-      } else {
-        alert("Crawler başlatılamadı: " + result.error);
-        setCrawlerStatus("idle");
-      }
-    } catch (error) {
-      console.error("Crawler başlatma hatası:", error);
-      alert("Crawler başlatılamadı!");
-      setCrawlerStatus("idle");
-    }
+    alert(
+      "Crawler sistemi Flask Admin Panel'e taşındı. Lütfen Flask Admin Panel'i kullanın.",
+    );
+    return;
   };
 
   // Job durumunu takip et

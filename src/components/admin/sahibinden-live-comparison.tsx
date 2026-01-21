@@ -78,24 +78,16 @@ export function SahibindenLiveComparison() {
 
   async function fetchComparison() {
     setLoading(true);
-    setError(null);
-    setHint(null);
+    setError(
+      "Crawler sistemi Flask Admin Panel'e taşındı. Bu özellik şu anda kullanılamıyor.",
+    );
+    setHint(
+      "Flask Admin Panel'den (http://admin.yourdomain.com) crawler'ı kullanabilirsiniz.",
+    );
+    setLoading(false);
 
-    try {
-      const res = await fetch("/api/crawler/live-comparison");
-      const json = await res.json();
-
-      if (json.success) {
-        setData(json);
-      } else {
-        setError(json.error || "Veri alınamadı");
-        setHint(json.hint || null);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Bilinmeyen hata");
-    } finally {
-      setLoading(false);
-    }
+    // Crawler API kaldırıldı - Flask Admin Panel'de çalışıyor
+    return;
   }
 
   function formatPrice(price?: number): string {
