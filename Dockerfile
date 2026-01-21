@@ -51,6 +51,9 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
+# Create uploads directory for file uploads
+RUN mkdir -p /app/public/uploads && chmod 777 /app/public/uploads
+
 EXPOSE 3000
 
 CMD ["yarn", "start"]
