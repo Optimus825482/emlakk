@@ -618,10 +618,6 @@ class SahibindenSupabaseCrawler:
             "intl.accept_languages": "tr-TR,tr,en-US,en",
         }
         options.add_experimental_option("prefs", prefs)
-        
-        # Automation flags'i gizle
-        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-        options.add_experimental_option("useAutomationExtension", False)
 
         return options
 
