@@ -301,3 +301,146 @@ Crawler doğru çalışıyorsa:
 
 **Son Güncelleme**: 21 Ocak 2026
 **Yazar**: Kiro AI Assistant
+
+---
+
+## 🔥 CLOUDFLARE 403 SORUNU (GÜNCEL)
+
+**Durum:** Sunucudan `curl` ile Sahibinden'e erişilemiyor (403 Forbidden)
+
+```bash
+curl -I https://www.sahibinden.com/satilik/sakarya-hendek
+# HTTP/2 403
+# server: cloudflare
+```
+
+**Neden:** Cloudflare, sunucu IP'sini bot olarak algılıyor.
+
+**Çözüm:** Chrome browser ile **görsel olarak** (headless değil) erişmek gerekiyor. Xvfb ile virtual display kullanıyoruz.
+
+### ✅ Yapılan İyileştirmeler (21 Ocak 2026)
+
+1. **Chrome Options Optimize Edildi:**
+   - Linux User-Agent (X11; Linux x86_64)
+   - WebGL ve Canvas fingerprint eklendi
+   - Gerçek browser profili (languages, preferences)
+   - Automation flags tamamen gizlendi
+
+2. **Cloudflare Challenge Detection:**
+   - "Checking your browser" mesajı tespit ediliyor
+   - Challenge çözülene kadar bekliyor (max 30 saniye)
+   - 403 durumunda hemen durduruluyor
+
+3. **Rate Limiter Yavaşlatıldı:**
+   - Base delay: 4 saniye (Cloudflare için güvenli)
+   - Min delay: 2.5 saniye
+   - Requests/minute: 20 (çok yavaş ama güvenli)
+
+4. **CDP Commands ile Stealth:**
+   - `navigator.webdriver` undefined
+   - `navigator.plugins` dolu array
+   - `window.chrome` object eklendi
+
+### 🧪 Test Adımları
+
+```bash
+# 1. Xvfb çalışıyor mu?
+ps aux | grep Xvfb
+# Çıktı: Xvfb :99 -screen 0 1920x1080x24
+
+# 2. DISPLAY ayarlı mı?
+echo $DISPLAY
+# Çıktı: :99
+
+# 3. Chrome başlıyor mu?
+cd /app/admin_remix
+python diagnostic.py
+# ✅ Chrome found: /usr/bin/google-chrome
+# ✅ Xvfb is running
+
+# 4. Crawler test (1 sayfa)
+python sahibinden_uc_batch_supabase.py --categories konut_satilik --max-pages 1
+
+# Beklenen çıktı:
+# 🚀 Chrome başlatılıyor...
+# ✅ Chrome hazır!
+# 🌐 https://www.sahibinden.com/satilik/sakarya-hendek...
+# ⏳ Cloudflare challenge tespit edildi, bekleniyor...
+# ✅ Cloudflare challenge çözüldü!
+# ✅ 50 ilan işlendi, 5 yeni, 45 güncellendi
+```
+
+### 🚨 Hala Block Yiyorsa
+
+**Seçenek 1: Daha Yavaş Crawl**
+
+```python
+# sahibinden_uc_batch_supabase.py - satır ~240
+self.rate_limiter = AdaptiveRateLimiter(
+    RateLimiterConfig(
+        base_delay=8.0,  # 4 -> 8 saniye (ÇOK YAVAŞ)
+        min_delay=5.0,   # 2.5 -> 5 saniye
+        requests_per_minute=10,  # 20 -> 10 istek/dakika
+    )
+)
+```
+
+**Seçenek 2: Proxy Kullan**
+
+```python
+# sahibinden_uc_batch_supabase.py - _get_chrome_options() içinde
+options.add_argument('--proxy-server=http://proxy-ip:port')
+```
+
+**Seçenek 3: Residential Proxy Servisi**
+
+- Bright Data, Oxylabs, Smartproxy gibi servisler
+- Türkiye IP'si kullan (Sahibinden Türkiye sitesi)
+
+**Seçenek 4: VPN**
+
+```bash
+# Sunucuya VPN kur
+apt install openvpn
+# Türkiye sunucusuna bağlan
+```
+
+**Seçenek 5: Farklı Sunucu/IP**
+
+- Hetzner yerine Türkiye'deki bir VPS kullan
+- Cloudflare Türkiye IP'lerini daha az blokluyor
+- Veya farklı bir Hetzner datacenter dene
+
+### 📊 Crawler Performans Beklentileri
+
+**Yavaş Mod (Güvenli):**
+
+- 20 istek/dakika = 3 saniye/sayfa
+- 100 sayfa = ~5 dakika
+- 1000 ilan = ~10 dakika
+
+**Normal Mod:**
+
+- 30 istek/dakika = 2 saniye/sayfa
+- 100 sayfa = ~3.5 dakika
+
+**Turbo Mod (RİSKLİ - Block riski yüksek):**
+
+- 60 istek/dakika = 1 saniye/sayfa
+- 100 sayfa = ~2 dakika
+
+### 🔍 Debug: Cloudflare Challenge Görme
+
+Eğer challenge'ı görmek istersen:
+
+```bash
+# VNC server kur (opsiyonel)
+apt install x11vnc
+x11vnc -display :99 -forever -nopw -listen 0.0.0.0 -xkb
+
+# Lokal bilgisayardan bağlan
+# VNC Viewer: sunucu-ip:5900
+# Chrome'un Cloudflare challenge'ı çözdüğünü görebilirsin
+```
+
+---

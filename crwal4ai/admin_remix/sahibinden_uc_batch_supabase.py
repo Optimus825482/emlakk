@@ -250,18 +250,18 @@ class SahibindenSupabaseCrawler:
         # Turbo modu durumu
         self.turbo_mode = False
 
-        # Adaptive Rate Limiter - MAKSIMUM HIZ MODU
+        # Adaptive Rate Limiter - CLOUDFLARE BYPASS MODU
         self.rate_limiter = AdaptiveRateLimiter(
             RateLimiterConfig(
-                base_delay=1.5,  # Temel bekleme (3.5 -> 1.5)
-                min_delay=0.5,  # Minimum bekleme (2.5 -> 0.5)
-                max_delay=45.0,  # Block sonrası maksimum (değişmedi)
-                jitter_range=0.5,  # Rastgele varyasyon (1.5 -> 0.5)
-                backoff_multiplier=2.0,  # Block sonrası çarpan (değişmedi)
-                max_backoff_level=15,  # Maksimum backoff seviyesi (değişmedi)
-                cooldown_after_block=30.0,  # Block sonrası soğuma (60 -> 30)
-                requests_per_minute=55,  # Dakikada max istek (60 -> 55)
-                burst_limit=100,  # Ardışık hızlı istek limiti (Limit kaldırıldı)
+                base_delay=4.0,  # Temel bekleme (1.5 -> 4.0) - Cloudflare için daha yavaş
+                min_delay=2.5,  # Minimum bekleme (0.5 -> 2.5)
+                max_delay=60.0,  # Block sonrası maksimum (45 -> 60)
+                jitter_range=1.5,  # Rastgele varyasyon (0.5 -> 1.5)
+                backoff_multiplier=2.5,  # Block sonrası çarpan (2.0 -> 2.5)
+                max_backoff_level=20,  # Maksimum backoff seviyesi (15 -> 20)
+                cooldown_after_block=45.0,  # Block sonrası soğuma (30 -> 45)
+                requests_per_minute=20,  # Dakikada max istek (55 -> 20) - ÇOK YAVAŞ
+                burst_limit=50,  # Ardışık hızlı istek limiti (100 -> 50)
             )
         )
 
@@ -578,26 +578,50 @@ class SahibindenSupabaseCrawler:
             return False
 
     def _get_chrome_options(self):
-        """Chrome ayarları - human-like davranış için"""
-        # Profile KALDIRILDI - driver version mismatch'e neden oluyor
-        # CHROME_PROFILE.mkdir(exist_ok=True)
-
+        """Chrome ayarları - Cloudflare bypass için optimize edilmiş"""
+        
+        # Gerçek kullanıcı gibi görünmek için güncel User-Agent
         user_agent = (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (X11; Linux x86_64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
         )
 
         options = uc.ChromeOptions()
+        
+        # Temel ayarlar
         options.add_argument(f"user-agent={user_agent}")
-        options.add_argument(f"--window-size=1920,1080")
-        # options.add_argument(f'--user-data-dir={CHROME_PROFILE}')  # KALDIRILDI
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--start-maximized")
+        
+        # Cloudflare bypass için kritik ayarlar
         options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--lang=tr-TR")
-        options.add_argument("--disable-gpu")  # GPU hatalarını önle
+        options.add_argument("--no-sandbox")
+        options.add_argument("--lang=tr-TR,tr")
+        options.add_argument("--accept-lang=tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7")
+        
+        # WebGL ve Canvas fingerprint
+        options.add_argument("--enable-webgl")
+        options.add_argument("--use-gl=swiftshader")
+        
+        # Diğer optimizasyonlar
+        options.add_argument("--disable-gpu")
         options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--remote-debugging-port=0")  # Port çakışmasını önle
+        options.add_argument("--remote-debugging-port=0")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-popup-blocking")
+        
+        # Preferences - daha gerçekçi browser profili
+        prefs = {
+            "profile.default_content_setting_values.notifications": 2,
+            "profile.managed_default_content_settings.images": 1,
+            "intl.accept_languages": "tr-TR,tr,en-US,en",
+        }
+        options.add_experimental_option("prefs", prefs)
+        
+        # Automation flags'i gizle
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        options.add_experimental_option("useAutomationExtension", False)
 
         return options
 
@@ -657,9 +681,15 @@ class SahibindenSupabaseCrawler:
 
             logger.info("✅ Chrome hazır!")
 
-            self.driver.execute_script(
-                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-            )
+            # Automation detection'ı gizle - daha kapsamlı
+            self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+                "source": """
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+                    Object.defineProperty(navigator, 'languages', {get: () => ['tr-TR', 'tr', 'en-US', 'en']});
+                    window.chrome = {runtime: {}};
+                """
+            })
 
             logger.info("✓ WebDriver özelliği gizlendi")
 
@@ -744,24 +774,53 @@ class SahibindenSupabaseCrawler:
         return False
 
     def navigate(self, url: str, timeout: int = 60) -> Optional[str]:
-        """Sayfaya git - Rate limiter ile"""
+        """Sayfaya git - Rate limiter ile + Cloudflare bypass"""
         logger.info(f"🌐 {url[:60]}...")
         self._add_log("info", f"🌐 {url[:80]}...")
 
         # Rate limiter ile bekle
         wait_time = self.rate_limiter.wait()
-        # Debug log kaldırıldı (gereksiz spam)
 
         start_time = time.time()
 
         try:
             self.driver.get(url)
 
+            # İlk bekleme - sayfa yüklensin
             if self.turbo_mode:
-                self._human_like_delay(0.2, 0.5)
+                self._human_like_delay(1.0, 2.0)
             else:
-                self._human_like_delay(2, 4)
+                self._human_like_delay(3, 5)
 
+            # Cloudflare challenge kontrolü
+            page_source = self.driver.page_source.lower()
+            
+            # Cloudflare challenge var mı?
+            if "checking your browser" in page_source or "just a moment" in page_source:
+                logger.info("⏳ Cloudflare challenge tespit edildi, bekleniyor...")
+                
+                # Challenge çözülene kadar bekle (max 30 saniye)
+                challenge_start = time.time()
+                while time.time() - challenge_start < 30:
+                    time.sleep(2)
+                    page_source = self.driver.page_source.lower()
+                    
+                    if "searchresultstable" in page_source or "classifieddetailtitle" in page_source:
+                        logger.info("✅ Cloudflare challenge çözüldü!")
+                        break
+                    
+                    if "access denied" in page_source or "403" in page_source:
+                        logger.error("❌ Cloudflare tarafından bloklandı (403)")
+                        self.rate_limiter.report_blocked()
+                        self.stats["blocks_detected"] += 1
+                        return None
+                else:
+                    logger.warning("⚠️ Cloudflare challenge timeout")
+                    self.rate_limiter.report_blocked()
+                    self.stats["blocks_detected"] += 1
+                    return None
+
+            # Normal sayfa yükleme kontrolü
             if not self._wait_for_cloudflare(timeout):
                 self._add_log(
                     "error", f"❌ Cloudflare bypass başarısız", {"url": url[:100]}
@@ -779,7 +838,10 @@ class SahibindenSupabaseCrawler:
                 self.rate_limiter.report_slow_response(response_time)
 
             self._handle_devam_et()
+            
+            # Human-like scroll
             self._human_like_scroll()
+            time.sleep(0.5)
             self._human_like_scroll()
 
             return self.driver.page_source
