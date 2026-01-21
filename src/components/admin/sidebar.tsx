@@ -80,7 +80,6 @@ const tools = [
     icon: "insights",
     label: "İlan Analitikleri",
   },
-  { href: "/admin/workflows", icon: "account_tree", label: "Workflow'lar" },
   { href: "/admin/analitik", icon: "analytics", label: "Site Analitik" },
   { href: "/admin/kullanicilar", icon: "group", label: "Kullanıcılar" },
   { href: "/admin/ayarlar", icon: "settings", label: "Ayarlar" },

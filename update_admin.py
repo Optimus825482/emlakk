@@ -1,9 +1,10 @@
 import psycopg2
 
 POSTGRES_URL = "postgres://postgres:518518Erkan@77.42.68.4:5432/demir_db"
-PASSWORD_HASH = "$2b$12$W7eICDPBWBAcHo/DJQrykew5FbbBEcYXgMtrgGvVZTZODqiH1LdPO"
+PASSWORD_HASH = "$2b$12$CtUap5Z0z2zjf.8kb.E/e.RdPDcH3kSoYwl0j/QFuEq7ZEG65uDcS"  # 518518
 
 def main():
+    conn = None
     try:
         conn = psycopg2.connect(POSTGRES_URL)
         cur = conn.cursor()
