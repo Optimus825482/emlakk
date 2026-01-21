@@ -601,28 +601,55 @@ class SahibindenSupabaseCrawler:
         """Browser'ı başlat - Optimized for stability"""
         logger.info("🚀 Chrome başlatılıyor...")
 
-        chromium_path = (
-            r"C:\Users\erkan\undetected-chromium\chromium\chrome-win\chrome.exe"
-        )
-        chromedriver_path = r"C:\Users\erkan\chromedriver\win64-146.0.7643.0\chromedriver-win64\chromedriver.exe"
+        # Platform-specific paths
+        import platform
+        is_windows = platform.system() == "Windows"
+        
+        if is_windows:
+            # Windows paths
+            chromium_path = r"C:\Users\erkan\undetected-chromium\chromium\chrome-win\chrome.exe"
+            chromedriver_path = r"C:\Users\erkan\chromedriver\win64-146.0.7643.0\chromedriver-win64\chromedriver.exe"
+        else:
+            # Linux paths (Docker/Server)
+            chromium_path = "/usr/bin/google-chrome-stable"
+            chromedriver_path = None  # Let undetected-chromedriver auto-download
+            
+            # Alternatif Chrome path'leri
+            if not os.path.exists(chromium_path):
+                for alt_path in ["/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"]:
+                    if os.path.exists(alt_path):
+                        chromium_path = alt_path
+                        break
 
-        logger.info(f"📍 Chromium yolu: {chromium_path}")
-        logger.info(f"📍 ChromeDriver yolu: {chromedriver_path}")
+        logger.info(f"📍 Platform: {platform.system()}")
+        logger.info(f"📍 Chrome yolu: {chromium_path}")
+        logger.info(f"📍 ChromeDriver yolu: {chromedriver_path or 'Auto-download'}")
 
         try:
-            logger.info("⏳ Yöntem 1: Auto version detection (önerilen)...")
+            logger.info("⏳ Chrome başlatılıyor (Xvfb ile)...")
 
             options = self._get_chrome_options()
+            
+            # Chrome binary path'i kontrol et
+            if not os.path.exists(chromium_path):
+                raise FileNotFoundError(f"Chrome binary bulunamadı: {chromium_path}")
+            
             options.binary_location = chromium_path
 
-            self.driver = uc.Chrome(
-                options=options,
-                driver_executable_path=chromedriver_path,
-                version_main=146,
-                use_subprocess=True,
-                headless=False,
-                log_level=3,
-            )
+            # ChromeDriver parametreleri
+            driver_kwargs = {
+                "options": options,
+                "use_subprocess": True,
+                "headless": False,  # HEADLESS ASLA KULLANMA!
+                "log_level": 3,
+            }
+            
+            # Windows'ta explicit path kullan, Linux'ta auto-download
+            if is_windows and chromedriver_path:
+                driver_kwargs["driver_executable_path"] = chromedriver_path
+                driver_kwargs["version_main"] = 146
+            
+            self.driver = uc.Chrome(**driver_kwargs)
 
             logger.info("✅ Chrome hazır!")
 
@@ -639,28 +666,9 @@ class SahibindenSupabaseCrawler:
             logger.error(
                 f"Stack trace:\n{''.join(traceback.format_tb(e.__traceback__))}"
             )
-
-            logger.info("🔧 Alternatif yöntem deneniyor (headless)...")
-
-            try:
-                options = uc.ChromeOptions()
-                options.binary_location = chromium_path
-                options.add_argument("--headless=new")
-                options.add_argument("--no-sandbox")
-                options.add_argument("--disable-dev-shm-usage")
-
-                self.driver = uc.Chrome(
-                    options=options,
-                    version_main=None,
-                    use_subprocess=False,
-                    log_level=3,
-                )
-
-                logger.info("✅ Chrome hazır (headless)!")
-
-            except Exception as e2:
-                logger.error(f"❌ Headless mod da başarısız: {e2}")
-                raise Exception(f"Chrome başlatılamadı: {e2}")
+            
+            # Headless ÇALIŞMAZ - hata fırlat
+            raise Exception(f"Chrome başlatılamadı: {e}\n\nÖNEMLİ: Xvfb çalışıyor mu? DISPLAY değişkeni ayarlı mı?")
 
     def close_browser(self):
         """Browser'ı kapat"""
