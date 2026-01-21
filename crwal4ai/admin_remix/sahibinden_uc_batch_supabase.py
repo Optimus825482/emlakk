@@ -325,6 +325,10 @@ class SahibindenSupabaseCrawler:
 
     def _add_log(self, level: str, message: str, data: dict = None):
         """Mining log ekle"""
+        # Job ID yoksa log yazma (mining_logs tablosu job_id gerektirir)
+        if not self.job_id:
+            return
+            
         try:
             db.execute_query(
                 "INSERT INTO mining_logs (job_id, level, message, data, created_at) VALUES (%s, %s, %s, %s, NOW())",
