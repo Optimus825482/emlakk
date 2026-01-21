@@ -47,7 +47,7 @@ export function ListingAIAssistant({
     {
       role: "assistant",
       content:
-        "Merhaba! Ben Demir Gayrimenkul İlan Asistanı. Bu ilanı mükemmelleştirmek için buradayım. Başlığı optimize edeyim mi yoksa pazar analizi mi yapalım?",
+        "Merhaba! Ben Demir-AI, Demir Gayrimenkul'ün yapay zeka asistanıyım. Bu ilanı mükemmelleştirmek için buradayım. Başlığı optimize edeyim mi yoksa pazar analizi mi yapalım?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -300,10 +300,10 @@ export function ListingAIAssistant({
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-white tracking-tight">
-                  Demir Gayrimenkul
+                  Demir-AI
                 </h3>
                 <p className="text-xs text-cyan-400 font-medium uppercase tracking-widest">
-                  İlan Asistanı
+                  Demir Gayrimenkul İlan Asistanı
                 </p>
               </div>
               <button
@@ -336,7 +336,7 @@ export function ListingAIAssistant({
                   {m.content}
                 </div>
                 <span className="text-[10px] text-slate-500 font-medium px-1">
-                  {m.role === "assistant" ? "DEMİR GAYRİMENKUL" : "SİZ"}
+                  {m.role === "assistant" ? "DEMIR-AI" : "SİZ"}
                 </span>
               </div>
             ))}
@@ -403,7 +403,7 @@ export function ListingAIAssistant({
               </button>
             </form>
             <p className="text-[10px] text-slate-600 text-center mt-3">
-              Demir Gayrimenkul AI • 2026 Edition
+              Demir-AI tarafından güçlendirildi • 2026 Edition
             </p>
           </div>
 
