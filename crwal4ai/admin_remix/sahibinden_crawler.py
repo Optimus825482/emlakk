@@ -1,18 +1,20 @@
 """
-Sahibinden Liste Crawler - Supabase Entegrasyonlu
+Sahibinden Liste Crawler - PostgreSQL
 =================================================
 Cloudflare bypass için undetected_chromedriver kullanır.
-Veriler direkt Supabase'e yazılır.
+Veriler direkt PostgreSQL'e yazılır (db_manager ile).
 Adaptive Rate Limiter ile akıllı bekleme sistemi.
 
 Kullanım:
-   python sahibinden_uc_batch_supabase.py
-   python sahibinden_uc_batch_supabase.py --categories arsa_satilik
-   python sahibinden_uc_batch_supabase.py --max-pages 5
-   python sahibinden_uc_batch_supabase.py --job-id <uuid>
+   python sahibinden_crawler.py
+   python sahibinden_crawler.py --categories arsa_satilik
+   python sahibinden_crawler.py --max-pages 5
+   python sahibinden_crawler.py --job-id <uuid>
 """
-
 import undetected_chromedriver as uc
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -46,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 # Paths
 SCRIPT_DIR = Path(__file__).parent
-CHROME_PROFILE = SCRIPT_DIR / "uc_chrome_profile"
+CHROME_PROFILE = SCRIPT_DIR / "uc_chrome_profile_4c8afaa6"
 
 
 # Helper function: Parse price string to integer
@@ -165,9 +167,6 @@ def is_new_listing(listing_date: Optional[datetime]) -> bool:
     return False
 
 
-# Supabase
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://cxeakfwtrlnjcjzvqdip.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_ANON_KEY")
 
 # Hendek kategorileri - SMART CRAWLER: Tarihe göre sıralama eklendi
 HENDEK_CATEGORIES = {
@@ -210,10 +209,10 @@ HENDEK_CATEGORIES = {
 
 # Ayarlar - MAKSIMUM HIZ MODU + SMART STOPPING
 PAGE_DELAY_MIN = 0.5  # Minimum sayfa arası bekleme (1 -> 0.5)
-PAGE_DELAY_MAX = 1.5  # Maksimum sayfa arası bekleme (3 -> 1.5)
+PAGE_DELAY_MAX = 1  # Maksimum sayfa arası bekleme (3 -> 1.5)
 CATEGORY_DELAY = 2  # Kategori arası bekleme (5 -> 2)
 MAX_PAGES_PER_CATEGORY = 100
-SMART_STOP_THRESHOLD = 3  # 3 sayfa üst üste eski ilan varsa dur
+SMART_STOP_THRESHOLD = 10  # 3 sayfa üst üste eski ilan varsa dur
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -223,8 +222,8 @@ USER_AGENTS = [
 VIEWPORTS = [(1920, 1080), (1366, 768), (1536, 864)]
 
 
-class SahibindenSupabaseCrawler:
-    """Supabase entegrasyonlu Sahibinden crawler"""
+class SahibindenCrawler:
+    """PostgreSQL entegrasyonlu Sahibinden crawler"""
 
     def __init__(self, job_id: Optional[str] = None):
         self.driver = None
@@ -253,15 +252,15 @@ class SahibindenSupabaseCrawler:
         # Adaptive Rate Limiter - CLOUDFLARE BYPASS MODU
         self.rate_limiter = AdaptiveRateLimiter(
             RateLimiterConfig(
-                base_delay=4.0,  # Temel bekleme (1.5 -> 4.0) - Cloudflare için daha yavaş
-                min_delay=2.5,  # Minimum bekleme (0.5 -> 2.5)
+                base_delay=1.5,  # Temel bekleme (1.5 -> 4.0) - Cloudflare için daha yavaş
+                min_delay=0.5,  # Minimum bekleme (0.5 -> 2.5)
                 max_delay=60.0,  # Block sonrası maksimum (45 -> 60)
-                jitter_range=1.5,  # Rastgele varyasyon (0.5 -> 1.5)
-                backoff_multiplier=2.5,  # Block sonrası çarpan (2.0 -> 2.5)
-                max_backoff_level=20,  # Maksimum backoff seviyesi (15 -> 20)
+                jitter_range=0.25,  # Rastgele varyasyon (0.5 -> 1.5)
+                backoff_multiplier=1.5,  # Block sonrası çarpan (2.0 -> 2.5)
+                max_backoff_level=10,  # Maksimum backoff seviyesi (15 -> 20)
                 cooldown_after_block=45.0,  # Block sonrası soğuma (30 -> 45)
-                requests_per_minute=20,  # Dakikada max istek (55 -> 20) - ÇOK YAVAŞ
-                burst_limit=50,  # Ardışık hızlı istek limiti (100 -> 50)
+                requests_per_minute=35,  # Dakikada max istek (55 -> 20) - ÇOK YAVAŞ
+                burst_limit=100,  # Ardışık hızlı istek limiti (100 -> 50)
             )
         )
 
@@ -420,12 +419,25 @@ class SahibindenSupabaseCrawler:
             if not db_data_list:
                 return 0, 0
 
-            # Batch upsert - TEK REQUEST!
-            for data in db_data_list:
-                db.execute_query(
-                    """
+            # BATCH UPSERT - TEK QUERY İLE TÜM İLANLAR!
+            try:
+                # VALUES kısmını hazırla
+                values_list = []
+                params_list = []
+                
+                for data in db_data_list:
+                    values_list.append("(%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())")
+                    params_list.extend([
+                        data['id'], data['baslik'], data['link'], data['fiyat'], 
+                        data['konum'], data['tarih'], data['resim'], 
+                        data['category'], data['transaction']
+                    ])
+                
+                values_str = ", ".join(values_list)
+                
+                batch_query = f"""
                     INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, crawled_at)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                    VALUES {values_str}
                     ON CONFLICT (id) 
                     DO UPDATE SET 
                         baslik = EXCLUDED.baslik,
@@ -437,10 +449,13 @@ class SahibindenSupabaseCrawler:
                         category = EXCLUDED.category,
                         transaction = EXCLUDED.transaction,
                         crawled_at = NOW()
-                    """,
-                    (data['id'], data['baslik'], data['link'], data['fiyat'], data['konum'], data['tarih'], data['resim'], data['category'], data['transaction']),
-                    fetch=False
-                )
+                """
+                
+                db.execute_query(batch_query, tuple(params_list), fetch=False)
+                
+            except Exception as e:
+                logger.error(f"❌ Batch upsert hatası: {e}")
+                return 0, 0
 
             # Yeni vs güncellenen sayısını hesapla ve yeni ilanları new_listings'e kaydet
             new_count = 0
@@ -485,19 +500,28 @@ class SahibindenSupabaseCrawler:
                         f"   🆕 Yeni ilan tespit edildi: {listing_id} - {listing_date_str}"
                     )
 
-            # Yeni ilanları new_listings tablosuna batch insert
+            # Yeni ilanları new_listings tablosuna BATCH INSERT
             if new_listings_data:
                 try:
+                    # Batch insert için values_list hazırla
+                    values_list = []
                     for nld in new_listings_data:
-                        db.execute_query(
-                            """
-                            INSERT INTO new_listings (listing_id, baslik, link, fiyat, konum, category, transaction, resim, first_seen_at)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            ON CONFLICT (listing_id) DO NOTHING
-                            """,
-                            (nld['listing_id'], nld['baslik'], nld['link'], nld['fiyat'], nld['konum'], nld['category'], nld['transaction'], nld['resim'], nld['first_seen_at']),
-                            fetch=False
-                        )
+                        values_list.append((
+                            nld['listing_id'], nld['baslik'], nld['link'], nld['fiyat'],
+                            nld['konum'], nld['category'], nld['transaction'], 
+                            nld['resim'], nld['first_seen_at']
+                        ))
+                    
+                    # execute_batch kullan (tek query, çok satır)
+                    db.execute_batch(
+                        """
+                        INSERT INTO new_listings (listing_id, baslik, link, fiyat, konum, category, transaction, resim, first_seen_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (listing_id) DO NOTHING
+                        """,
+                        values_list
+                    )
+                    
                     logger.info(
                         f"   ✅ {len(new_listings_data)} yeni ilan (bugün/dün) new_listings tablosuna kaydedildi"
                     )
@@ -578,128 +602,45 @@ class SahibindenSupabaseCrawler:
             return False
 
     def _get_chrome_options(self):
-        """Chrome ayarları - Cloudflare bypass için optimize edilmiş"""
+        """Chrome ayarları - Normal WebDriver için optimize edilmiş"""
+
+        CHROME_PROFILE.mkdir(exist_ok=True)
         
         # Gerçek kullanıcı gibi görünmek için güncel User-Agent
         user_agent = (
-            "Mozilla/5.0 (X11; Linux x86_64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         )
 
         options = uc.ChromeOptions()
         
-        # Temel ayarlar
-        options.add_argument(f"user-agent={user_agent}")
-        options.add_argument("--window-size=1920,1080")
-        options.add_argument("--start-maximized")
-        
-        # Cloudflare bypass için kritik ayarlar
+        options.add_argument(f'user-agent={user_agent}')
+        options.add_argument(f"--window-size=1920,1080")
+        options.add_argument(f'--user-data-dir={CHROME_PROFILE}')
         options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--lang=tr-TR,tr")
-        options.add_argument("--accept-lang=tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7")
-        
-        # WebGL ve Canvas fingerprint
-        options.add_argument("--enable-webgl")
-        options.add_argument("--use-gl=swiftshader")
-        
-        # Diğer optimizasyonlar
-        options.add_argument("--disable-gpu")
-        options.add_argument("--disable-software-rasterizer")
-        options.add_argument("--remote-debugging-port=0")
-        options.add_argument("--disable-extensions")
-        options.add_argument("--disable-popup-blocking")
-        
-        # Preferences - daha gerçekçi browser profili
-        prefs = {
-            "profile.default_content_setting_values.notifications": 2,
-            "profile.managed_default_content_settings.images": 1,
-            "intl.accept_languages": "tr-TR,tr,en-US,en",
-        }
-        options.add_experimental_option("prefs", prefs)
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--lang=tr-TR')
 
         return options
 
     def start_browser(self):
-        """Browser'ı başlat - Optimized for stability"""
+        """Browser'ı başlat - Normal WebDriver ile"""
         logger.info("🚀 Chrome başlatılıyor...")
 
-        # Platform-specific paths
-        import platform
-        is_windows = platform.system() == "Windows"
+        options = self._get_chrome_options()
+        self.driver = uc.Chrome(options=options)
         
-        if is_windows:
-            # Windows paths
-            chromium_path = r"C:\Users\erkan\undetected-chromium\chromium\chrome-win\chrome.exe"
-            chromedriver_path = r"C:\Users\erkan\chromedriver\win64-146.0.7643.0\chromedriver-win64\chromedriver.exe"
-        else:
-            # Linux paths (Docker/Server)
-            chromium_path = "/usr/bin/google-chrome-stable"
-            chromedriver_path = None  # Let undetected-chromedriver auto-download
-            
-            # Alternatif Chrome path'leri
-            if not os.path.exists(chromium_path):
-                for alt_path in ["/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"]:
-                    if os.path.exists(alt_path):
-                        chromium_path = alt_path
-                        break
+        # WebDriver özelliğini gizle
+        self.driver.execute_script(
+            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        )
+        
+        logger.info("✅ Chrome hazır!")
 
-        logger.info(f"📍 Platform: {platform.system()}")
-        logger.info(f"📍 Chrome yolu: {chromium_path}")
-        logger.info(f"📍 ChromeDriver yolu: {chromedriver_path or 'Auto-download'}")
+      
 
-        try:
-            logger.info("⏳ Chrome başlatılıyor (Xvfb ile)...")
-
-            options = self._get_chrome_options()
-            
-            # Chrome binary path'i kontrol et
-            if not os.path.exists(chromium_path):
-                raise FileNotFoundError(f"Chrome binary bulunamadı: {chromium_path}")
-            
-            options.binary_location = chromium_path
-
-            # ChromeDriver parametreleri
-            driver_kwargs = {
-                "options": options,
-                "use_subprocess": True,
-                "headless": False,  # HEADLESS ASLA KULLANMA!
-                "log_level": 3,
-            }
-            
-            # Windows'ta explicit path kullan, Linux'ta auto-download
-            if is_windows and chromedriver_path:
-                driver_kwargs["driver_executable_path"] = chromedriver_path
-                driver_kwargs["version_main"] = 146
-            
-            self.driver = uc.Chrome(**driver_kwargs)
-
-            logger.info("✅ Chrome hazır!")
-
-            # Automation detection'ı gizle - daha kapsamlı
-            self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-                "source": """
-                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
-                    Object.defineProperty(navigator, 'languages', {get: () => ['tr-TR', 'tr', 'en-US', 'en']});
-                    window.chrome = {runtime: {}};
-                """
-            })
-
-            logger.info("✓ WebDriver özelliği gizlendi")
-
-        except Exception as e:
-            import traceback
-
-            logger.error(f"❌ Chrome başlatma hatası: {e}")
-            logger.error(
-                f"Stack trace:\n{''.join(traceback.format_tb(e.__traceback__))}"
-            )
-            
-            # Headless ÇALIŞMAZ - hata fırlat
-            raise Exception(f"Chrome başlatılamadı: {e}\n\nÖNEMLİ: Xvfb çalışıyor mu? DISPLAY değişkeni ayarlı mı?")
-
+        
     def close_browser(self):
         """Browser'ı kapat"""
         if self.driver:
@@ -717,97 +658,62 @@ class SahibindenSupabaseCrawler:
             finally:
                 self.driver = None
 
-    def _human_like_delay(self, min_sec: float = 1.2, max_sec: float = 3.0):
+    def _human_like_delay(self, min_sec: float = 0.3, max_sec: float = 0.8):
+        """Hızlandırılmış delay - turbo mode için optimize edildi"""
         time.sleep(random.uniform(min_sec, max_sec))
 
     def _human_like_scroll(self):
+        """Minimal scroll - sadece sayfa yükleme için"""
         try:
-            scroll_amount = random.randint(300, 700)
-            self.driver.execute_script(f"window.scrollBy(0, {scroll_amount});")
-
-            if self.turbo_mode:
-                self._human_like_delay(0.1, 0.3)
-            else:
-                self._human_like_delay(0.65, 1.5)
-            if random.random() < 0.3:
-                self.driver.execute_script(
-                    f"window.scrollBy(0, -{random.randint(100, 200)});"
-                )
-                self._human_like_delay(0.3, 0.8)
+            # Tek scroll yeterli
+            self.driver.execute_script("window.scrollBy(0, 400);")
+            time.sleep(0.2)  # Minimal bekleme
         except:
             pass
 
-    def _wait_for_cloudflare(self, timeout: int = 60) -> bool:
-        """Cloudflare bekle - detaylı logging ile"""
+    def _wait_for_cloudflare(self, timeout: int = 10) -> bool:
+        """Cloudflare bekle - ULTRA HIZ (timeout: 30 -> 10)"""
         start = time.time()
-        last_check = ""
         
         while time.time() - start < timeout:
             try:
                 ps = self.driver.page_source.lower()
                 
-                # İçerik kontrolü
+                # İçerik kontrolü - hemen dön
                 if "searchresultstable" in ps or "classifieddetailtitle" in ps:
-                    logger.info("✅ Sayfa içeriği yüklendi (searchResultsTable bulundu)")
                     return True
                 
-                # Cloudflare challenge kontrolü
-                if "checking your browser" in ps or "just a moment" in ps:
-                    if last_check != "challenge":
-                        logger.info("⏳ Cloudflare challenge tespit edildi...")
-                        last_check = "challenge"
-                
-                # 403 / Access Denied kontrolü
-                elif "access denied" in ps or "403 forbidden" in ps:
-                    logger.error("❌ 403 Forbidden - Cloudflare tarafından bloklandı")
+                # 403 kontrolü
+                if "access denied" in ps or "403 forbidden" in ps:
                     return False
                 
-                # Boş sayfa kontrolü
-                elif len(ps) < 500:
-                    if last_check != "empty":
-                        logger.warning(f"⚠️ Sayfa çok kısa ({len(ps)} karakter), yükleniyor...")
-                        last_check = "empty"
+                # Çok kısa bekleme
+                time.sleep(0.3)  # 0.5s -> 0.3s
                 
-                # Diğer durumlar
-                else:
-                    if last_check != "loading":
-                        logger.debug(f"⏳ Sayfa yükleniyor... (içerik: {len(ps)} karakter)")
-                        last_check = "loading"
-                
-                time.sleep(2)
-                
-            except Exception as e:
-                logger.debug(f"⚠️ Page source okunamadı: {e}")
-                time.sleep(2)
+            except:
+                time.sleep(0.3)
         
-        # Timeout
-        logger.error(f"❌ Timeout ({timeout}s) - Sayfa yüklenemedi")
-        logger.debug(f"Son sayfa içeriği: {self.driver.page_source[:500]}...")
-        return False
+        return False  # Timeout - yine de devam et
 
     def _handle_devam_et(self) -> bool:
-        """'Devam Et' butonunu tıkla"""
+        """'Devam Et' butonunu hızlıca tıkla"""
         try:
             ps = self.driver.page_source.lower()
             if "devam et" in ps or "btn-continue" in ps:
-                btn = WebDriverWait(self.driver, 10).until(
+                btn = WebDriverWait(self.driver, 5).until(  # 10s -> 5s
                     EC.element_to_be_clickable((By.ID, "btn-continue"))
                 )
-                actions = ActionChains(self.driver)
-                actions.move_to_element(btn)
-                self._human_like_delay(0.3, 0.8)
-                actions.click()
-                actions.perform()
-                self._human_like_delay(2, 4)
+                btn.click()  # ActionChains yerine direkt click
+                time.sleep(0.5)  # Minimal bekleme
                 return True
         except:
             pass
         return False
 
-    def navigate(self, url: str, timeout: int = 60) -> Optional[str]:
+    def navigate(self, url: str, timeout: int =5) -> Optional[str]:
         """Sayfaya git - Rate limiter ile + Cloudflare bypass"""
-        logger.info(f"🌐 {url[:60]}...")
-        self._add_log("info", f"🌐 {url[:80]}...")
+        logger.info(f"🌐 {url[:5]}...")
+        self._add_log("info", f"🌐 {url[:8]}...")
 
         # Rate limiter ile bekle
         wait_time = self.rate_limiter.wait()
@@ -819,11 +725,10 @@ class SahibindenSupabaseCrawler:
             self.driver.get(url)
             logger.info(f"✓ driver.get() tamamlandı ({time.time() - start_time:.1f}s)")
 
-            # İlk bekleme - sayfa yüklensin
-            if self.turbo_mode:
-                self._human_like_delay(1.0, 2.0)
-            else:
-                self._human_like_delay(3, 5)
+            # Varyasyonlu bekleme (3, 3.25, 3.10, 3.5 saniye gibi)
+            wait_times = [3.0, 3.25, 3.10, 3.5, 3.15, 3.8, 3.3, 3.6]
+            wait_time = random.choice(wait_times)
+            time.sleep(wait_time)
 
             # Sayfa başlığını kontrol et
             try:
@@ -832,44 +737,50 @@ class SahibindenSupabaseCrawler:
             except:
                 logger.warning("⚠️ Sayfa başlığı okunamadı")
 
-            # Cloudflare challenge kontrolü
+            # Cloudflare challenge kontrolü - MANUEL GEÇİŞ İÇİN BEKLEME
             page_source = self.driver.page_source.lower()
-            logger.info(f"📊 Sayfa içeriği: {len(page_source)} karakter")
             
-            # Cloudflare challenge var mı?
-            if "checking your browser" in page_source or "just a moment" in page_source:
-                logger.info("⏳ Cloudflare challenge tespit edildi, bekleniyor...")
+            if "checking your browser" in page_source or "just a moment" in page_source or "olağan dışı" in page_source:
+                logger.warning("⚠️ Cloudflare/Bot challenge tespit edildi!")
+                logger.warning("👤 MANUEL DOĞRULAMA GEREKLİ - Lütfen tarayıcıda doğrulamayı geçin...")
                 
-                # Challenge çözülene kadar bekle (max 30 saniye)
+                # Manuel geçiş için bekle (max 5 dakika)
                 challenge_start = time.time()
-                while time.time() - challenge_start < 30:
+                while time.time() - challenge_start < 300:  # 5 dakika
                     time.sleep(2)
                     page_source = self.driver.page_source.lower()
                     
                     if "searchresultstable" in page_source or "classifieddetailtitle" in page_source:
-                        logger.info("✅ Cloudflare challenge çözüldü!")
+                        logger.info("✅ Manuel doğrulama geçildi, devam ediliyor!")
                         break
                     
                     if "access denied" in page_source or "403" in page_source:
-                        logger.error("❌ Cloudflare tarafından bloklandı (403)")
+                        logger.error("❌ 403 - Erişim engellendi")
                         self.rate_limiter.report_blocked()
                         self.stats["blocks_detected"] += 1
-                        return None
+                        # 403 durumunda bile devam et (sen manuel geçebilirsin)
+                        logger.warning("⏳ 30 saniye bekleniyor, sonra devam edilecek...")
+                        time.sleep(30)
+                        break
+                    
+                    # Her 10 saniyede bir hatırlat
+                    if int(time.time() - challenge_start) % 10 == 0:
+                        elapsed = int(time.time() - challenge_start)
+                        logger.info(f"⏳ Manuel doğrulama bekleniyor... ({elapsed}s / 300s)")
                 else:
-                    logger.warning("⚠️ Cloudflare challenge timeout")
-                    self.rate_limiter.report_blocked()
-                    self.stats["blocks_detected"] += 1
-                    return None
+                    # Timeout olsa bile devam et
+                    logger.warning("⚠️ Manuel doğrulama timeout - yine de devam ediliyor")
+                    pass
 
             # Normal sayfa yükleme kontrolü
             logger.info("⏳ Sayfa içeriği kontrol ediliyor...")
             if not self._wait_for_cloudflare(timeout):
-                self._add_log(
-                    "error", f"❌ Cloudflare bypass başarısız", {"url": url[:100]}
-                )
+                logger.warning("⚠️ Sayfa yüklenemedi ama devam ediliyor...")
+                # Block bildir ama None dönme, devam et
                 self.rate_limiter.report_blocked()
                 self.stats["blocks_detected"] += 1
-                return None
+                # return None yerine boş sayfa dön, sonraki sayfaya geç
+                pass
 
             # Başarılı - rate limiter'a bildir
             response_time = time.time() - start_time
@@ -882,9 +793,7 @@ class SahibindenSupabaseCrawler:
 
             self._handle_devam_et()
             
-            # Human-like scroll
-            self._human_like_scroll()
-            time.sleep(0.5)
+            # Tek scroll yeterli
             self._human_like_scroll()
 
             return self.driver.page_source
@@ -1515,24 +1424,12 @@ class SahibindenSupabaseCrawler:
             # Önce tüm listing_id'leri topla
             listing_ids = [int(lid) for lid in removed_ids]
 
-            # Batch sorgu: Tüm price_history kayıtlarını tek sorguda çek
+            # price_history tablosu yok, price_changes her zaman 0
             price_history_map = {}
-            try:
-                # IN operatörü ile tek sorguda tüm kayıtları çek
-                price_history_result = (
-                    self.supabase.table("price_history")
-                    .select("listing_id")
-                    .in_("listing_id", listing_ids)
-                    .execute()
-                )
 
-                # Her listing_id için kaç kayıt var sayalım
-                for record in price_history_result.data:
-                    lid = str(record["listing_id"])
-                    price_history_map[lid] = price_history_map.get(lid, 0) + 1
-
-            except Exception as e:
-                logger.debug(f"Price history batch sorgusu hatası: {e}")
+            # Batch listeleri
+            removed_listings_batch = []
+            removed_ids_list = []
 
             # Kaldırılan ilanları removed_listings tablosuna kaydet
             removed_count = 0
@@ -1575,27 +1472,64 @@ class SahibindenSupabaseCrawler:
                     "last_price": listing.get("fiyat"),
                 }
 
+                removed_listings_batch.append(removed_data)
+                removed_ids_list.append(listing_id)
+
+            # BATCH INSERT: removed_listings tablosuna toplu kaydet
+            if removed_listings_batch:
                 try:
+                    values_list = []
+                    for data in removed_listings_batch:
+                        values_list.append((
+                            data['listing_id'],
+                            data['baslik'],
+                            data['link'],
+                            data['fiyat'],
+                            data['konum'],
+                            data['category'],
+                            data['transaction'],
+                            data['resim'],
+                            data['last_seen_at'],
+                            data['removal_reason'],
+                            data['days_active'],
+                            data['price_changes'],
+                            data['last_price']
+                        ))
+                    
+                    db.execute_batch(
+                        """
+                        INSERT INTO removed_listings 
+                        (listing_id, baslik, link, fiyat, konum, category, transaction, resim, 
+                         last_seen_at, removed_at, removal_reason, days_active, price_changes, last_price) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s) 
+                        ON CONFLICT (listing_id) DO UPDATE SET
+                            removed_at = NOW(),
+                            removal_reason = EXCLUDED.removal_reason
+                        """,
+                        values_list
+                    )
+                    logger.info(f"   ✅ {len(removed_listings_batch)} kaldırılan ilan removed_listings tablosuna kaydedildi")
+                except Exception as e:
+                    logger.error(f"❌ Batch insert hatası (removed_listings): {e}")
+
+            # BATCH DELETE: Ana tablodan toplu sil
+            if removed_ids_list:
+                try:
+                    # String ID'leri integer'a çevir
+                    int_ids = [int(lid) for lid in removed_ids_list]
                     db.execute_query(
-                        "INSERT INTO removed_listings (listing_id, baslik, link, fiyat, konum, category, transaction, resim, last_seen_at, removed_at, removal_reason, days_active, price_changes, last_price) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s) ON CONFLICT (listing_id) DO NOTHING",
-                        (removed_data['listing_id'], removed_data['baslik'], removed_data['link'], removed_data['fiyat'], removed_data['konum'], removed_data['category'], removed_data['transaction'], removed_data['resim'], removed_data['last_seen_at'], removed_data['removal_reason'], removed_data['days_active'], removed_data['price_changes'], removed_data['last_price']),
+                        "DELETE FROM sahibinden_liste WHERE id = ANY(%s)",
+                        (int_ids,),
                         fetch=False
                     )
-
-                    # ANA TABLODAN SİL (SYNC İÇİN)
-                    db.execute_query("DELETE FROM sahibinden_liste WHERE id = %s", (listing_id,), fetch=False)
-
-                    removed_count += 1
+                    removed_count = len(removed_ids_list)
+                    logger.info(f"   ✅ {removed_count} ilan yayından kaldırıldı (Arşive taşındı)")
+                    self._add_log(
+                        "info",
+                        f"{category}/{transaction}: {removed_count} ilan arşivlendi ve silindi",
+                    )
                 except Exception as e:
-                    logger.debug(f"Kaldırılan ilan işlenemedi (ID: {listing_id}): {e}")
-
-            logger.info(
-                f"   ✅ {removed_count} ilan yayından kaldırıldı (Arşive taşındı)"
-            )
-            self._add_log(
-                "info",
-                f"{category}/{transaction}: {removed_count} ilan arşivlendi ve silindi",
-            )
+                    logger.error(f"❌ Batch delete hatası (sahibinden_liste): {e}")
 
             return removed_count
 
@@ -1610,7 +1544,7 @@ class SahibindenSupabaseCrawler:
     ):
         """Toplu taramayı başlat"""
         logger.info("=" * 60)
-        logger.info("🚀 SAHİBİNDEN SUPABASE CRAWLER")
+        logger.info("🚀 SAHİBİNDEN CRAWLER")
         logger.info("=" * 60)
 
         self.stats["started_at"] = datetime.now().isoformat()
@@ -1771,7 +1705,7 @@ class SahibindenSupabaseCrawler:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Sahibinden Crawler - Supabase")
+    parser = argparse.ArgumentParser(description="Sahibinden Crawler - PostgreSQL")
     parser.add_argument(
         "--categories",
         nargs="+",
@@ -1806,7 +1740,7 @@ if __name__ == "__main__":
 
     try:
         # Crawler oluştur
-        crawler = SahibindenSupabaseCrawler(job_id=args.job_id)
+        crawler = SahibindenCrawler(job_id=args.job_id)
 
         # Browser'ı başlat
         crawler.start_browser()

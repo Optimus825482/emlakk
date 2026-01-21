@@ -31,9 +31,9 @@ echo.
 REM Crawler'i calistir
 echo [3/3] Crawler baslatiliyor...
 echo.
-echo Komut: python sahibinden_uc_batch_supabase.py --categories konut_satilik --max-pages 5
+echo Komut: python sahibinden_crawler.py --categories konut_satilik --max-pages 5
 echo.
-python sahibinden_uc_batch_supabase.py --categories konut_satilik --max-pages 5
+python sahibinden_crawler.py --categories konut_satilik --max-pages 5
 
 echo.
 echo ========================================

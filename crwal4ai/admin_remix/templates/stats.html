@@ -1,356 +1,147 @@
-{% extends "base.html" %} {% block title %}Analitik Paneli{% endblock %} {%
-block breadcrumb %}Veri Analitiği{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}İstatistikler{% endblock %} {% block
+breadcrumb %}İstatistikler{% endblock %} {% block content %}
 <div
   x-data="stats()"
   x-init="init()"
   x-cloak
   class="space-y-8 animate-fade-in pb-12"
 >
-  <!-- Premium Header -->
+  <!-- Header -->
   <div
-    class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6"
+    class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
   >
-    <div class="animate-slide-up">
+    <div>
       <h1
-        class="text-3xl lg:text-4xl font-black font-outfit text-slate-900 dark:text-white uppercase tracking-tighter"
+        class="text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white font-outfit"
       >
-        Veri Analitiği
+        İstatistikler
       </h1>
-      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400 font-medium">
-        Platform verimliliği ve kategori bazlı senkronizasyon raporu
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        Kategori bazlı detaylı analiz ve pazar durumu
       </p>
     </div>
 
-    <div class="animate-slide-up" style="animation-delay: 100ms">
-      <button
-        @click="loadStats()"
-        class="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-primary-500 hover:text-white hover:border-primary-600 transition-premium shadow-sm"
+    <button
+      @click="loadStats()"
+      class="p-2.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-primary-50 dark:hover:bg-primary-900/20 text-slate-500 hover:text-primary-600 transition-premium"
+      :class="loading ? 'animate-spin' : ''"
+    >
+      <svg
+        class="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
       >
-        <svg
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          ></path>
-        </svg>
-        Metrikleri Tazele
-      </button>
-    </div>
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+        ></path>
+      </svg>
+    </button>
   </div>
 
   <!-- Loading State -->
   <template x-if="loading">
-    <div class="space-y-8">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <template x-for="i in 3" :key="i">
-          <div class="h-32 skeleton rounded-[2rem]"></div>
-        </template>
-      </div>
-      <div class="h-[400px] skeleton rounded-[3rem]"></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <template x-for="i in 6" :key="i">
+        <div class="h-48 rounded-3xl skeleton"></div>
+      </template>
     </div>
   </template>
 
+  <!-- Stats Grid -->
   <template x-if="!loading">
-    <div class="space-y-8">
-      <!-- High-Level KPIs -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- New Listings KPI -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <template x-for="stat in stats" :key="stat.category + stat.transaction">
         <div
-          class="premium-card bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-500/10 dark:border-emerald-500/5 p-8 rounded-[2.5rem] relative overflow-hidden group"
+          class="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-3xl p-6 border border-slate-200/50 dark:border-slate-700/50 shadow-sm premium-card"
         >
-          <div
-            class="absolute -right-8 -top-8 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full group-hover:bg-emerald-500/20 transition-premium"
-          ></div>
-          <div class="relative z-10 flex items-center justify-between">
-            <div>
-              <span
-                class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest block mb-2"
-                >Net Artış</span
+          <!-- Header -->
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <div
+                class="w-12 h-12 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center text-primary-600 dark:text-primary-400"
               >
+                <svg
+                  class="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                  ></path>
+                </svg>
+              </div>
+              <div>
+                <h3
+                  class="font-bold text-slate-900 dark:text-white"
+                  x-text="stat.category"
+                ></h3>
+                <p class="text-xs text-slate-500" x-text="stat.transaction"></p>
+              </div>
+            </div>
+
+            <!-- Status Badge -->
+            <div
+              :class="{
+                'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400': stat.status === 'synced',
+                'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400': stat.status === 'new',
+                'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400': stat.status === 'removed'
+              }"
+              class="px-3 py-1 rounded-full text-xs font-bold uppercase"
+              x-text="stat.status"
+            ></div>
+          </div>
+
+          <!-- Stats -->
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-500">Sahibinden</span>
               <span
-                class="text-4xl font-black font-outfit text-emerald-700 dark:text-emerald-400"
-                x-text="'+' + totalNew.toLocaleString('tr-TR')"
+                class="text-lg font-bold text-slate-900 dark:text-white"
+                x-text="stat.sahibinden_count.toLocaleString('tr-TR')"
               ></span>
             </div>
-            <div
-              class="w-14 h-14 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30 rotate-3 group-hover:rotate-0 transition-premium"
-            >
-              <svg
-                class="w-7 h-7"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                ></path>
-              </svg>
-            </div>
-          </div>
-          <p
-            class="mt-4 text-[11px] font-bold text-emerald-600/60 uppercase tracking-tighter italic"
-          >
-            Yeni fırsatların toplam hacmi
-          </p>
-        </div>
 
-        <!-- Removed Listings KPI -->
-        <div
-          class="premium-card bg-rose-50/50 dark:bg-rose-900/10 border border-rose-500/10 dark:border-rose-500/5 p-8 rounded-[2.5rem] relative overflow-hidden group"
-        >
-          <div
-            class="absolute -right-8 -top-8 w-32 h-32 bg-rose-500/10 blur-3xl rounded-full group-hover:bg-rose-500/20 transition-premium"
-          ></div>
-          <div class="relative z-10 flex items-center justify-between">
-            <div>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-500">Veritabanı</span>
               <span
-                class="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest block mb-2"
-                >Pazar Kaybı</span
-              >
-              <span
-                class="text-4xl font-black font-outfit text-rose-700 dark:text-rose-400"
-                x-text="'-' + totalRemoved.toLocaleString('tr-TR')"
+                class="text-lg font-bold text-primary-600 dark:text-primary-400"
+                x-text="stat.database_count.toLocaleString('tr-TR')"
               ></span>
             </div>
-            <div
-              class="w-14 h-14 bg-rose-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-rose-500/30 -rotate-3 group-hover:rotate-0 transition-premium"
-            >
-              <svg
-                class="w-7 h-7"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6"
-                ></path>
-              </svg>
-            </div>
-          </div>
-          <p
-            class="mt-4 text-[11px] font-bold text-rose-600/60 uppercase tracking-tighter italic"
-          >
-            Yayından kalkan ilan verisi
-          </p>
-        </div>
 
-        <!-- Sync Health KPI -->
-        <div
-          class="premium-card bg-primary-50/50 dark:bg-primary-900/10 border border-primary-500/10 dark:border-primary-500/5 p-8 rounded-[2.5rem] relative overflow-hidden group"
-        >
-          <div
-            class="absolute -right-8 -top-8 w-32 h-32 bg-primary-500/10 blur-3xl rounded-full group-hover:bg-primary-500/20 transition-premium"
-          ></div>
-          <div class="relative z-10 flex items-center justify-between">
-            <div>
-              <span
-                class="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest block mb-2"
-                >Sağlık Skoru</span
-              >
-              <div class="flex items-baseline gap-1">
+            <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+              <div class="flex items-center justify-between">
                 <span
-                  class="text-4xl font-black font-outfit text-primary-700 dark:text-primary-400"
-                  x-text="syncedCount"
-                ></span>
-                <span class="text-sm font-bold text-slate-400 uppercase"
-                  >/ <span x-text="categoryStats.length"></span
+                  class="text-sm font-medium text-slate-600 dark:text-slate-400"
+                  >Fark</span
+                >
+                <span
+                  :class="{
+                    'text-emerald-600': stat.diff === 0,
+                    'text-blue-600': stat.diff > 0,
+                    'text-rose-600': stat.diff < 0
+                  }"
+                  class="text-lg font-black"
+                  x-text="(stat.diff > 0 ? '+' : '') + stat.diff.toLocaleString('tr-TR')"
                 ></span>
               </div>
             </div>
-            <div
-              class="w-14 h-14 bg-primary-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-primary-500/30 group-hover:scale-110 transition-premium"
-            >
-              <svg
-                class="w-7 h-7"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
-              </svg>
+
+            <!-- Last Checked -->
+            <div class="text-xs text-slate-400 text-center">
+              Son kontrol: <span x-text="stat.last_checked_at"></span>
             </div>
           </div>
-          <p
-            class="mt-4 text-[11px] font-bold text-primary-600/60 uppercase tracking-tighter italic"
-          >
-            Tam senkronize kategoriler
-          </p>
         </div>
-      </div>
-
-      <!-- Advanced Comparison Table -->
-      <div
-        class="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-[3.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm overflow-hidden animate-slide-up"
-        style="animation-delay: 300ms"
-      >
-        <div
-          class="px-10 py-8 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between"
-        >
-          <div>
-            <h3
-              class="text-xl font-black font-outfit text-slate-900 dark:text-white uppercase tracking-tighter"
-            >
-              Kategori Matrisi
-            </h3>
-            <p class="text-xs text-slate-500 font-medium">
-              Veri kaynakları arası tutarlılık analizi
-            </p>
-          </div>
-          <div
-            class="px-3 py-1 bg-slate-100 dark:bg-slate-900 rounded-full text-[9px] font-black text-slate-400 uppercase tracking-widest"
-          >
-            Canlı Karşılaştırma
-          </div>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-left">
-            <thead>
-              <tr class="bg-slate-50/50 dark:bg-slate-900/10">
-                <th
-                  class="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest"
-                >
-                  Kategori & İşlem
-                </th>
-                <th
-                  class="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right"
-                >
-                  Sahibinden
-                </th>
-                <th
-                  class="px-6 py-5 text-[10px] font-black text-primary-500 uppercase tracking-widest text-right"
-                >
-                  Veritabanı
-                </th>
-                <th
-                  class="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right"
-                >
-                  Fark
-                </th>
-                <th
-                  class="px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center"
-                >
-                  Durum Modeli
-                </th>
-                <th
-                  class="px-10 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right"
-                >
-                  Güncellenme
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
-              <template
-                x-for="(stat, index) in categoryStats"
-                :key="stat.category + stat.transaction"
-              >
-                <tr
-                  class="group hover:bg-slate-50/50 dark:hover:bg-slate-900/10 transition-premium"
-                >
-                  <td class="px-10 py-6">
-                    <div class="flex flex-col">
-                      <span
-                        class="text-xs font-black text-slate-900 dark:text-white font-outfit"
-                        x-text="stat.category"
-                      ></span>
-                      <span
-                        class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-                        x-text="stat.transaction"
-                      ></span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-6 text-right">
-                    <span
-                      class="text-xs font-bold text-slate-600 dark:text-slate-400"
-                      x-text="stat.sahibinden_count.toLocaleString('tr-TR')"
-                    ></span>
-                  </td>
-                  <td class="px-6 py-6 text-right">
-                    <span
-                      class="text-sm font-black text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 px-3 py-1 rounded-xl"
-                      x-text="stat.database_count.toLocaleString('tr-TR')"
-                    ></span>
-                  </td>
-                  <td class="px-6 py-6 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      <span
-                        :class="{
-                               'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20': stat.diff > 0,
-                               'text-rose-500 bg-rose-50 dark:bg-rose-900/20': stat.diff < 0,
-                               'text-slate-400 bg-slate-50 dark:bg-slate-800/50': stat.diff === 0
-                             }"
-                        class="text-xs font-black px-2.5 py-1 rounded-xl shadow-sm border border-current opacity-70 group-hover:opacity-100 transition-premium"
-                      >
-                        <span x-show="stat.diff > 0">+</span
-                        ><span
-                          x-text="stat.diff.toLocaleString('tr-TR')"
-                        ></span>
-                      </span>
-                    </div>
-                  </td>
-                  <td class="px-6 py-6 text-center">
-                    <div class="flex justify-center">
-                      <template x-if="stat.status === 'new'">
-                        <span
-                          class="px-4 py-1.5 bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 rounded-full text-[9px] font-black uppercase tracking-widest"
-                          >Yeni Veri</span
-                        >
-                      </template>
-                      <template x-if="stat.status === 'removed'">
-                        <span
-                          class="px-4 py-1.5 bg-rose-500/10 text-rose-500 border border-rose-500/30 rounded-full text-[9px] font-black uppercase tracking-widest"
-                          >Arşivleme</span
-                        >
-                      </template>
-                      <template x-if="stat.status === 'synced'">
-                        <span
-                          class="px-4 py-1.5 bg-slate-100 dark:bg-slate-900 text-slate-400 border border-slate-200 dark:border-slate-700 rounded-full text-[9px] font-black uppercase tracking-widest"
-                          >Stabil</span
-                        >
-                      </template>
-                    </div>
-                  </td>
-                  <td class="px-10 py-6 text-right">
-                    <span
-                      class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
-                      x-text="stat.last_checked_at"
-                    ></span>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Empty State in Table -->
-        <template x-if="categoryStats.length === 0">
-          <div class="py-24 text-center">
-            <div class="text-5xl mb-4">🌫️</div>
-            <p
-              class="text-sm font-bold text-slate-400 uppercase tracking-widest"
-            >
-              Analiz edilecek veri bulunamadı
-            </p>
-          </div>
-        </template>
-      </div>
+      </template>
     </div>
   </template>
 </div>
@@ -359,10 +150,12 @@ block breadcrumb %}Veri Analitiği{% endblock %} {% block content %}
   function stats() {
     return {
       loading: true,
-      categoryStats: [],
+      stats: [],
 
       async init() {
         await this.loadStats();
+        // Auto refresh every 30 seconds
+        setInterval(() => this.loadStats(), 30000);
       },
 
       async loadStats() {
@@ -370,36 +163,21 @@ block breadcrumb %}Veri Analitiği{% endblock %} {% block content %}
         try {
           const response = await fetch("/api/category-stats");
           const result = await response.json();
+
           if (result.success) {
-            this.categoryStats = result.data;
-          } else {
-            if (window.showToast)
-              window.showToast("Veriler alınamadı", "error");
+            this.stats = result.data;
+            if (window.showToast) {
+              window.showToast("İstatistikler güncellendi", "success", 2000);
+            }
           }
         } catch (error) {
           console.error("İstatistikler yüklenemedi:", error);
-          if (window.showToast) window.showToast("Bağlantı hatası!", "error");
+          if (window.showToast) {
+            window.showToast("İstatistikler yüklenemedi", "error");
+          }
         } finally {
           this.loading = false;
         }
-      },
-
-      get totalNew() {
-        return this.categoryStats
-          .filter((s) => s.status === "new")
-          .reduce((sum, s) => sum + s.diff, 0);
-      },
-
-      get totalRemoved() {
-        return Math.abs(
-          this.categoryStats
-            .filter((s) => s.status === "removed")
-            .reduce((sum, s) => sum + s.diff, 0),
-        );
-      },
-
-      get syncedCount() {
-        return this.categoryStats.filter((s) => s.status === "synced").length;
       },
     };
   }

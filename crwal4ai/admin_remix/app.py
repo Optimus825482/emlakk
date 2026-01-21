@@ -168,7 +168,7 @@ def api_crawler_status():
 
 @app.route("/api/crawler/start", methods=["POST"])
 def api_crawler_start():
-    """Crawler başlat"""
+    """Crawler başlat - UC Batch Crawler"""
     global crawler_running, current_job_id
 
     if crawler_running:
@@ -179,7 +179,9 @@ def api_crawler_start():
         categories = data.get("categories", ["konut_satilik"])
         max_pages = data.get("max_pages", 100)
         force = data.get("force", False)
-        reverse_sort = data.get("reverse_sort", False)  # NEW
+        reverse_sort = data.get("reverse_sort", False)
+        sync = data.get("sync", False)
+        turbo = data.get("turbo", False)
 
         # Job ID oluştur
         job_id = str(uuid.uuid4())
@@ -201,6 +203,8 @@ def api_crawler_start():
                     "max_pages": max_pages,
                     "force": force,
                     "reverse_sort": reverse_sort,
+                    "sync": sync,
+                    "turbo": turbo,
                 }),
                 json.dumps({}),
                 json.dumps({"current": 0, "total": 0, "percentage": 0})
@@ -214,8 +218,8 @@ def api_crawler_start():
             crawler_running = True
 
             try:
-                # Python script yolu (UC Batch Crawler)
-                script_path = os.path.join(os.path.dirname(__file__), "sahibinden_uc_batch_supabase.py")
+                # Python script yolu (Sahibinden Crawler)
+                script_path = os.path.join(os.path.dirname(__file__), "sahibinden_crawler.py")
 
                 # Komut hazırla
                 cmd = [
@@ -237,12 +241,12 @@ def api_crawler_start():
                     print("🔄 Reverse sort detected")
                     cmd.append("--reverse-sort")
 
-                if data.get("sync", False):
-                    print("🗑️ Sync mode detected (implying Turbo)")
+                if sync:
+                    print("🗑️ Sync mode detected")
                     cmd.append("--sync")
-                    cmd.append("--turbo")
 
-                if data.get("turbo", False):
+                if turbo:
+                    print("⚡ Turbo mode detected")
                     cmd.append("--turbo")
 
                 # Crawler'ı çalıştır
@@ -797,6 +801,48 @@ def api_removed_listings():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/crawler/logs")
+def api_crawler_logs():
+    """Crawler loglarını getir"""
+    try:
+        log_type = request.args.get("type", "debug")  # debug veya error
+        lines = int(request.args.get("lines", 100))
+        
+        script_dir = os.path.dirname(__file__)
+        
+        if log_type == "error":
+            log_file = os.path.join(script_dir, "crawler_error.log")
+        else:
+            log_file = os.path.join(script_dir, "crawler_debug.log")
+        
+        if not os.path.exists(log_file):
+            return jsonify({
+                "success": True,
+                "data": {
+                    "logs": "Log dosyası henüz oluşturulmadı.",
+                    "file": log_file
+                }
+            })
+        
+        # Son N satırı oku
+        with open(log_file, "r", encoding="utf-8") as f:
+            all_lines = f.readlines()
+            last_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
+            logs = "".join(last_lines)
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "logs": logs,
+                "file": log_file,
+                "total_lines": len(all_lines)
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/api/maintenance/run", methods=["POST"])
 def run_maintenance():
     """Veritabanı bakım ve temizlik işlemini tetikler"""
@@ -831,6 +877,12 @@ def run_maintenance():
                 "nulls_removed": 0,
             }
         ), 500
+
+
+@app.route("/stats")
+def stats():
+    """İstatistikler sayfası"""
+    return render_template("stats.html")
 
 
 @app.route("/api/category-stats")

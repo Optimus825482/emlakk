@@ -5,9 +5,13 @@ import { Icon } from "@/components/ui/icon";
 import { Navbar, Footer } from "@/components/layout";
 import Image from "next/image";
 
-// External URL'ler için unoptimized helper
+// External URL'ler ve local uploads için unoptimized helper
 function isExternalUrl(url: string): boolean {
-  return url.startsWith("http://") || url.startsWith("https://");
+  return (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("/uploads")
+  );
 }
 
 interface FounderProfile {
@@ -62,11 +66,15 @@ export default function HakkimizdaPage() {
   useEffect(() => {
     fetch("/api/about")
       .then((res) => res.json())
-      .then((data) => {
-        setData(data);
+      .then((response) => {
+        console.log("API Response:", response);
+        setData(response.data || response);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((error) => {
+        console.error("Fetch error:", error);
+        setLoading(false);
+      });
   }, []);
 
   if (loading) {

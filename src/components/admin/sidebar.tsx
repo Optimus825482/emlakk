@@ -71,6 +71,11 @@ const contentModules = [
 
 const tools = [
   {
+    href: "/admin/crawler",
+    icon: "sync",
+    label: "Crawler Yönetimi",
+  },
+  {
     href: "/admin/sahibinden-inceleme",
     icon: "search",
     label: "Sahibinden İnceleme",

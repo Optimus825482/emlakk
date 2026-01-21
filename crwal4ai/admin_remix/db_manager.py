@@ -59,5 +59,34 @@ class DatabaseManager:
         res = self.execute_query(query, params)
         return res[0] if res else None
 
+    def execute_batch(self, query, params_list):
+        """
+        Batch insert/update/delete için optimize edilmiş metod.
+        
+        Args:
+            query: SQL query (tek satır için)
+            params_list: List of tuples, her tuple bir satır için parametreler
+        
+        Returns:
+            True if successful, None if error
+        """
+        if not params_list:
+            return True
+            
+        conn = self.get_conn()
+        try:
+            with conn.cursor() as cur:
+                # psycopg2.extras.execute_batch kullan (daha hızlı)
+                from psycopg2.extras import execute_batch
+                execute_batch(cur, query, params_list, page_size=100)
+                conn.commit()
+                return True
+        except Exception as e:
+            print(f"❌ Batch query error: {e}\nQuery: {query}")
+            conn.rollback()
+            return None
+        finally:
+            self.put_conn(conn)
+
 # Singleton instance
 db = DatabaseManager()

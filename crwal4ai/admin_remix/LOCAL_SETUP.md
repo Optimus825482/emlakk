@@ -68,7 +68,7 @@ run_local.bat
 copy .env.local .env
 
 # Crawler'ı çalıştır
-python sahibinden_uc_batch_supabase.py --categories konut_satilik --max-pages 5
+python sahibinden_crawler.py --categories konut_satilik --max-pages 5
 ```
 
 ---
@@ -78,25 +78,25 @@ python sahibinden_uc_batch_supabase.py --categories konut_satilik --max-pages 5
 ### Tek Kategori (Hızlı Test)
 
 ```bash
-python sahibinden_uc_batch_supabase.py --categories konut_satilik --max-pages 1
+python sahibinden_crawler.py --categories konut_satilik --max-pages 1
 ```
 
 ### Birden Fazla Kategori
 
 ```bash
-python sahibinden_uc_batch_supabase.py --categories konut_satilik,arsa_satilik --max-pages 5
+python sahibinden_crawler.py --categories konut_satilik,arsa_satilik --max-pages 5
 ```
 
 ### Tüm Kategoriler (Uzun Sürer)
 
 ```bash
-python sahibinden_uc_batch_supabase.py --max-pages 20
+python sahibinden_crawler.py --max-pages 20
 ```
 
 ### Sync Modu (Kaldırılan İlanları Tespit Et)
 
 ```bash
-python sahibinden_uc_batch_supabase.py --categories konut_satilik --max-pages 999 --sync
+python sahibinden_crawler.py --categories konut_satilik --max-pages 999 --sync
 ```
 
 ---
@@ -128,7 +128,7 @@ python sahibinden_uc_batch_supabase.py --categories konut_satilik --max-pages 99
 
 ### Rate Limiter (Hız Ayarı)
 
-`sahibinden_uc_batch_supabase.py` - satır ~240:
+`sahibinden_crawler.py` - satır ~240:
 
 **Yavaş Mod (Güvenli):**
 
@@ -155,7 +155,7 @@ requests_per_minute=60,  # 60 istek/dakika
 
 Eğer Chrome açılmıyorsa, path'i kontrol et:
 
-`sahibinden_uc_batch_supabase.py` - satır ~620:
+`sahibinden_crawler.py` - satır ~620:
 
 ```python
 if is_windows:
@@ -205,7 +205,7 @@ telnet 77.42.68.4 5432
 # Chrome path'ini kontrol et
 dir "C:\Users\erkan\undetected-chromium\chromium\chrome-win\chrome.exe"
 
-# Yoksa, path'i güncelle (sahibinden_uc_batch_supabase.py - satır 620)
+# Yoksa, path'i güncelle (sahibinden_crawler.py - satır 620)
 ```
 
 ### Sorun 3: Paket Eksik
@@ -267,7 +267,7 @@ Windows Task Scheduler ile otomatik çalıştır:
 3. **Trigger:** Daily, 03:00 AM
 4. **Action:** Start a program
    - Program: `C:\Python313\python.exe`
-   - Arguments: `sahibinden_uc_batch_supabase.py --max-pages 20`
+   - Arguments: `sahibinden_crawler.py --max-pages 20`
    - Start in: `D:\demir\yy\demir-gayrimenkul\crwal4ai\admin_remix`
 5. **Finish**
 
@@ -329,3 +329,4 @@ https://demir-gayrimenkul.vercel.app/ilanlar
 **Dezavantajlar:** Manuel çalıştırma, bilgisayar açık olmalı
 
 **Uzun Vadeli Çözüm:** Proxy al ($75/ay) ve sunucuda otomatik çalıştır
+

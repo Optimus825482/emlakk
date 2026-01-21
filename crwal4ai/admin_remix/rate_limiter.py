@@ -23,16 +23,16 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RateLimiterConfig:
-    """Rate limiter konfigürasyonu - MAKSIMUM HIZ MODU"""
-    base_delay: float = 1.5          # Temel bekleme süresi (3.0 -> 1.5)
-    min_delay: float = 0.5           # Minimum bekleme (2.0 -> 0.5)
-    max_delay: float = 30.0          # Maksimum bekleme (değişmedi)
-    jitter_range: float = 0.5        # Rastgele varyasyon aralığı (1.0 -> 0.5)
-    backoff_multiplier: float = 2.0  # Block sonrası çarpan (değişmedi)
-    max_backoff_level: int = 25       # Maksimum backoff seviyesi (değişmedi)
-    cooldown_after_block: float = 60.0  # Block sonrası soğuma süresi (değişmedi)
-    requests_per_minute: int = 55    # Dakikada maksimum istek (30 -> 55)
-    burst_limit: int = 25             # Ardışık hızlı istek limiti (değişmedi)
+    """Rate limiter konfigürasyonu - ULTRA HIZ MODU (3-4 saniye/sayfa)"""
+    base_delay: float = 0.5          # Temel bekleme süresi (1.5 -> 0.5)
+    min_delay: float = 0.1           # Minimum bekleme (0.5 -> 0.1)
+    max_delay: float = 4.0           # Maksimum bekleme (30.0 -> 4.0)
+    jitter_range: float = 0.3        # Rastgele varyasyon aralığı (0.5 -> 0.3)
+    backoff_multiplier: float = 1.5  # Block sonrası çarpan (2.0 -> 1.5)
+    max_backoff_level: int = 3       # Maksimum backoff seviyesi (25 -> 3)
+    cooldown_after_block: float = 10.0  # Block sonrası soğuma süresi (60.0 -> 10.0)
+    requests_per_minute: int = 100   # Dakikada maksimum istek (55 -> 100)
+    burst_limit: int = 50            # Ardışık hızlı istek limiti (25 -> 50)
 
 
 class AdaptiveRateLimiter:
@@ -107,12 +107,12 @@ class AdaptiveRateLimiter:
     
     def wait(self) -> float:
         """
-        Sonraki istek için bekle.
+        Sonraki istek için bekle - ULTRA HIZ MODU (minimal bekleme)
         
         Returns:
             Beklenen süre (saniye)
         """
-        # Block sonrası soğuma kontrolü
+        # Block sonrası soğuma kontrolü (sadece block varsa)
         if self.last_block_time:
             time_since_block = time.time() - self.last_block_time
             if time_since_block < self.config.cooldown_after_block:
@@ -120,31 +120,19 @@ class AdaptiveRateLimiter:
                 logger.info(f"⏳ Block sonrası soğuma: {extra_wait:.1f}s")
                 time.sleep(extra_wait)
         
-        # Rate limit kontrolü
+        # Rate limit kontrolü (sadece aşılırsa bekle)
         while not self._check_rate_limit():
             logger.debug("Rate limit aşıldı, bekleniyor...")
-            time.sleep(5)
+            time.sleep(2)  # 5s -> 2s
         
-        # Delay hesapla ve bekle
-        delay = self._calculate_delay()
-        
-        # İlk istek değilse bekle
-        if self.last_request_time is not None:
-            elapsed = time.time() - self.last_request_time
-            if elapsed < delay:
-                actual_wait = delay - elapsed
-                time.sleep(actual_wait)
-                delay = actual_wait
-            else:
-                delay = 0
-        
-        # Kayıt güncelle
+        # ULTRA HIZ: Delay hesaplama YOK, direkt geç!
+        # Sadece kayıt tut
         self.last_request_time = time.time()
         self.request_times.append(self.last_request_time)
         self.total_requests += 1
         self.burst_count += 1
         
-        return delay
+        return 0  # Hiç bekleme!
     
     def report_success(self):
         """Başarılı istek bildir"""
