@@ -27,8 +27,20 @@ COPY . .
 WORKDIR /app/admin_remix
 RUN pip install --no-cache-dir -r requirements.txt
 
+# .env dosyasını oluştur (eğer yoksa .env.example'dan)
+RUN if [ ! -f .env ]; then \
+        if [ -f .env.example ]; then \
+            cp .env.example .env; \
+            echo "✅ .env created from .env.example"; \
+        else \
+            echo "DATABASE_URL=postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db" > .env; \
+            echo "✅ .env created with default DATABASE_URL"; \
+        fi \
+    fi
+
 # Sanal Ekran (Headless Chrome alternatifi)
 ENV DISPLAY=:99
+ENV DATABASE_URL=postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db
 EXPOSE 5001
 
 # Sağlık Kontrolü (Health Check)

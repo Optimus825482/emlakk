@@ -4,3 +4,8 @@ python-dotenv>=1.0.0
 supabase>=2.0.0
 psycopg2-binary>=2.9.0
 SQLAlchemy>=2.0.0
+
+# Crawler Dependencies (admin_remix içinde crawler çalıştırıyor)
+beautifulsoup4>=4.12.0
+selenium>=4.15.0
+undetected-chromedriver>=3.5.0
