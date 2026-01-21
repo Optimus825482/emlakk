@@ -738,16 +738,51 @@ class SahibindenSupabaseCrawler:
             pass
 
     def _wait_for_cloudflare(self, timeout: int = 60) -> bool:
-        """Cloudflare bekle"""
+        """Cloudflare bekle - detaylı logging ile"""
         start = time.time()
+        last_check = ""
+        
         while time.time() - start < timeout:
             try:
                 ps = self.driver.page_source.lower()
+                
+                # İçerik kontrolü
                 if "searchresultstable" in ps or "classifieddetailtitle" in ps:
+                    logger.info("✅ Sayfa içeriği yüklendi (searchResultsTable bulundu)")
                     return True
+                
+                # Cloudflare challenge kontrolü
+                if "checking your browser" in ps or "just a moment" in ps:
+                    if last_check != "challenge":
+                        logger.info("⏳ Cloudflare challenge tespit edildi...")
+                        last_check = "challenge"
+                
+                # 403 / Access Denied kontrolü
+                elif "access denied" in ps or "403 forbidden" in ps:
+                    logger.error("❌ 403 Forbidden - Cloudflare tarafından bloklandı")
+                    return False
+                
+                # Boş sayfa kontrolü
+                elif len(ps) < 500:
+                    if last_check != "empty":
+                        logger.warning(f"⚠️ Sayfa çok kısa ({len(ps)} karakter), yükleniyor...")
+                        last_check = "empty"
+                
+                # Diğer durumlar
+                else:
+                    if last_check != "loading":
+                        logger.debug(f"⏳ Sayfa yükleniyor... (içerik: {len(ps)} karakter)")
+                        last_check = "loading"
+                
                 time.sleep(2)
-            except:
+                
+            except Exception as e:
+                logger.debug(f"⚠️ Page source okunamadı: {e}")
                 time.sleep(2)
+        
+        # Timeout
+        logger.error(f"❌ Timeout ({timeout}s) - Sayfa yüklenemedi")
+        logger.debug(f"Son sayfa içeriği: {self.driver.page_source[:500]}...")
         return False
 
     def _handle_devam_et(self) -> bool:
@@ -780,7 +815,9 @@ class SahibindenSupabaseCrawler:
         start_time = time.time()
 
         try:
+            logger.info(f"⏳ Sayfaya gidiliyor... (driver.get)")
             self.driver.get(url)
+            logger.info(f"✓ driver.get() tamamlandı ({time.time() - start_time:.1f}s)")
 
             # İlk bekleme - sayfa yüklensin
             if self.turbo_mode:
@@ -788,8 +825,16 @@ class SahibindenSupabaseCrawler:
             else:
                 self._human_like_delay(3, 5)
 
+            # Sayfa başlığını kontrol et
+            try:
+                page_title = self.driver.title
+                logger.info(f"📄 Sayfa başlığı: {page_title[:100]}")
+            except:
+                logger.warning("⚠️ Sayfa başlığı okunamadı")
+
             # Cloudflare challenge kontrolü
             page_source = self.driver.page_source.lower()
+            logger.info(f"📊 Sayfa içeriği: {len(page_source)} karakter")
             
             # Cloudflare challenge var mı?
             if "checking your browser" in page_source or "just a moment" in page_source:
@@ -817,6 +862,7 @@ class SahibindenSupabaseCrawler:
                     return None
 
             # Normal sayfa yükleme kontrolü
+            logger.info("⏳ Sayfa içeriği kontrol ediliyor...")
             if not self._wait_for_cloudflare(timeout):
                 self._add_log(
                     "error", f"❌ Cloudflare bypass başarısız", {"url": url[:100]}
@@ -828,6 +874,7 @@ class SahibindenSupabaseCrawler:
             # Başarılı - rate limiter'a bildir
             response_time = time.time() - start_time
             self.rate_limiter.report_success()
+            logger.info(f"✅ Sayfa yüklendi ({response_time:.1f}s)")
 
             # Yavaş yanıt kontrolü
             if response_time > 10:
