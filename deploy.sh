@@ -23,13 +23,11 @@ COMMAND=${1:-start}
 
 case $COMMAND in
     start)
-        echo -e "${YELLOW}🚀 Servisleri başlatıyorum...${NC}"
+        echo -e "${YELLOW}🚀 Next.js uygulamasını başlatıyorum...${NC}"
         docker-compose up -d
-        echo -e "${GREEN}✅ Servisler başlatıldı!${NC}"
+        echo -e "${GREEN}✅ Uygulama başlatıldı!${NC}"
         echo ""
         echo "📍 Next.js: http://localhost:3000"
-        echo "📍 Admin Panel: http://localhost:5001"
-        echo "📍 Nginx: http://localhost"
         echo ""
         echo "Logları görmek için: ./deploy.sh logs"
         ;;
