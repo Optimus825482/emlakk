@@ -2,8 +2,11 @@
 FROM node:22-bookworm AS builder
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (including libvips for Sharp)
+RUN apt-get update && apt-get install -y \
+    openssl \
+    libvips-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY package.json ./
@@ -39,7 +42,11 @@ RUN yarn build
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies (including libvips for Sharp)
+RUN apt-get update && apt-get install -y \
+    openssl \
+    libvips \
+    && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 
 ENV NODE_ENV=production
