@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
@@ -28,11 +28,47 @@ import { TarimFormSection } from "./_components/TarimFormSection";
 import { TicariFormSection } from "./_components/TicariFormSection";
 import { ArsaFormSection } from "./_components/ArsaFormSection";
 
+const DRAFT_STORAGE_KEY = "listing-draft";
+const DRAFT_IMAGES_KEY = "listing-draft-images";
+
 export default function YeniIlanPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+    const savedImages = localStorage.getItem(DRAFT_IMAGES_KEY);
+
+    if (savedDraft) {
+      setHasDraft(true);
+      const shouldRestore = confirm(
+        "Kaydedilmemiş bir taslak bulundu. Kaldığınız yerden devam etmek ister misiniz?",
+      );
+
+      if (shouldRestore) {
+        try {
+          const draft = JSON.parse(savedDraft);
+          setFormData(draft);
+          if (savedImages) {
+            setImages(JSON.parse(savedImages));
+          }
+          setLastSaved(new Date());
+        } catch (error) {
+          console.error("Taslak yüklenemedi:", error);
+        }
+      } else {
+        // Clear draft if user doesn't want to restore
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+        localStorage.removeItem(DRAFT_IMAGES_KEY);
+      }
+    }
+  }, []);
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -165,6 +201,20 @@ export default function YeniIlanPage() {
         type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     }));
   };
+
+  // Auto-save draft to localStorage
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Only save if there's meaningful data
+      if (formData.title || formData.description || formData.price) {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
+        localStorage.setItem(DRAFT_IMAGES_KEY, JSON.stringify(images));
+        setLastSaved(new Date());
+      }
+    }, 2000); // Save 2 seconds after last change
+
+    return () => clearTimeout(timer);
+  }, [formData, images]);
 
   const generateAIDescription = async () => {
     if (!formData.title || !formData.area || !formData.price) {
@@ -393,6 +443,9 @@ export default function YeniIlanPage() {
         }),
       });
       if (response.ok) {
+        // Clear draft after successful submission
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+        localStorage.removeItem(DRAFT_IMAGES_KEY);
         router.push("/admin/ilanlar");
       } else {
         const error = await response.json();
@@ -425,6 +478,20 @@ export default function YeniIlanPage() {
             </p>
           </div>
         </div>
+
+        {/* Auto-save indicator */}
+        {lastSaved && (
+          <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 px-4 py-2 rounded-lg border border-emerald-500/20">
+            <Icon name="check_circle" className="text-lg" />
+            <span>
+              Taslak kaydedildi:{" "}
+              {lastSaved.toLocaleTimeString("tr-TR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">

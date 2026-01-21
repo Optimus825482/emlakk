@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
 
     const orchestrator = getOrchestrator();
 
-    // Özel Demir-AI promptu ile chat yap
-    const copilotPrompt = `Sen Demir Gayrimenkul'ün "Demir-AI" asistanısın. 
+    // Özel Demir Gayrimenkul İlan Asistanı promptu
+    const copilotPrompt = `Sen Demir Gayrimenkul'ün İlan Asistanısın. 
 Şu an bir emlak danışmanına bir ilanı ([${listingData?.title || "İsimsiz İlan"}]) optimize etmesi için yardım ediyorsun.
 
 İLAN VERİLERİ:
@@ -49,9 +49,9 @@ Kurallar:
       response,
     });
   } catch (error) {
-    console.error("Demir-AI hatası:", error);
+    console.error("İlan Asistanı hatası:", error);
     return NextResponse.json(
-      { error: "Demir-AI şu an yanıt veremiyor." },
+      { error: "İlan Asistanı şu an yanıt veremiyor." },
       { status: 500 },
     );
   }

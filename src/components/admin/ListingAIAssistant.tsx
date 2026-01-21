@@ -12,23 +12,71 @@ interface ListingAIAssistantProps {
   onUpdateField?: (name: string, value: string) => void;
 }
 
+// LocalStorage keys
+const STORAGE_KEYS = {
+  POSITION: "demir-ai-position",
+  SIZE: "demir-ai-size",
+  IS_OPEN: "demir-ai-is-open",
+};
+
 export function ListingAIAssistant({
   listingData,
   onUpdateField,
 }: ListingAIAssistantProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  // Load saved state from localStorage
+  const [isOpen, setIsOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(STORAGE_KEYS.IS_OPEN) === "true";
+  });
+
+  const [position, setPosition] = useState(() => {
+    if (typeof window === "undefined") return { x: 0, y: 0 };
+    const saved = localStorage.getItem(STORAGE_KEYS.POSITION);
+    return saved ? JSON.parse(saved) : { x: 0, y: 0 };
+  });
+
+  const [size, setSize] = useState(() => {
+    if (typeof window === "undefined") return { width: 400, height: 600 };
+    const saved = localStorage.getItem(STORAGE_KEYS.SIZE);
+    return saved ? JSON.parse(saved) : { width: 400, height: 600 };
+  });
+
   const [messages, setMessages] = useState<
     Array<{ role: "user" | "assistant"; content: string }>
   >([
     {
       role: "assistant",
       content:
-        "Merhaba! Ben Demir-AI. Bu ilanı mükemmelleştirmek için buradayım. Başlığı optimize edeyim mi yoksa pazar analizi mi yapalım?",
+        "Merhaba! Ben Demir Gayrimenkul İlan Asistanı. Bu ilanı mükemmelleştirmek için buradayım. Başlığı optimize edeyim mi yoksa pazar analizi mi yapalım?",
     },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [resizeStart, setResizeStart] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Save state to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.IS_OPEN, String(isOpen));
+  }, [isOpen]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.POSITION, JSON.stringify(position));
+  }, [position]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SIZE, JSON.stringify(size));
+  }, [size]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,6 +85,93 @@ export function ListingAIAssistant({
   useEffect(() => {
     if (isOpen) scrollToBottom();
   }, [messages, isOpen]);
+
+  // Drag handlers
+  const handleDragStart = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest(".drag-handle")) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
+      });
+    }
+  };
+
+  const handleDragMove = (e: MouseEvent) => {
+    if (isDragging) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+
+      // Constrain to viewport
+      const maxX = window.innerWidth - size.width - 16;
+      const maxY = window.innerHeight - size.height - 16;
+
+      setPosition({
+        x: Math.max(16, Math.min(newX, maxX)),
+        y: Math.max(16, Math.min(newY, maxY)),
+      });
+    }
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  // Resize handlers
+  const handleResizeStart = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest(".resize-handle")) {
+      e.stopPropagation();
+      setIsResizing(true);
+      setResizeStart({
+        x: e.clientX,
+        y: e.clientY,
+        width: size.width,
+        height: size.height,
+      });
+    }
+  };
+
+  const handleResizeMove = (e: MouseEvent) => {
+    if (isResizing) {
+      const deltaX = e.clientX - resizeStart.x;
+      const deltaY = e.clientY - resizeStart.y;
+
+      const newWidth = Math.max(300, Math.min(800, resizeStart.width + deltaX));
+      const newHeight = Math.max(
+        400,
+        Math.min(900, resizeStart.height + deltaY),
+      );
+
+      setSize({ width: newWidth, height: newHeight });
+    }
+  };
+
+  const handleResizeEnd = () => {
+    setIsResizing(false);
+  };
+
+  // Global mouse event listeners
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener("mousemove", handleDragMove);
+      window.addEventListener("mouseup", handleDragEnd);
+      return () => {
+        window.removeEventListener("mousemove", handleDragMove);
+        window.removeEventListener("mouseup", handleDragEnd);
+      };
+    }
+  }, [isDragging, dragStart, position, size]);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener("mousemove", handleResizeMove);
+      window.addEventListener("mouseup", handleResizeEnd);
+      return () => {
+        window.removeEventListener("mousemove", handleResizeMove);
+        window.removeEventListener("mouseup", handleResizeEnd);
+      };
+    }
+  }, [isResizing, resizeStart]);
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -115,10 +250,10 @@ export function ListingAIAssistant({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "fixed bottom-8 transition-all duration-500 ease-in-out flex items-center justify-center shadow-2xl z-50 group",
+          "fixed bottom-8 right-8 transition-all duration-500 ease-in-out flex items-center justify-center shadow-2xl z-50 group",
           isOpen
-            ? "right-[420px] w-12 h-12 bg-slate-900 rotate-90 rounded-2xl border border-white/10"
-            : "right-8 w-14 h-14 bg-gradient-to-br from-cyan-500 via-blue-600 to-violet-600 rounded-full hover:scale-110",
+            ? "w-12 h-12 bg-slate-900 rounded-2xl border border-white/10"
+            : "w-14 h-14 bg-gradient-to-br from-cyan-500 via-blue-600 to-violet-600 rounded-full hover:scale-110",
         )}
       >
         <div className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-20 group-hover:opacity-40 animate-pulse transition-opacity" />
@@ -137,128 +272,150 @@ export function ListingAIAssistant({
         )}
       </button>
 
-      {/* Sidebar Panel */}
-      <div
-        className={cn(
-          "fixed top-4 bottom-4 right-4 w-[400px] max-w-[calc(100vw-2rem)] bg-slate-950/90 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl z-40 transition-all duration-500 ease-out flex flex-col overflow-hidden",
-          isOpen
-            ? "translate-x-0 opacity-100"
-            : "translate-x-[120%] opacity-0 pointer-events-none",
-        )}
-      >
-        {/* Header */}
-        <div className="p-6 border-b border-white/10 bg-gradient-to-r from-cyan-500/10 to-violet-500/10">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-                <Icon name="smart_toy" className="text-white text-2xl" />
+      {/* Resizable & Draggable Panel */}
+      {isOpen && (
+        <div
+          ref={panelRef}
+          onMouseDown={handleDragStart}
+          style={{
+            left: position.x,
+            top: position.y,
+            width: size.width,
+            height: size.height,
+          }}
+          className={cn(
+            "fixed bg-slate-950/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-2xl z-40 flex flex-col overflow-hidden",
+            isDragging && "cursor-move",
+            isResizing && "cursor-nwse-resize",
+          )}
+        >
+          {/* Header - Drag Handle */}
+          <div className="drag-handle p-6 border-b border-white/10 bg-gradient-to-r from-cyan-500/10 to-violet-500/10 cursor-move">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                  <Icon name="smart_toy" className="text-white text-2xl" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-950" />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-950" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-white tracking-tight">
-                Demir-AI
-              </h3>
-              <p className="text-xs text-cyan-400 font-medium uppercase tracking-widest">
-                İlan Asistanı
-              </p>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  Demir Gayrimenkul
+                </h3>
+                <p className="text-xs text-cyan-400 font-medium uppercase tracking-widest">
+                  İlan Asistanı
+                </p>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors"
+              >
+                <Icon name="close" className="text-white text-sm" />
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10">
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={cn(
-                "flex flex-col gap-2 max-w-[85%]",
-                m.role === "user" ? "ml-auto items-end" : "items-start",
-              )}
-            >
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10">
+            {messages.map((m, i) => (
               <div
+                key={i}
                 className={cn(
-                  "p-4 rounded-2xl text-sm leading-relaxed shadow-sm",
-                  m.role === "user"
-                    ? "bg-cyan-600 text-white rounded-tr-none"
-                    : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5",
+                  "flex flex-col gap-2 max-w-[85%]",
+                  m.role === "user" ? "ml-auto items-end" : "items-start",
                 )}
               >
-                {m.content}
-              </div>
-              <span className="text-[10px] text-slate-500 font-medium px-1">
-                {m.role === "assistant" ? "DEMIR-AI" : "SİZ"}
-              </span>
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex items-start gap-2 max-w-[85%]">
-              <div className="p-4 bg-slate-800 rounded-2xl rounded-tl-none border border-white/5 flex gap-1">
-                <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" />
-                <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.4s]" />
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Quick Actions Panel */}
-        <div className="px-6 py-2 border-t border-white/5 bg-slate-900/50">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-            Hızlı İşlemler
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {quickActions.map((action, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  setInput(action.message);
-                  // Otomatik gönderim için timeout
-                  setTimeout(() => {
-                    const fakeEvent = {
-                      preventDefault: () => {},
-                    } as React.FormEvent;
-                    handleSendMessage(fakeEvent);
-                  }, 100);
-                }}
-                className="flex items-center gap-2 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/5 transition-colors text-left group"
-              >
-                <Icon
-                  name={action.icon}
-                  className="text-cyan-400 text-sm opacity-70 group-hover:opacity-100"
-                />
-                <span className="text-[11px] text-slate-300 font-medium">
-                  {action.label}
+                <div
+                  className={cn(
+                    "p-4 rounded-2xl text-sm leading-relaxed shadow-sm",
+                    m.role === "user"
+                      ? "bg-cyan-600 text-white rounded-tr-none"
+                      : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5",
+                  )}
+                >
+                  {m.content}
+                </div>
+                <span className="text-[10px] text-slate-500 font-medium px-1">
+                  {m.role === "assistant" ? "DEMİR GAYRİMENKUL" : "SİZ"}
                 </span>
-              </button>
+              </div>
             ))}
+            {isLoading && (
+              <div className="flex items-start gap-2 max-w-[85%]">
+                <div className="p-4 bg-slate-800 rounded-2xl rounded-tl-none border border-white/5 flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" />
+                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                  <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Quick Actions Panel */}
+          <div className="px-6 py-2 border-t border-white/5 bg-slate-900/50">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+              Hızlı İşlemler
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {quickActions.map((action, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setInput(action.message);
+                    setTimeout(() => {
+                      const fakeEvent = {
+                        preventDefault: () => {},
+                      } as React.FormEvent;
+                      handleSendMessage(fakeEvent);
+                    }, 100);
+                  }}
+                  className="flex items-center gap-2 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/5 transition-colors text-left group"
+                >
+                  <Icon
+                    name={action.icon}
+                    className="text-cyan-400 text-sm opacity-70 group-hover:opacity-100"
+                  />
+                  <span className="text-[11px] text-slate-300 font-medium">
+                    {action.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Footer / Input */}
+          <div className="p-6 bg-slate-900/80 border-t border-white/10">
+            <form onSubmit={handleSendMessage} className="relative">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Asistana bir şey sor..."
+                className="w-full bg-slate-950 border border-white/10 rounded-2xl py-4 pl-5 pr-14 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-600 shadow-inner"
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                className="absolute right-2 top-2 bottom-2 w-10 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition-colors shadow-lg shadow-cyan-500/10"
+              >
+                <Icon name="send" className="text-sm" />
+              </button>
+            </form>
+            <p className="text-[10px] text-slate-600 text-center mt-3">
+              Demir Gayrimenkul AI • 2026 Edition
+            </p>
+          </div>
+
+          {/* Resize Handle */}
+          <div
+            className="resize-handle absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize"
+            onMouseDown={handleResizeStart}
+          >
+            <div className="absolute bottom-1 right-1 w-4 h-4 border-r-2 border-b-2 border-white/20 rounded-br" />
           </div>
         </div>
-
-        {/* Footer / Input */}
-        <div className="p-6 bg-slate-900/80 border-t border-white/10">
-          <form onSubmit={handleSendMessage} className="relative">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Asistana bir şey sor..."
-              className="w-full bg-slate-950 border border-white/10 rounded-2xl py-4 pl-5 pr-14 text-sm text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all placeholder:text-slate-600 shadow-inner"
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="absolute right-2 top-2 bottom-2 w-10 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition-colors shadow-lg shadow-cyan-500/10"
-            >
-              <Icon name="send" className="text-sm" />
-            </button>
-          </form>
-          <p className="text-[10px] text-slate-600 text-center mt-3">
-            Demir AI tarafından güçlendirildi • 2026 Edition
-          </p>
-        </div>
-      </div>
+      )}
     </>
   );
 }
