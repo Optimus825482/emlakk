@@ -44,6 +44,9 @@ export const metadata: Metadata = {
     "AI emlak",
   ],
   authors: [{ name: "Demir Gayrimenkul" }],
+  verification: {
+    google: "olsqZYoGQT6m4V-kcBAI2-VCG6Z_TRLqZNLY4LRbvXs",
+  },
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.png",
