@@ -67,6 +67,65 @@ def parse_price(price_str):
         return 0
 
 
+def parse_konum_to_semt_mahalle(konum_text):
+    """
+    Konum metnini semt ve mahalle olarak ayır - CamelCase pattern
+    
+    Strateji:
+    1. CamelCase pattern kullan: İlk büyük harf grubu = semt, ikinci büyük harf grubu = mahalle
+    2. Örnek: "TığcılarYahyalar Mah." -> "Tığcılar" + "Yahyalar Mah."
+    3. Örnek: "MerkezYeni Mah." -> "Merkez" + "Yeni Mah."
+    4. Örnek: "KöylerDağdibi Mh." -> "Köyler" + "Dağdibi Mh."
+    
+    Returns:
+        tuple: (semt, mahalle) veya (None, mahalle) veya (semt, None)
+    """
+    if not konum_text:
+        return None, None
+    
+    # Boşluk varsa zaten ayrılmış demektir
+    if ' ' in konum_text and not konum_text[0].isupper():
+        return None, konum_text
+    
+    # CamelCase pattern'i bul: Büyük harfle başlayan kelime grupları
+    import re
+    pattern = r'[A-ZÇĞİÖŞÜ][a-zçğıöşü]*'
+    matches = re.findall(pattern, konum_text)
+    
+    if len(matches) == 0:
+        # Hiç büyük harf yok, tüm metin mahalle
+        return None, konum_text
+    
+    elif len(matches) == 1:
+        # Tek kelime var
+        # Eğer yaygın semt isimlerinden biriyse semt, değilse mahalle
+        common_semts = ["Merkez", "Köyler", "İstiklal", "Tepekum", "Semerciler"]
+        if matches[0] in common_semts:
+            # Kalan kısmı al
+            remaining = konum_text[len(matches[0]):].strip()
+            if remaining:
+                return matches[0], remaining
+            else:
+                return matches[0], None
+        else:
+            return None, konum_text
+    
+    else:
+        # İki veya daha fazla kelime var
+        # İlk kelime = semt, geri kalanı = mahalle
+        semt = matches[0]
+        
+        # Semt'ten sonraki kısmı al
+        semt_end_index = konum_text.find(semt) + len(semt)
+        mahalle = konum_text[semt_end_index:].strip()
+        
+        if not mahalle:
+            # Sadece semt var
+            return semt, None
+        
+        return semt, mahalle
+
+
 def normalize_district(district_str):
     """
     İlçe ismini normalize et - case sensitivity düzelt
@@ -489,18 +548,49 @@ class SahibindenCrawler:
                 
                 # İlçeyi normalize et
                 district_normalized = normalize_district(category_config.get("district"))
+                
+                # Konum ayrıştırması: "Hendek, Merkez" -> "Merkez"
+                # İlçe adını konum'dan çıkar, sadece mahalle kalsın
+                raw_konum = listing.get("konum", "")
+                mahalle_only = raw_konum
+                
+                if district_normalized and raw_konum:
+                    # "Hendek, Merkez" -> "Merkez"
+                    # "Akyazı, Yunus Emre Mah." -> "Yunus Emre Mah."
+                    parts = raw_konum.split(",", 1)  # İlk virgülden böl
+                    if len(parts) == 2:
+                        ilce_part = parts[0].strip()
+                        mahalle_part = parts[1].strip()
+                        
+                        # İlçe adı eşleşiyorsa, sadece mahalle kısmını al
+                        if ilce_part.lower() == district_normalized.lower():
+                            mahalle_only = mahalle_part
+                
+                # Semt ve mahalle parse et (CamelCase pattern)
+                semt, mahalle = parse_konum_to_semt_mahalle(mahalle_only)
+                
+                # FALLBACK LOGIC: Boş alanları doldur
+                # 1. Semt boşsa → İlçe adını kopyala
+                if not semt:
+                    semt = district_normalized
+                
+                # 2. Mahalle boşsa → Semt adını kopyala
+                if not mahalle:
+                    mahalle = semt
 
                 db_data = {
                     "id": int(listing_id),
                     "baslik": listing.get("baslik", "")[:255],
                     "link": listing.get("link", "")[:500],
                     "fiyat": fiyat,
-                    "konum": listing.get("konum", "")[:255],
+                    "konum": mahalle_only[:255],  # Sadece mahalle
                     "tarih": tarih_str,  # İlan tarihi (string: "Bugün 14:30", "15 Ocak")
                     "resim": listing.get("resim", "")[:500],
                     "category": listing.get("category", ""),
                     "transaction": listing.get("transaction", ""),
-                    "ilce": district_normalized,  # Normalize edilmiş ilçe
+                    "ilce": district_normalized,  # İlçe ayrı field'da
+                    "semt": semt,  # Semt (CamelCase parse)
+                    "mahalle": mahalle,  # Mahalle (CamelCase parse)
                     "crawled_at": crawled_at.isoformat(),  # Parse edilmiş tarih
                 }
                 db_data_list.append(db_data)
@@ -515,17 +605,18 @@ class SahibindenCrawler:
                 params_list = []
                 
                 for data in db_data_list:
-                    values_list.append("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())")
+                    values_list.append("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())")
                     params_list.extend([
                         data['id'], data['baslik'], data['link'], data['fiyat'], 
                         data['konum'], data['tarih'], data['resim'], 
-                        data['category'], data['transaction'], data.get('ilce')
+                        data['category'], data['transaction'], data.get('ilce'),
+                        data.get('semt'), data.get('mahalle')
                     ])
                 
                 values_str = ", ".join(values_list)
                 
                 batch_query = f"""
-                    INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, ilce, crawled_at)
+                    INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, ilce, semt, mahalle, crawled_at)
                     VALUES {values_str}
                     ON CONFLICT (id) 
                     DO UPDATE SET 
@@ -538,6 +629,8 @@ class SahibindenCrawler:
                         category = EXCLUDED.category,
                         transaction = EXCLUDED.transaction,
                         ilce = EXCLUDED.ilce,
+                        semt = EXCLUDED.semt,
+                        mahalle = EXCLUDED.mahalle,
                         crawled_at = NOW()
                 """
                 
@@ -603,11 +696,20 @@ class SahibindenCrawler:
                         ))
                     
                     # execute_batch kullan (tek query, çok satır)
+                    # NOT: id field'ı otomatik oluşturulur (SERIAL), manuel insert etmiyoruz
                     db.execute_batch(
                         """
                         INSERT INTO new_listings (listing_id, baslik, link, fiyat, konum, category, transaction, resim, first_seen_at)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (listing_id) DO NOTHING
+                        ON CONFLICT (listing_id) DO UPDATE SET
+                            baslik = EXCLUDED.baslik,
+                            link = EXCLUDED.link,
+                            fiyat = EXCLUDED.fiyat,
+                            konum = EXCLUDED.konum,
+                            category = EXCLUDED.category,
+                            transaction = EXCLUDED.transaction,
+                            resim = EXCLUDED.resim,
+                            first_seen_at = EXCLUDED.first_seen_at
                         """,
                         values_list
                     )
@@ -649,27 +751,54 @@ class SahibindenCrawler:
             crawled_at = parsed_date if parsed_date else datetime.now()
             
             # İlçeyi normalize et
-            district_normalized = normalize_district(category_config.get("district"))
+            district_normalized = normalize_district(listing.get("district", ""))
+            
+            # Konum ayrıştırması: "Hendek, Merkez" -> "Merkez"
+            raw_konum = listing.get("konum", "")
+            mahalle_only = raw_konum
+            
+            if district_normalized and raw_konum:
+                parts = raw_konum.split(",", 1)
+                if len(parts) == 2:
+                    ilce_part = parts[0].strip()
+                    mahalle_part = parts[1].strip()
+                    
+                    if ilce_part.lower() == district_normalized.lower():
+                        mahalle_only = mahalle_part
+            
+            # Semt ve mahalle parse et (CamelCase pattern)
+            semt, mahalle = parse_konum_to_semt_mahalle(mahalle_only)
+            
+            # FALLBACK LOGIC: Boş alanları doldur
+            # 1. Semt boşsa → İlçe adını kopyala
+            if not semt:
+                semt = district_normalized
+            
+            # 2. Mahalle boşsa → Semt adını kopyala
+            if not mahalle:
+                mahalle = semt
 
             db_data = {
                 "id": int(listing_id),
                 "baslik": listing.get("baslik", "")[:255],
                 "link": listing.get("link", "")[:500],
                 "fiyat": fiyat,
-                "konum": listing.get("konum", "")[:255],
-                "tarih": tarih_str,  # İlan tarihi (string: "Bugün 14:30", "15 Ocak")
+                "konum": mahalle_only[:255],  # Sadece mahalle
+                "tarih": tarih_str,
                 "resim": listing.get("resim", "")[:500],
                 "category": listing.get("category", ""),
                 "transaction": listing.get("transaction", ""),
-                "ilce": district_normalized,  # Normalize edilmiş ilçe
-                "crawled_at": crawled_at.isoformat(),  # Parse edilmiş tarih
+                "ilce": district_normalized,  # İlçe ayrı field'da
+                "semt": semt,  # Semt (CamelCase parse)
+                "mahalle": mahalle,  # Mahalle (CamelCase parse)
+                "crawled_at": crawled_at.isoformat(),
             }
 
             # Upsert (varsa güncelle, yoksa ekle)
             db.execute_query(
                 """
-                INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, ilce, crawled_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, ilce, semt, mahalle, crawled_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 ON CONFLICT (id) 
                 DO UPDATE SET 
                     baslik = EXCLUDED.baslik,
@@ -681,9 +810,11 @@ class SahibindenCrawler:
                     category = EXCLUDED.category,
                     transaction = EXCLUDED.transaction,
                     ilce = EXCLUDED.ilce,
+                    semt = EXCLUDED.semt,
+                    mahalle = EXCLUDED.mahalle,
                     crawled_at = NOW()
                 """,
-                (db_data['id'], db_data['baslik'], db_data['link'], db_data['fiyat'], db_data['konum'], db_data['tarih'], db_data['resim'], db_data['category'], db_data['transaction'], db_data.get('ilce')),
+                (db_data['id'], db_data['baslik'], db_data['link'], db_data['fiyat'], db_data['konum'], db_data['tarih'], db_data['resim'], db_data['category'], db_data['transaction'], db_data.get('ilce'), db_data.get('semt'), db_data.get('mahalle')),
                 fetch=False
             )
 

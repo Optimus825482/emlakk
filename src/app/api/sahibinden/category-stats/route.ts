@@ -5,9 +5,9 @@ import { sql, eq, and } from "drizzle-orm";
 
 export async function GET(request: Request) {
   try {
-    // URL'den district parametresini al
+    // URL'den ilce parametresini al
     const { searchParams } = new URL(request.url);
-    const district = searchParams.get("district");
+    const ilce = searchParams.get("ilce");
     const neighborhood = searchParams.get("neighborhood");
     let category = searchParams.get("category");
     let transaction = searchParams.get("transaction");
@@ -59,8 +59,8 @@ export async function GET(request: Request) {
     ];
 
     // İlçe filtresi varsa ekle
-    if (district && district !== "all") {
-      whereConditions.push(eq(sahibindenListe.ilce, district));
+    if (ilce && ilce !== "all") {
+      whereConditions.push(eq(sahibindenListe.ilce, ilce));
     }
 
     // Mahalle filtresi varsa ekle
@@ -154,7 +154,7 @@ export async function GET(request: Request) {
       data: {
         categories,
         total,
-        district: district || "all",
+        ilce: ilce || "all",
         lastUpdate: new Date().toISOString(),
       },
     });

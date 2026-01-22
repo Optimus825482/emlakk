@@ -55,6 +55,7 @@ interface FilterState {
   maxPrice: string;
   konum: string;
   district: string;
+  neighborhood: string; // Mahalle filtresi
   sortBy: string; // Sıralama
 }
 
@@ -98,6 +99,9 @@ export default function SahibindenIlanlarPage() {
   const [districts, setDistricts] = useState<
     Array<{ value: string; label: string; count: number }>
   >([]);
+  const [neighborhoods, setNeighborhoods] = useState<
+    Array<{ id: string; name: string }>
+  >([]); // Mahalle listesi
   const [filters, setFilters] = useState<FilterState>({
     search: "",
     category: "all",
@@ -106,6 +110,7 @@ export default function SahibindenIlanlarPage() {
     maxPrice: "",
     konum: "",
     district: "all",
+    neighborhood: "all", // Mahalle filtresi
     sortBy: "date", // Varsayılan sıralama
   });
   const [currentPage, setCurrentPage] = useState(1);
@@ -136,7 +141,13 @@ export default function SahibindenIlanlarPage() {
   useEffect(() => {
     // Filtreler değiştiğinde listings'i yeniden çek
     fetchListings();
-  }, [filters.district, filters.category, filters.transaction, filters.sortBy]);
+  }, [
+    filters.district,
+    filters.neighborhood,
+    filters.category,
+    filters.transaction,
+    filters.sortBy,
+  ]);
 
   useEffect(() => {
     applyFilters();
@@ -166,6 +177,24 @@ export default function SahibindenIlanlarPage() {
     }
   };
 
+  const fetchNeighborhoods = async (district: string) => {
+    if (!district || district === "all") {
+      setNeighborhoods([]);
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/api/sahibinden/neighborhoods?ilce=${district}`,
+      );
+      const data = await response.json();
+      if (data.success) {
+        setNeighborhoods(data.data);
+      }
+    } catch (error) {
+      console.error("Neighborhoods fetch error:", error);
+    }
+  };
+
   const fetchListings = async () => {
     try {
       setLoading(true);
@@ -176,7 +205,11 @@ export default function SahibindenIlanlarPage() {
       });
 
       if (filters.district && filters.district !== "all") {
-        params.set("district", filters.district);
+        params.set("ilce", filters.district);
+      }
+
+      if (filters.neighborhood && filters.neighborhood !== "all") {
+        params.set("neighborhood", filters.neighborhood);
       }
 
       if (filters.category && filters.category !== "all") {
@@ -262,7 +295,7 @@ export default function SahibindenIlanlarPage() {
     setCurrentPage(1);
   };
 
-const resetFilters = () => {
+  const resetFilters = () => {
     setFilters({
       search: "",
       category: "all",
@@ -271,8 +304,10 @@ const resetFilters = () => {
       maxPrice: "",
       konum: "",
       district: "all",
+      neighborhood: "all",
       sortBy: "date",
     });
+    setNeighborhoods([]); // Mahalle listesini temizle
   };
 
   const formatPrice = (price: number | null) => {
@@ -359,7 +394,7 @@ const resetFilters = () => {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* İLÇE SEÇİMİ - YENİ KONUM */}
+          {/* İLÇE SEÇİMİ */}
           <Select
             value={filters.district}
             onValueChange={(value) => {
@@ -367,14 +402,17 @@ const resetFilters = () => {
               setFilters({
                 ...filters,
                 district: value,
+                neighborhood: "all", // İlçe değişince mahalle sıfırla
                 sortBy: filters.sortBy,
               });
+              // Mahalle listesini çek
+              fetchNeighborhoods(value);
               // URL'i güncelle
               const url = new URL(window.location.href);
               if (value === "all") {
-                url.searchParams.delete("district");
+                url.searchParams.delete("ilce");
               } else {
-                url.searchParams.set("district", value);
+                url.searchParams.set("ilce", value);
               }
               window.history.pushState({}, "", url);
             }}
@@ -403,6 +441,50 @@ const resetFilters = () => {
                     className="text-white hover:bg-slate-700"
                   >
                     {district.label} ({district.count.toLocaleString("tr-TR")})
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+
+          {/* MAHALLE SEÇİMİ - YENİ */}
+          <Select
+            value={filters.neighborhood}
+            onValueChange={(value) => {
+              console.log("Mahalle seçildi:", value); // DEBUG
+              setFilters({
+                ...filters,
+                neighborhood: value,
+              });
+            }}
+            disabled={filters.district === "all"}
+          >
+            <SelectTrigger className="w-[200px] bg-slate-800 border-slate-700 text-white">
+              <SelectValue placeholder="Mahalle seçin">
+                {filters.neighborhood === "all"
+                  ? "Tüm Mahalleler"
+                  : neighborhoods.find((n) => n.name === filters.neighborhood)
+                      ?.name || "Mahalle seçin"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectItem value="all" className="text-white hover:bg-slate-700">
+                Tüm Mahalleler
+              </SelectItem>
+              {neighborhoods.length === 0 ? (
+                <SelectItem value="empty" disabled className="text-slate-400">
+                  {filters.district === "all"
+                    ? "Önce ilçe seçin"
+                    : "Mahalle yok"}
+                </SelectItem>
+              ) : (
+                neighborhoods.map((neighborhood) => (
+                  <SelectItem
+                    key={neighborhood.id}
+                    value={neighborhood.name}
+                    className="text-white hover:bg-slate-700"
+                  >
+                    {neighborhood.name}
                   </SelectItem>
                 ))
               )}

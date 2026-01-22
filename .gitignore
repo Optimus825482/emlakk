@@ -58,3 +58,7 @@ crwal4ai/uc_chrome_profile_4c8afaa6
 ./.ruff_cache
 ./node_modules/.cache
 ./.agent/
+
+# Uploaded images (production'da volume mount ile yönetilir)
+/public/uploads/*
+!/public/uploads/.gitkeep

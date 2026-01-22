@@ -16,10 +16,12 @@ export interface NearbyPOI {
     | "park"
     | "transportation"
     | "mosque"
-    | "market";
+    | "market"
+    | "bakery";
   name: string;
-  distance: number; // metre cinsinden
+  distance: number;
   rating?: number;
+  isChainMarket?: boolean;
 }
 
 export interface PropertyFeatures {
@@ -47,6 +49,19 @@ export interface ComparableProperty {
   similarity: number; // 0-100 arası benzerlik skoru
 }
 
+export interface POIDetail {
+  name: string;
+  distance: number;
+  isChainMarket?: boolean;
+}
+
+export interface CategoryPOIDetails {
+  transportation: POIDetail[];
+  education: POIDetail[];
+  amenities: POIDetail[];
+  health: POIDetail[];
+}
+
 export interface LocationScore {
   total: number; // 0-100
   breakdown: {
@@ -59,6 +74,7 @@ export interface LocationScore {
   };
   advantages: string[];
   disadvantages: string[];
+  poiDetails?: CategoryPOIDetails;
 }
 
 export interface MarketAnalysis {

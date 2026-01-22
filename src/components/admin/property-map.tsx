@@ -225,8 +225,7 @@ export default function PropertyMap() {
 
     try {
       const params = new URLSearchParams();
-      if (selectedDistrict !== "all")
-        params.append("district", selectedDistrict);
+      if (selectedDistrict !== "all") params.append("ilce", selectedDistrict);
       if (selectedCategory !== "all")
         params.append("category", selectedCategory);
       if (selectedTransaction !== "all")

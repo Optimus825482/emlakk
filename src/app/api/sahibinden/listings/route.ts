@@ -6,7 +6,7 @@ import { like, eq, and, desc, asc, sql, SQL } from "drizzle-orm";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const district = searchParams.get("district");
+    const ilce = searchParams.get("ilce");
     const neighborhood = searchParams.get("neighborhood");
     let category = searchParams.get("category");
     let transaction = searchParams.get("transaction");
@@ -33,9 +33,9 @@ export async function GET(request: Request) {
 
     const whereConditions: SQL[] = [];
 
-    // Filter by District
-    if (district && district !== "all") {
-      whereConditions.push(eq(sahibindenListe.ilce, district));
+    // Filter by District (İlçe)
+    if (ilce && ilce !== "all") {
+      whereConditions.push(eq(sahibindenListe.ilce, ilce));
     }
 
     // Filter by Neighborhood (using ILIKE on konum)

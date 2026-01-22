@@ -318,19 +318,17 @@ function generateAIInsights(
 ): string {
   const insights: string[] = [];
 
-  // Değerleme özeti
-  const sources = [];
-  if (comparableCount > 0) sources.push(`${comparableCount} yerel ilan`);
-  if (neighborhoodAvg.count > 0)
-    sources.push(`${neighborhoodAvg.count} mahalle ilanı`);
-  if (provinceBenchmark.count > 0)
-    sources.push(`${provinceBenchmark.count} il geneli ilan`);
+  const layers: string[] = [];
+  if (comparableCount > 0) layers.push("yerel");
+  if (neighborhoodAvg.count > 0) layers.push("mahalle");
+  if (provinceBenchmark.count > 0) layers.push("il geneli");
 
-  insights.push(
-    `${sources.join(", ")} analiz edilerek ${(estimatedValue / 1000000).toFixed(2)}M TL değerleme yapıldı.`,
-  );
+  if (layers.length > 0) {
+    insights.push(
+      `${layers.join(", ")} bazlı değerlendirmeler yapılmış olup tahmini değer ${(estimatedValue / 1000000).toFixed(2)}M TL olarak hesaplanmıştır.`,
+    );
+  }
 
-  // Mahalle karşılaştırması
   if (neighborhoodAvg.count > 0) {
     const localAvg = marketStats.avgPricePerM2;
     const neighborhoodPrice = neighborhoodAvg.avgPricePerM2;
@@ -349,28 +347,24 @@ function generateAIInsights(
     }
   }
 
-  // İl geneli karşılaştırma (amortisman uygulanmış)
   if (provinceBenchmark.count > 0 && neighborhoodAvg.count > 0) {
     const neighborhoodPrice = neighborhoodAvg.avgPricePerM2;
     const provinceAvg = adjustedProvincePricePerM2;
     const diff = ((neighborhoodPrice / provinceAvg - 1) * 100).toFixed(1);
 
     if (Math.abs(parseFloat(diff)) < 5) {
-      insights.push(
-        "Mahalle fiyatları il geneli ortalamasına yakın (amortisman uygulanmış).",
-      );
+      insights.push("Mahalle fiyatları il geneli ortalamasına yakın.");
     } else if (parseFloat(diff) > 0) {
       insights.push(
-        `Bu mahalle il geneli ortalamasının %${diff} üzerinde fiyatlanıyor (amortisman uygulanmış).`,
+        `Bu mahalle il geneli ortalamasının %${diff} üzerinde fiyatlanıyor.`,
       );
     } else {
       insights.push(
-        `Bu mahalle il geneli ortalamasının %${Math.abs(parseFloat(diff))} altında fiyatlanıyor (amortisman uygulanmış).`,
+        `Bu mahalle il geneli ortalamasının %${Math.abs(parseFloat(diff))} altında fiyatlanıyor.`,
       );
     }
   }
 
-  // Konum değerlendirmesi
   if (locationScore.total >= 80) {
     insights.push("Konum çok avantajlı - sosyal tesislere ve ulaşıma yakın.");
   } else if (locationScore.total >= 60) {
@@ -383,7 +377,6 @@ function generateAIInsights(
     );
   }
 
-  // Avantajlar
   if (locationScore.advantages.length > 0) {
     insights.push(
       `Avantajlar: ${locationScore.advantages.slice(0, 3).join(", ")}.`,

@@ -567,50 +567,111 @@ export default function DegerlemePage() {
                     />
                     Konum Analizi
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                     <div>
-                      <p className="text-gray-400 text-sm">Ulaşım</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon name="directions_bus" className="text-blue-400 text-sm" />
+                        <p className="text-gray-400 text-sm">Ulaşım</p>
+                      </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-white/10 rounded-full h-2">
                           <div 
-                            className="bg-[var(--terracotta)] h-2 rounded-full" 
+                            className="bg-blue-400 h-2 rounded-full" 
                             style={{ width: `${(result.locationScore.breakdown.transportation / 20) * 100}%` }}
                           />
                         </div>
                       </div>
+                      {result.locationScore.poiDetails?.transportation?.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {result.locationScore.poiDetails.transportation.slice(0, 2).map((poi: any, i: number) => (
+                            <p key={i} className="text-gray-500 text-xs flex items-center gap-1">
+                              <Icon name="circle" className="text-[4px]" filled />
+                              {poi.name} - {poi.distance < 1000 ? `${poi.distance}m` : `${(poi.distance / 1000).toFixed(1)}km`}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div>
-                      <p className="text-gray-400 text-sm">Eğitim</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon name="school" className="text-purple-400 text-sm" />
+                        <p className="text-gray-400 text-sm">Eğitim</p>
+                      </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-white/10 rounded-full h-2">
                           <div 
-                            className="bg-[var(--terracotta)] h-2 rounded-full" 
+                            className="bg-purple-400 h-2 rounded-full" 
                             style={{ width: `${(result.locationScore.breakdown.education / 15) * 100}%` }}
                           />
                         </div>
                       </div>
+                      {result.locationScore.poiDetails?.education?.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {result.locationScore.poiDetails.education.slice(0, 2).map((poi: any, i: number) => (
+                            <p key={i} className="text-gray-500 text-xs flex items-center gap-1">
+                              <Icon name="circle" className="text-[4px]" filled />
+                              {poi.name} - {poi.distance < 1000 ? `${poi.distance}m` : `${(poi.distance / 1000).toFixed(1)}km`}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div>
-                      <p className="text-gray-400 text-sm">Sosyal Tesisler</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon name="shopping_cart" className="text-green-400 text-sm" />
+                        <p className="text-gray-400 text-sm">Sosyal Tesisler</p>
+                      </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-white/10 rounded-full h-2">
                           <div 
-                            className="bg-[var(--terracotta)] h-2 rounded-full" 
+                            className="bg-green-400 h-2 rounded-full" 
                             style={{ width: `${(result.locationScore.breakdown.amenities / 20) * 100}%` }}
                           />
                         </div>
                       </div>
+                      {result.locationScore.poiDetails?.amenities?.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {result.locationScore.poiDetails.amenities.slice(0, 3).map((poi: any, i: number) => (
+                            <p key={i} className="text-gray-500 text-xs flex items-center gap-1">
+                              {poi.isChainMarket ? (
+                                <Icon name="verified" className="text-green-500 text-xs" filled />
+                              ) : (
+                                <Icon name="circle" className="text-[4px]" filled />
+                              )}
+                              <span className={poi.isChainMarket ? "text-green-400" : ""}>
+                                {poi.name}
+                              </span>
+                              <span className="text-gray-600">
+                                - {poi.distance < 1000 ? `${poi.distance}m` : `${(poi.distance / 1000).toFixed(1)}km`}
+                              </span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div>
-                      <p className="text-gray-400 text-sm">Sağlık</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon name="local_hospital" className="text-red-400 text-sm" />
+                        <p className="text-gray-400 text-sm">Sağlık</p>
+                      </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-white/10 rounded-full h-2">
                           <div 
-                            className="bg-[var(--terracotta)] h-2 rounded-full" 
+                            className="bg-red-400 h-2 rounded-full" 
                             style={{ width: `${(result.locationScore.breakdown.health / 10) * 100}%` }}
                           />
                         </div>
                       </div>
+                      {result.locationScore.poiDetails?.health?.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {result.locationScore.poiDetails.health.slice(0, 2).map((poi: any, i: number) => (
+                            <p key={i} className="text-gray-500 text-xs flex items-center gap-1">
+                              <Icon name="circle" className="text-[4px]" filled />
+                              {poi.name} - {poi.distance < 1000 ? `${poi.distance}m` : `${(poi.distance / 1000).toFixed(1)}km`}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   {result.locationScore.advantages.length > 0 && (

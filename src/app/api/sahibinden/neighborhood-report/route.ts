@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const district = searchParams.get("district");
+    const ilce = searchParams.get("ilce");
 
     // Base SQL query
     let query = sql`
@@ -26,8 +26,8 @@ export async function GET(request: Request) {
     `;
 
     // Add district filter if present
-    if (district && district !== "all") {
-      query = sql`${query} WHERE n.district = ${district}`;
+    if (ilce && ilce !== "all") {
+      query = sql`${query} WHERE n.district = ${ilce}`;
     }
 
     // Group and Order

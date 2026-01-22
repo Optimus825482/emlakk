@@ -639,6 +639,7 @@ def api_listings():
         category = request.args.get("category")
         transaction = request.args.get("transaction")
         search = request.args.get("search")
+        district = request.args.get("district")  # İlçe filtresi
 
         # Build SQL query with filters and pagination
         sql = "SELECT *, COUNT(*) OVER() as full_count FROM sahibinden_liste WHERE 1=1"
@@ -650,6 +651,9 @@ def api_listings():
         if transaction:
             sql += " AND transaction = %s"
             params.append(transaction)
+        if district:
+            sql += " AND ilce = %s"  # İlçe filtresi
+            params.append(district)
         if search:
             sql += " AND baslik ILIKE %s"
             params.append(f"%{search}%")

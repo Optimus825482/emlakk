@@ -6,9 +6,9 @@ import { eq, asc } from "drizzle-orm";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const district = searchParams.get("district");
+    const ilce = searchParams.get("ilce");
 
-    if (!district || district === "all") {
+    if (!ilce || ilce === "all") {
       return NextResponse.json(
         { success: false, error: "İlçe seçilmedi" },
         { status: 400 },
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
         name: neighborhoods.name,
       })
       .from(neighborhoods)
-      .where(eq(neighborhoods.district, district))
+      .where(eq(neighborhoods.district, ilce))
       .orderBy(asc(neighborhoods.name));
 
     return NextResponse.json({

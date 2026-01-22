@@ -127,7 +127,7 @@ export default function SahibindenIncelemePage() {
     }
     try {
       const response = await fetch(
-        `/api/sahibinden/neighborhoods?district=${district}`,
+        `/api/sahibinden/neighborhoods?ilce=${district}`,
       );
       const data = await response.json();
       if (data.success) {
@@ -161,7 +161,7 @@ export default function SahibindenIncelemePage() {
       const c = category ?? selectedCategory;
       const t = transaction ?? selectedTransaction;
 
-      if (d && d !== "all") params.append("district", d);
+      if (d && d !== "all") params.append("ilce", d);
       if (n && n !== "all") params.append("neighborhood", n);
       if (c && c !== "all") params.append("category", c);
       if (t && t !== "all") params.append("transaction", t);
@@ -191,8 +191,7 @@ export default function SahibindenIncelemePage() {
     try {
       setListingsLoading(true);
       const params = new URLSearchParams();
-      if (selectedDistrict !== "all")
-        params.append("district", selectedDistrict);
+      if (selectedDistrict !== "all") params.append("ilce", selectedDistrict);
       if (selectedNeighborhood !== "all")
         params.append("neighborhood", selectedNeighborhood);
       if (selectedCategory !== "all")

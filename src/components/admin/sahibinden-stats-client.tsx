@@ -109,7 +109,7 @@ export function SahibindenStatsClient() {
       const url =
         district === "all"
           ? "/api/sahibinden/category-stats"
-          : `/api/sahibinden/category-stats?district=${district}`;
+          : `/api/sahibinden/category-stats?ilce=${district}`;
 
       const response = await fetch(url);
       const data = await response.json();
@@ -241,7 +241,7 @@ export function SahibindenStatsClient() {
                 transaction: trans,
               });
               if (selectedDistrict !== "all") {
-                queryParams.set("district", selectedDistrict);
+                queryParams.set("ilce", selectedDistrict);
               }
 
               return (

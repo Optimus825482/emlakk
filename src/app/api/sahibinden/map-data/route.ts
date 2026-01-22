@@ -85,11 +85,11 @@ function generateCoordinates(
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const district = searchParams.get("district");
+    const ilce = searchParams.get("ilce");
     const category = searchParams.get("category");
     const transaction = searchParams.get("transaction");
 
-    if (!district || district === "all") {
+    if (!ilce || ilce === "all") {
       return NextResponse.json(
         { success: false, error: "Lütfen bir ilçe seçin" },
         { status: 400 },
@@ -111,10 +111,10 @@ export async function GET(request: Request) {
     };
 
     // District'i normalize et (lowercase + türkçe karakter mapping)
-    const normalizedDistrict = districtMap[district.toLowerCase()] || district;
+    const normalizedDistrict = districtMap[ilce.toLowerCase()] || ilce;
 
     console.log("Fetching map data:", {
-      originalDistrict: district,
+      originalDistrict: ilce,
       normalizedDistrict,
       category,
       transaction,

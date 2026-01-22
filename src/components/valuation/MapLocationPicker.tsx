@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import { GoogleMap, LoadScript, Marker, Circle } from "@react-google-maps/api";
+import { useState, useCallback, useRef } from "react";
+import { GoogleMap, useJsApiLoader, Marker, Circle } from "@react-google-maps/api";
 import { Icon } from "@/components/ui/icon";
 
 interface LocationPoint {
@@ -46,6 +46,10 @@ export function MapLocationPicker({
   const [searchQuery, setSearchQuery] = useState("");
   const mapRef = useRef<google.maps.Map | null>(null);
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+  });
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
@@ -98,11 +102,8 @@ export function MapLocationPicker({
             }
           }
           
-          // Fallback: formatted_address'ten mahalle parse et
-          // Format: "Sokak No, Mahalle, İlçe/İl, Ülke"
           if (!mahalle && formattedAddress) {
             const parts = formattedAddress.split(",").map((p: string) => p.trim());
-            // Genellikle 2. veya 3. part mahalle oluyor
             for (let i = 1; i < Math.min(parts.length, 4); i++) {
               const part = parts[i];
               if (part.toLowerCase().includes("mah") || 
@@ -110,6 +111,25 @@ export function MapLocationPicker({
                   part.toLowerCase().includes("mahallesi")) {
                 mahalle = part;
                 break;
+              }
+            }
+            
+            if (!mahalle) {
+              const streetPatterns = /\s+(cd\.?|cad\.?|sk\.?|sok\.?|blv\.?|bulv\.?)\s*/i;
+              for (let i = 0; i < Math.min(parts.length - 2, 3); i++) {
+                const part = parts[i];
+                if (!streetPatterns.test(part) && 
+                    !part.match(/^\d/) && 
+                    !part.toLowerCase().includes("no ") &&
+                    !part.toLowerCase().includes("yanı") &&
+                    part.length > 3 &&
+                    part.length < 30) {
+                  const isLocation = /^[A-ZÇĞİÖŞÜa-zçğıöşü\s]+$/.test(part);
+                  if (isLocation && !part.includes("/")) {
+                    mahalle = part;
+                    break;
+                  }
+                }
               }
             }
           }
@@ -186,6 +206,25 @@ export function MapLocationPicker({
               break;
             }
           }
+          
+          if (!mahalle) {
+            const streetPatterns = /\s+(cd\.?|cad\.?|sk\.?|sok\.?|blv\.?|bulv\.?)\s*/i;
+            for (let i = 0; i < Math.min(parts.length - 2, 3); i++) {
+              const part = parts[i];
+              if (!streetPatterns.test(part) && 
+                  !part.match(/^\d/) && 
+                  !part.toLowerCase().includes("no ") &&
+                  !part.toLowerCase().includes("yanı") &&
+                  part.length > 3 &&
+                  part.length < 30) {
+                const isLocation = /^[A-ZÇĞİÖŞÜa-zçğıöşü\s]+$/.test(part);
+                if (isLocation && !part.includes("/")) {
+                  mahalle = part;
+                  break;
+                }
+              }
+            }
+          }
         }
 
         const locationData: LocationPoint = {
@@ -252,9 +291,20 @@ export function MapLocationPicker({
 
       {/* Map */}
       <div className="relative">
-        <LoadScript
-          googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""}
-        >
+        {loadError && (
+          <div className="h-[500px] rounded-2xl bg-white/5 flex items-center justify-center">
+            <p className="text-red-400">Harita yüklenemedi. Lütfen sayfayı yenileyin.</p>
+          </div>
+        )}
+        {!isLoaded && !loadError && (
+          <div className="h-[500px] rounded-2xl bg-white/5 flex items-center justify-center">
+            <div className="flex items-center gap-3 text-white">
+              <Icon name="sync" className="text-2xl animate-spin" />
+              <span className="font-medium">Harita yükleniyor...</span>
+            </div>
+          </div>
+        )}
+        {isLoaded && (
           <GoogleMap
             mapContainerStyle={mapContainerStyle}
             center={selectedLocation || defaultCenter}
@@ -265,7 +315,6 @@ export function MapLocationPicker({
           >
             {selectedLocation && (
               <>
-                {/* Seçilen konum marker */}
                 <Marker
                   position={{
                     lat: selectedLocation.lat,
@@ -283,7 +332,6 @@ export function MapLocationPicker({
                   }}
                 />
 
-                {/* Yakınlık çemberi (500m) */}
                 <Circle
                   center={{
                     lat: selectedLocation.lat,
@@ -301,7 +349,7 @@ export function MapLocationPicker({
               </>
             )}
           </GoogleMap>
-        </LoadScript>
+        )}
 
         {/* Loading overlay */}
         {isLoading && (
