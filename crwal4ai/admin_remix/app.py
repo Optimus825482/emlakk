@@ -88,8 +88,15 @@ def get_transaction_display(transaction: str) -> str:
 
 @app.route("/")
 def index():
-    """Ana dashboard"""
-    return render_template("index.html")
+    """Ana dashboard - ilçe parametresi ile"""
+    district = request.args.get('district', 'all')
+    
+    # İlçe listesi
+    districts = db.get_district_list()
+    
+    return render_template('index.html', 
+                         districts=districts,
+                         selected_district=district)
 
 
 @app.route("/listings")
@@ -118,8 +125,15 @@ def jobs():
 
 @app.route("/crawler")
 def crawler():
-    """Crawler yönetim sayfası"""
-    return render_template("crawler.html")
+    """Crawler yönetim sayfası - ilçe parametresi ile"""
+    district = request.args.get('district', 'hendek')
+    
+    # İlçe listesi
+    districts = db.get_district_list()
+    
+    return render_template("crawler.html",
+                         districts=districts,
+                         selected_district=district)
 
 
 @app.route("/map")
@@ -177,6 +191,7 @@ def api_crawler_start():
     try:
         data = request.json or {}
         categories = data.get("categories", ["konut_satilik"])
+        district = data.get("district", "hendek")  # YENİ: İlçe parametresi
         max_pages = data.get("max_pages", 100)
         force = data.get("force", False)
         reverse_sort = data.get("reverse_sort", False)
@@ -200,6 +215,7 @@ def api_crawler_start():
                 "running", 
                 json.dumps({
                     "categories": categories,
+                    "district": district,  # YENİ: İlçe config'e eklendi
                     "max_pages": max_pages,
                     "force": force,
                     "reverse_sort": reverse_sort,
@@ -227,6 +243,8 @@ def api_crawler_start():
                     script_path,
                     "--categories",
                     *categories,
+                    "--district",  # YENİ: İlçe parametresi
+                    district,
                     "--max-pages",
                     str(max_pages),
                     "--job-id",
@@ -367,6 +385,7 @@ def api_crawler_start_parallel():
     try:
         data = request.json or {}
         categories = data.get("categories", ["konut_satilik"])
+        district = data.get("district", "hendek")  # YENİ: İlçe parametresi
         max_pages = data.get("max_pages", 100)
         turbo = data.get("turbo", False)
         sync = data.get("sync", False)
@@ -388,6 +407,7 @@ def api_crawler_start_parallel():
                 "running",
                 json.dumps({
                     "categories": categories,
+                    "district": district,  # YENİ: İlçe config'e eklendi
                     "max_pages": max_pages,
                     "workers": 2,
                     "turbo": turbo,
@@ -414,6 +434,8 @@ def api_crawler_start_parallel():
                     script_path,
                     "--categories",
                     *categories,
+                    "--district",  # YENİ: İlçe parametresi
+                    district,
                     "--max-pages",
                     str(max_pages),
                     "--job-id",
@@ -534,63 +556,42 @@ def api_category_counts():
 
 @app.route("/api/dashboard")
 def api_dashboard():
-    """Dashboard özet verileri - Yüksek Performanslı ve Doğru Versiyon"""
+    """Dashboard özet verileri - İlçe Filtreleme Destekli"""
     try:
-        # Pazar verilerinin tarih filtresi
+        # Parametreler
         days = int(request.args.get("days", 1))
-        # ISO formatında tarih sınırı (örneğin 2026-01-19T00:00:00)
+        district = request.args.get("district", "all")  # YENİ: İlçe parametresi
+        
+        # ISO formatında tarih sınırı
         days_ago = (datetime.now() - timedelta(days=days)).isoformat()
 
+        # İlçe filtresi için SQL condition
+        district_condition = ""
+        district_params = []
+        
+        if district and district != 'all':
+            district_condition = " AND LOWER(konum) LIKE %s"
+            district_params = [f'%{district.lower()}%']
+
         # 1. Toplam İlan Sayısı
-        total_res = db.execute_one("SELECT COUNT(*) as count FROM sahibinden_liste")
+        total_sql = f"SELECT COUNT(*) as count FROM sahibinden_liste WHERE 1=1{district_condition}"
+        total_res = db.execute_one(total_sql, district_params if district_params else None)
         total_count = total_res["count"] if total_res else 0
 
         # 2. Yeni İlanlar
-        new_res = db.execute_one(
-            "SELECT COUNT(*) as count FROM new_listings WHERE created_at >= %s",
-            (days_ago,)
-        )
+        new_sql = f"SELECT COUNT(*) as count FROM new_listings WHERE created_at >= %s{district_condition}"
+        new_params = [days_ago] + district_params
+        new_res = db.execute_one(new_sql, new_params if district_params else [days_ago])
         new_listings_count = new_res["count"] if new_res else 0
 
         # 3. Kaldırılan İlanlar
-        rem_res = db.execute_one(
-            "SELECT COUNT(*) as count FROM removed_listings WHERE removed_at >= %s",
-            (days_ago,)
-        )
+        rem_sql = f"SELECT COUNT(*) as count FROM removed_listings WHERE removed_at >= %s{district_condition}"
+        rem_params = [days_ago] + district_params
+        rem_res = db.execute_one(rem_sql, rem_params if district_params else [days_ago])
         removed_listings_count = rem_res["count"] if rem_res else 0
 
-        # 4. Kategori Dağılımı (Optimized SQL-like counts)
-        # Not: Bu kısım kategori bazlı özetleri toplar
-        categories = ["konut", "arsa", "isyeri", "bina"]
-        category_data = {}
-
-        for cat in categories:
-            # Mevcut Veritabanı Sayısı
-            sat_count = db.execute_one(
-                "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s",
-                (cat, "satilik")
-            )["count"]
-            kir_count = db.execute_one(
-                "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s",
-                (cat, "kiralik")
-            )["count"]
-
-            # Yeni Bulunanlar
-            new_sat = db.execute_one(
-                "SELECT COUNT(*) as count FROM new_listings WHERE category = %s AND transaction = %s AND created_at >= %s",
-                (cat, "satilik", days_ago)
-            )["count"]
-            new_kir = db.execute_one(
-                "SELECT COUNT(*) as count FROM new_listings WHERE category = %s AND transaction = %s AND created_at >= %s",
-                (cat, "kiralik", days_ago)
-            )["count"]
-
-            category_data[cat] = {
-                "satilik": sat_count,
-                "kiralik": kir_count,
-                "new_satilik": new_sat,
-                "new_kiralik": new_kir,
-            }
+        # 4. Kategori Dağılımı (db_manager fonksiyonunu kullan)
+        category_data = db.get_category_stats(district=district)
 
         # 5. Son İşlem (Mining Jobs)
         last_job_data = db.execute_one(
@@ -618,6 +619,7 @@ def api_dashboard():
                     "categories": category_data,
                     "last_job": last_job,
                     "days": days,
+                    "district": district,  # YENİ: Seçili ilçe bilgisi
                 },
             }
         )

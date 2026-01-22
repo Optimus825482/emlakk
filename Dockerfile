@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
-COPY package.json ./
+COPY package.json yarn.lock* package-lock.json* ./
 RUN corepack enable && \
     yarn config set registry https://registry.npmmirror.com/ && \
     yarn config set network-timeout 600000 && \

@@ -37,7 +37,7 @@ export interface DeepSeekConfig {
 }
 
 const DEFAULT_MODEL = "deepseek-chat";
-const DEFAULT_TEMPERATURE = 0.7;
+const DEFAULT_TEMPERATURE = 0.1;
 const DEFAULT_MAX_TOKENS = 2048;
 const API_BASE_URL = "https://api.deepseek.com/v1";
 
@@ -57,6 +57,9 @@ export class DeepSeekClient {
   }
 
   async chat(messages: DeepSeekMessage[]): Promise<string> {
+    console.log(
+      `[DeepSeekClient] Sending request to: ${API_BASE_URL}/chat/completions`,
+    );
     const response = await fetch(`${API_BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
@@ -83,7 +86,7 @@ export class DeepSeekClient {
   }
 
   async *chatStream(
-    messages: DeepSeekMessage[]
+    messages: DeepSeekMessage[],
   ): AsyncGenerator<string, void, unknown> {
     const response = await fetch(`${API_BASE_URL}/chat/completions`, {
       method: "POST",

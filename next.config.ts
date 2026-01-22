@@ -20,11 +20,6 @@ const nextConfig: NextConfig = {
         hostname: "imaj.emlakjet.com",
         pathname: "/**",
       },
-      {
-        protocol: "https",
-        hostname: "cxeakfwtrlnjcjzvqdip.supabase.co",
-        pathname: "/storage/**",
-      },
     ],
   },
 };

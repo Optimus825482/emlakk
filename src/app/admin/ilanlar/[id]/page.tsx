@@ -2384,31 +2384,168 @@ export default function EditIlanPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* SEO & Seçenekler */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Icon name="tune" className="text-emerald-400" /> SEO & Seçenekler
-          </h3>
-          <div className="grid grid-cols-1 gap-4">
-            <InputField
-              label="Meta Başlık"
-              name="metaTitle"
-              value={formData.metaTitle}
-              onChange={handleChange}
-            />
+        {/* SEO & Seçenekler - GELİŞTİRİLMİŞ */}
+        <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Meta Açıklama
-              </label>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Icon name="search" className="text-blue-400" /> SEO & Meta
+                Optimizasyonu
+              </h3>
+              <p className="text-slate-400 text-sm mt-1">
+                Arama motorları ve sosyal medya için optimize edilmiş içerik
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!formData.title || !formData.description) {
+                  alert("SEO üretmek için başlık ve açıklama gereklidir.");
+                  return;
+                }
+                setIsGeneratingAI(true);
+                try {
+                  const response = await fetch("/api/ai/generate-seo", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      title: formData.title,
+                      description: formData.description,
+                      type: formData.type,
+                      location:
+                        `${formData.neighborhood || ""} ${formData.district}`.trim(),
+                      price: formData.price,
+                      area: formData.area,
+                      features: [
+                        formData.rooms,
+                        formData.zoningStatus,
+                        formData.deedStatus,
+                      ].filter(Boolean),
+                    }),
+                  });
+                  if (!response.ok) throw new Error("SEO üretilemedi");
+                  const data = await response.json();
+                  setFormData((prev) => ({
+                    ...prev,
+                    metaTitle: data.metaTitle,
+                    metaDescription: data.metaDescription,
+                  }));
+                } catch (error) {
+                  console.error("SEO AI hatası:", error);
+                  alert("SEO üretilirken hata oluştu.");
+                } finally {
+                  setIsGeneratingAI(false);
+                }
+              }}
+              disabled={isGeneratingAI}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-lg font-medium transition-all disabled:opacity-50 shadow-lg"
+            >
+              {isGeneratingAI ? (
+                <>
+                  <Icon name="sync" className="animate-spin" /> AI Üretiyor...
+                </>
+              ) : (
+                <>
+                  <Icon name="auto_awesome" /> AI ile SEO Oluştur
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {/* Meta Title */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Meta Başlık (Title Tag)
+                </label>
+                <span
+                  className={`text-xs ${
+                    formData.metaTitle.length > 60
+                      ? "text-red-400"
+                      : formData.metaTitle.length > 50
+                        ? "text-yellow-400"
+                        : "text-emerald-400"
+                  }`}
+                >
+                  {formData.metaTitle.length}/60 karakter
+                </span>
+              </div>
+              <input
+                type="text"
+                name="metaTitle"
+                value={formData.metaTitle}
+                onChange={handleChange}
+                placeholder="Örn: 3+1 Satılık Daire - Hendek Merkez | 150m² | 2.500.000₺"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                💡 İdeal: 50-60 karakter. Konum, fiyat ve özellik içermeli.
+              </p>
+            </div>
+
+            {/* Meta Description */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-slate-300">
+                  Meta Açıklama (Description)
+                </label>
+                <span
+                  className={`text-xs ${
+                    formData.metaDescription.length > 160
+                      ? "text-red-400"
+                      : formData.metaDescription.length > 150
+                        ? "text-yellow-400"
+                        : "text-emerald-400"
+                  }`}
+                >
+                  {formData.metaDescription.length}/160 karakter
+                </span>
+              </div>
               <textarea
                 name="metaDescription"
                 value={formData.metaDescription}
                 onChange={handleChange}
-                rows={2}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                rows={3}
+                placeholder="Hendek merkezde satılık 3+1 daire. 150m² kullanım alanı, asansörlü, otoparklı. Okul ve hastaneye yakın. Detaylar için hemen inceleyin!"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
+              <p className="text-xs text-slate-500 mt-1">
+                💡 İdeal: 150-160 karakter. Harekete geçirici (CTA) içermeli.
+              </p>
             </div>
-            <label className="flex items-center gap-3 cursor-pointer p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-lg">
+
+            {/* SEO Preview */}
+            <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+              <p className="text-xs text-slate-400 mb-3 flex items-center gap-2">
+                <Icon name="visibility" className="text-sm" /> Google Arama
+                Önizlemesi
+              </p>
+              <div className="space-y-1">
+                <div className="flex items-start gap-2">
+                  <Icon
+                    name="language"
+                    className="text-blue-400 text-sm mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <p className="text-blue-400 text-sm">
+                      demirgayrimenkul.com › ilanlar › {formData.type}
+                    </p>
+                    <h4 className="text-lg text-blue-600 hover:underline cursor-pointer line-clamp-1">
+                      {formData.metaTitle || formData.title || "İlan Başlığı"}
+                    </h4>
+                    <p className="text-sm text-slate-400 line-clamp-2">
+                      {formData.metaDescription ||
+                        formData.description?.slice(0, 160) ||
+                        "İlan açıklaması..."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Öne Çıkan İlan */}
+            <label className="flex items-center gap-3 cursor-pointer p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-lg hover:border-amber-500/50 transition-colors">
               <input
                 type="checkbox"
                 name="isFeatured"

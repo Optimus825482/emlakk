@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Image from "next/image";
 import { Icon } from "./icon";
+import { SimpleImageEditor } from "./simple-image-editor";
 
 interface MultiImageUploadProps {
   value: string[];
@@ -22,6 +23,10 @@ export function MultiImageUpload({
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingImage, setEditingImage] = useState<{
+    url: string;
+    index: number;
+  } | null>(null);
 
   const handleUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -131,6 +136,48 @@ export function MultiImageUpload({
     onChange(newImages);
   };
 
+  const handleEditImage = (url: string, index: number) => {
+    setEditingImage({ url, index });
+  };
+
+  const handleSaveEditedImage = async (editedImageUrl: string) => {
+    if (!editingImage) return;
+
+    // Base64'ü blob'a çevir ve upload et
+    try {
+      const response = await fetch(editedImageUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `edited-${Date.now()}.jpg`, {
+        type: "image/jpeg",
+      });
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", folder);
+
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Yükleme başarısız");
+      }
+
+      const data = await uploadResponse.json();
+      if (data.url) {
+        const newImages = [...value];
+        newImages[editingImage.index] = data.url;
+        onChange(newImages);
+      }
+    } catch (err) {
+      console.error("Edit save error:", err);
+      setError("Düzenlenmiş görsel kaydedilirken hata oluştu");
+    }
+
+    setEditingImage(null);
+  };
+
   return (
     <div className="space-y-4">
       {label && (
@@ -224,15 +271,37 @@ export function MultiImageUpload({
                 className="object-cover"
               />
 
-              {/* Kapak Rozeti */}
-              {index === 0 && (
-                <div className="absolute top-2 left-2 px-2 py-1 bg-emerald-500 text-white text-xs font-bold rounded">
-                  Kapak
-                </div>
-              )}
+              {/* Kapak Rozeti ve Kapak Yap Butonu */}
+              <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
+                {index === 0 ? (
+                  <div className="px-2 py-1 bg-emerald-500 text-white text-xs font-bold rounded">
+                    Kapak
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAsThumbnail(index)}
+                    className="px-2 py-1 bg-emerald-500/80 hover:bg-emerald-500 text-white text-xs font-bold rounded transition-colors flex items-center gap-1"
+                    title="Kapak yap"
+                  >
+                    <Icon name="star" className="text-white text-sm" />
+                    Kapak Yap
+                  </button>
+                )}
+              </div>
 
               {/* Hover Overlay */}
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                {/* Düzenle */}
+                <button
+                  type="button"
+                  onClick={() => handleEditImage(url, index)}
+                  className="p-2 bg-blue-500/80 hover:bg-blue-500 rounded-lg transition-colors"
+                  title="Düzenle"
+                >
+                  <Icon name="edit" className="text-white" />
+                </button>
+
                 {/* Sola Taşı */}
                 {index > 0 && (
                   <button
@@ -242,18 +311,6 @@ export function MultiImageUpload({
                     title="Sola taşı"
                   >
                     <Icon name="chevron_left" className="text-white" />
-                  </button>
-                )}
-
-                {/* Kapak Yap */}
-                {index !== 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setAsThumbnail(index)}
-                    className="p-2 bg-emerald-500/80 hover:bg-emerald-500 rounded-lg transition-colors"
-                    title="Kapak yap"
-                  >
-                    <Icon name="star" className="text-white" />
                   </button>
                 )}
 
@@ -290,6 +347,16 @@ export function MultiImageUpload({
           💡 İlk görsel kapak fotoğrafı olarak kullanılır. Sıralamayı
           değiştirmek için görsellerin üzerine gelin.
         </p>
+      )}
+
+      {/* Image Editor Modal */}
+      {editingImage && (
+        <SimpleImageEditor
+          isOpen={true}
+          onClose={() => setEditingImage(null)}
+          imageUrl={editingImage.url}
+          onSave={handleSaveEditedImage}
+        />
       )}
     </div>
   );

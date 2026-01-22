@@ -26,7 +26,7 @@ const coreModules = [
     badgeKey: null,
   },
   {
-    href: "/admin/harita",
+    href: "/admin/emlak-haritasi",
     icon: "map",
     label: "Emlak Haritası",
     badgeKey: null,
@@ -71,11 +71,6 @@ const contentModules = [
 
 const tools = [
   {
-    href: "/admin/crawler",
-    icon: "sync",
-    label: "Crawler Yönetimi",
-  },
-  {
     href: "/admin/sahibinden-inceleme",
     icon: "search",
     label: "Sahibinden İnceleme",
@@ -87,6 +82,11 @@ const tools = [
   },
   { href: "/admin/analitik", icon: "analytics", label: "Site Analitik" },
   { href: "/admin/kullanicilar", icon: "group", label: "Kullanıcılar" },
+  {
+    href: "/admin/ai-bilgi-tabani",
+    icon: "psychology",
+    label: "AI Bilgi Tabanı",
+  },
   { href: "/admin/ayarlar", icon: "settings", label: "Ayarlar" },
 ];
 

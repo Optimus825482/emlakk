@@ -6,6 +6,7 @@ import { eq, sql, or, isNull, desc, gte } from "drizzle-orm";
 import { AnalyticsWidget } from "@/components/admin/analytics-widget";
 import { ListingAnalyticsWidget } from "@/components/admin/listing-analytics-widget";
 import { SahibindenLiveComparison } from "@/components/admin/sahibinden-live-comparison";
+import { SahibindenStatsClient } from "@/components/admin/sahibinden-stats-client";
 import { auth } from "@/lib/auth";
 
 // Dashboard istatistikleri
@@ -304,8 +305,8 @@ export default async function AdminDashboardPage() {
         ))}
       </div>
 
-      {/* 🔥 Sahibinden.com Takip - EN KRİTİK */}
-      <SahibindenLiveComparison />
+      {/* Sahibinden.com Stats Widget */}
+      <SahibindenStatsClient />
 
       {/* Analytics Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

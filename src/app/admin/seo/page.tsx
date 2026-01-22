@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
+import { PageSeoManager } from "@/components/admin/page-seo-manager";
 
 interface SeoMetadata {
   id: string;
@@ -257,13 +258,7 @@ export default function SeoManagementPage() {
           {activeTab === "overview" && (
             <OverviewTab stats={stats} seoData={seoData} />
           )}
-          {activeTab === "pages" && (
-            <SeoListTab
-              data={seoData.filter((d) => d.entityType === "page")}
-              onSelect={setSelectedItem}
-              onRegenerate={regenerateSeo}
-            />
-          )}
+          {activeTab === "pages" && <PageSeoManager />}
           {activeTab === "listings" && (
             <SeoListTab
               data={seoData.filter((d) => d.entityType === "listing")}

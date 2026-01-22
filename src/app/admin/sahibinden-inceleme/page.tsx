@@ -1,556 +1,836 @@
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Home,
   Building2,
   Landmark,
   Store,
-  Play,
   RefreshCw,
   TrendingUp,
-  TrendingDown,
-  Sparkles,
-  Trash2,
-  Database,
-  Globe,
+  Key,
+  Loader2,
+  AlertCircle,
   CheckCircle2,
-  Clock,
   ExternalLink,
+  MapPin,
 } from "lucide-react";
 
-// Kategori tanımları
-const CATEGORIES = [
-  {
-    id: "konut",
-    label: "Konut",
-    icon: Home,
-    color: "blue",
-    transactions: [
-      { id: "konut_satilik", label: "Satılık", type: "satilik" },
-      { id: "konut_kiralik", label: "Kiralık", type: "kiralik" },
-    ],
-  },
-  {
-    id: "arsa",
-    label: "Arsa",
-    icon: Landmark,
-    color: "green",
-    transactions: [{ id: "arsa_satilik", label: "Satılık", type: "satilik" }],
-  },
-  {
-    id: "isyeri",
-    label: "İşyeri",
-    icon: Store,
-    color: "purple",
-    transactions: [
-      { id: "isyeri_satilik", label: "Satılık", type: "satilik" },
-      { id: "isyeri_kiralik", label: "Kiralık", type: "kiralik" },
-    ],
-  },
-  {
-    id: "bina",
-    label: "Bina",
-    icon: Building2,
-    color: "orange",
-    transactions: [{ id: "bina", label: "Satılık", type: "satilik" }],
-  },
-];
-
-interface CategoryData {
-  comparison: {
-    sahibinden: number;
-    database: number;
-    diff: number;
-    status: "new" | "removed" | "synced";
-  };
-  newListings: any[];
-  removedListings: any[];
-  lastUpdate: string;
-  isLoading: boolean;
+interface CategoryStat {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  count: number;
 }
 
+interface District {
+  value: string;
+  label: string;
+  count: number;
+}
+
+interface StatsResponse {
+  success: boolean;
+  data?: {
+    categories: CategoryStat[];
+    total: number;
+    lastUpdate: string;
+    district?: string;
+  };
+  error?: string;
+}
+
+const ICON_MAP: Record<string, any> = {
+  home: Home,
+  key: Key,
+  landscape: Landmark,
+  store: Store,
+  storefront: Building2,
+  domain: Building2,
+};
+
+const COLOR_MAP: Record<string, string> = {
+  blue: "from-blue-500 to-blue-600",
+  cyan: "from-cyan-500 to-cyan-600",
+  green: "from-green-500 to-green-600",
+  purple: "from-purple-500 to-purple-600",
+  orange: "from-orange-500 to-orange-600",
+  red: "from-red-500 to-red-600",
+};
+
+const BORDER_COLOR_MAP: Record<string, string> = {
+  blue: "border-blue-500/30",
+  cyan: "border-cyan-500/30",
+  green: "border-green-500/30",
+  purple: "border-purple-500/30",
+  orange: "border-orange-500/30",
+  red: "border-red-500/30",
+};
+
+const BG_COLOR_MAP: Record<string, string> = {
+  blue: "bg-blue-500/10",
+  cyan: "bg-cyan-500/10",
+  green: "bg-green-500/10",
+  purple: "bg-purple-500/10",
+  orange: "bg-orange-500/10",
+  red: "bg-red-500/10",
+};
+
 export default function SahibindenIncelemePage() {
-  const [activeCategory, setActiveCategory] = useState("konut");
-  const [categoryData, setCategoryData] = useState<
-    Record<string, CategoryData>
-  >({});
-  const [crawlerStatus, setCrawlerStatus] = useState<"idle" | "running">(
-    "idle",
-  );
-  const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
-    [],
-  );
+  const [stats, setStats] = useState<StatsResponse["data"] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("all");
+  const [neighborhoods, setNeighborhoods] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [selectedNeighborhood, setSelectedNeighborhood] =
+    useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedTransaction, setSelectedTransaction] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("date_desc");
+  const [listings, setListings] = useState<any[]>([]);
+  const [listingsLoading, setListingsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
 
-  // İlk yükleme - sadece aktif kategori için
-  React.useEffect(() => {
-    loadCategoryData(activeCategory);
-  }, [activeCategory]);
-
-  // Kategori verilerini yükle - Crawler API kaldırıldı
-  const loadCategoryData = async (categoryId: string) => {
-    setCategoryData((prev) => ({
-      ...prev,
-      [categoryId]: {
-        comparison: {
-          sahibinden: 0,
-          database: 0,
-          diff: 0,
-          status: "synced" as const,
-        },
-        newListings: [],
-        removedListings: [],
-        lastUpdate: new Date().toISOString(),
-        isLoading: false,
-      },
-    }));
-
-    // Crawler sistemi Flask Admin Panel'e taşındı
-    console.warn("Crawler API kaldırıldı - Flask Admin Panel kullanın");
-  };
-
-  // Crawler başlat - API kaldırıldı
-  const startCrawler = async () => {
-    alert(
-      "Crawler sistemi Flask Admin Panel'e taşındı. Lütfen Flask Admin Panel'i kullanın.",
-    );
-    return;
-  };
-
-  // Job durumunu takip et
-  const pollJobStatus = async (jobId: string) => {
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/crawler/jobs/${jobId}`);
-        const result = await response.json();
-
-        if (result.data?.status === "completed") {
-          clearInterval(interval);
-          setCrawlerStatus("idle");
-          loadCategoryData(activeCategory);
-          alert("Veri toplama tamamlandı!");
-        } else if (result.data?.status === "failed") {
-          clearInterval(interval);
-          setCrawlerStatus("idle");
-          alert("Veri toplama başarısız!");
-        }
-      } catch (error) {
-        console.error("Job takip hatası:", error);
+  const fetchDistricts = async () => {
+    try {
+      const response = await fetch("/api/sahibinden/districts");
+      const data = await response.json();
+      if (data.success) {
+        setDistricts(data.data);
       }
-    }, 3000);
+    } catch (error) {
+      console.error("Districts fetch error:", error);
+    }
   };
 
-  // Kategori seçimi toggle
-  const toggleTransaction = (transactionId: string) => {
-    setSelectedTransactions((prev) =>
-      prev.includes(transactionId)
-        ? prev.filter((id) => id !== transactionId)
-        : [...prev, transactionId],
-    );
+  const fetchNeighborhoods = async (district: string) => {
+    if (!district || district === "all") {
+      setNeighborhoods([]);
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/api/sahibinden/neighborhoods?district=${district}`,
+      );
+      const data = await response.json();
+      if (data.success) {
+        setNeighborhoods(data.data);
+      }
+    } catch (error) {
+      console.error("Neighborhoods fetch error:", error);
+    }
   };
 
-  const currentData = categoryData[activeCategory];
+  const fetchStats = async (
+    district?: string,
+    neighborhood?: string,
+    category?: string,
+    transaction?: string,
+  ) => {
+    try {
+      setRefreshing(true);
+      setError(null);
+
+      let url = "/api/sahibinden/category-stats";
+      const params = new URLSearchParams();
+      // Use arguments if provided, otherwise fallback to state or skip
+      // Actually strictly using arguments is safer for avoiding stale closures issues in async,
+      // but usually effects read fresh state.
+      // However, the caller 'handleDistrictChange' calls this immediately with the new value.
+      // So let's stick to arguments or fallback to state.
+
+      const d = district ?? selectedDistrict;
+      const n = neighborhood ?? selectedNeighborhood;
+      const c = category ?? selectedCategory;
+      const t = transaction ?? selectedTransaction;
+
+      if (d && d !== "all") params.append("district", d);
+      if (n && n !== "all") params.append("neighborhood", n);
+      if (c && c !== "all") params.append("category", c);
+      if (t && t !== "all") params.append("transaction", t);
+
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+
+      const response = await fetch(url);
+      const result: StatsResponse = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Veri alınamadı");
+      }
+
+      setStats(result.data || null);
+    } catch (err: any) {
+      console.error("Stats fetch error:", err);
+      setError(err.message || "Bir hata oluştu");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const fetchListings = async () => {
+    try {
+      setListingsLoading(true);
+      const params = new URLSearchParams();
+      if (selectedDistrict !== "all")
+        params.append("district", selectedDistrict);
+      if (selectedNeighborhood !== "all")
+        params.append("neighborhood", selectedNeighborhood);
+      if (selectedCategory !== "all")
+        params.append("category", selectedCategory);
+      if (selectedTransaction !== "all")
+        params.append("transaction", selectedTransaction);
+      params.append("sort", sortBy);
+      params.append("limit", "50");
+
+      const response = await fetch(
+        `/api/sahibinden/listings?${params.toString()}`,
+      );
+      const data = await response.json();
+      if (data.success) {
+        setListings(data.data);
+      }
+    } catch (error) {
+      console.error("Listings fetch error:", error);
+    } finally {
+      setListingsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDistricts();
+    fetchStats();
+    fetchListings();
+  }, []);
+
+  // Update stats and listings when filters change
+  useEffect(() => {
+    fetchListings();
+    fetchStats(selectedDistrict, selectedNeighborhood);
+  }, [
+    selectedDistrict,
+    selectedNeighborhood,
+    selectedCategory,
+    selectedTransaction,
+    sortBy,
+  ]);
+
+  const handleDistrictChange = (value: string) => {
+    setSelectedDistrict(value);
+    setSelectedNeighborhood("all"); // Reset neighborhood
+    fetchNeighborhoods(value);
+  };
+
+  // Group report data by district
+  const groupedReport = reportData.reduce((acc: any, curr: any) => {
+    if (!acc[curr.district]) acc[curr.district] = [];
+    acc[curr.district].push(curr);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Sahibinden İnceleme</h1>
-          <p className="text-slate-300 mt-1 text-base">
-            Emlak ilanlarını topla, karşılaştır ve analiz et
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">
+              Sahibinden.com Takip
+            </h1>
+            <p className="text-slate-300 mt-1 text-base">
+              Kategori bazlı ilan sayıları, filtreleme ve detaylı analiz
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant={activeTab === "overview" ? "default" : "secondary"}
+              onClick={() => setActiveTab("overview")}
+              className={
+                activeTab === "overview"
+                  ? "bg-blue-600 hover:bg-blue-500"
+                  : "bg-slate-800 text-white hover:bg-slate-700"
+              }
+            >
+              Genel Bakış
+            </Button>
+            <Button
+              variant={activeTab === "report" ? "default" : "secondary"}
+              onClick={() => setActiveTab("report")}
+              className={
+                activeTab === "report"
+                  ? "bg-emerald-600 hover:bg-emerald-500"
+                  : "bg-slate-800 text-white hover:bg-slate-700"
+              }
+            >
+              Mahalle Raporu
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge
-            className={`px-3 py-1.5 text-sm font-semibold ${
-              crawlerStatus === "running"
-                ? "bg-green-600 text-white border-green-500"
-                : "bg-slate-700 text-slate-200 border-slate-600"
-            }`}
-          >
-            {crawlerStatus === "running" ? (
-              <>
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                Çalışıyor
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                Hazır
-              </>
-            )}
-          </Badge>
-        </div>
-      </div>
 
-      {/* Kategori Tabs */}
-      <Tabs value={activeCategory} onValueChange={setActiveCategory}>
-        <TabsList className="grid w-full grid-cols-4 bg-slate-800 border border-slate-700 p-1">
-          {CATEGORIES.map((category) => {
-            const Icon = category.icon;
-            return (
-              <TabsTrigger
-                key={category.id}
-                value={category.id}
-                className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-slate-300 font-medium"
+        {activeTab === "overview" && (
+          <>
+            <div className="flex justify-end mb-4">
+              <Button
+                onClick={() => {
+                  fetchStats(selectedDistrict, selectedNeighborhood);
+                  fetchListings();
+                }}
+                disabled={refreshing}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white"
               >
-                <Icon className="h-4 w-4 mr-2" />
-                {category.label}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+                {refreshing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Yenile
+              </Button>
+            </div>
 
-        {CATEGORIES.map((category) => (
-          <TabsContent
-            key={category.id}
-            value={category.id}
-            className="space-y-6 mt-6"
-          >
-            {/* Kontrol Paneli */}
-            <Card className="bg-slate-800 border-slate-600">
-              <CardHeader className="border-b border-slate-700">
-                <CardTitle className="flex items-center gap-2 text-white text-xl">
-                  <Play className="h-5 w-5 text-green-400" />
-                  Veri Toplama Kontrolü
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-6">
-                {/* Transaction Seçimi */}
-                <div>
-                  <label className="text-sm text-slate-200 mb-3 block font-semibold">
-                    Toplanacak Kategoriler:
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {category.transactions.map((transaction) => (
-                      <Button
-                        key={transaction.id}
-                        size="sm"
-                        onClick={() => toggleTransaction(transaction.id)}
-                        className={
-                          selectedTransactions.includes(transaction.id)
-                            ? "bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                            : "bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 font-medium"
-                        }
-                      >
-                        {transaction.label}
-                      </Button>
-                    ))}
-                  </div>
+            {/* Filters Panel */}
+            <Card className="bg-slate-900/50 border-slate-800">
+              <CardContent className="p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+                {/* District Filter */}
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">İlçe</label>
+                  <Select
+                    value={selectedDistrict}
+                    onValueChange={handleDistrictChange}
+                  >
+                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                      <SelectValue placeholder="İlçe Seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tüm İlçeler</SelectItem>
+                      {districts.map((d) => (
+                        <SelectItem key={d.value} value={d.label}>
+                          {d.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Aksiyon Butonları */}
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    onClick={startCrawler}
-                    disabled={
-                      crawlerStatus === "running" ||
-                      selectedTransactions.length === 0
-                    }
-                    className="bg-green-600 hover:bg-green-700 text-white disabled:bg-slate-700 disabled:text-slate-500 font-semibold"
+                {/* Neighborhood Filter */}
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">Mahalle</label>
+                  <Select
+                    value={selectedNeighborhood}
+                    onValueChange={setSelectedNeighborhood}
+                    disabled={selectedDistrict === "all"}
                   >
-                    <Play className="h-4 w-4 mr-2" />
-                    Veri Toplamayı Başlat
-                  </Button>
-                  <Button
-                    onClick={() => loadCategoryData(category.id)}
-                    disabled={currentData?.isLoading}
-                    className="bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 font-semibold"
+                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                      <SelectValue placeholder="Mahalle Seçin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tümü</SelectItem>
+                      {neighborhoods.map((n) => (
+                        <SelectItem key={n.id} value={n.name}>
+                          {n.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Category Filter */}
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">Kategori</label>
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={setSelectedCategory}
                   >
-                    <RefreshCw
-                      className={`h-4 w-4 mr-2 ${currentData?.isLoading ? "animate-spin" : ""}`}
-                    />
-                    Verileri Yenile
-                  </Button>
+                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                      <SelectValue placeholder="Kategori" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tümü</SelectItem>
+                      <SelectItem value="Konut">Konut</SelectItem>
+                      <SelectItem value="Arsa">Arsa</SelectItem>
+                      <SelectItem value="İşyeri">İşyeri</SelectItem>
+                      <SelectItem value="Bina">Bina</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Transaction Filter */}
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">İşlem</label>
+                  <Select
+                    value={selectedTransaction}
+                    onValueChange={setSelectedTransaction}
+                  >
+                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                      <SelectValue placeholder="İşlem Tipi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tümü</SelectItem>
+                      <SelectItem value="Satılık">Satılık</SelectItem>
+                      <SelectItem value="Kiralık">Kiralık</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Sort */}
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-400">Sıralama</label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                      <SelectValue placeholder="Sıralama" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="date_desc">En Yeni</SelectItem>
+                      <SelectItem value="date_asc">En Eski</SelectItem>
+                      <SelectItem value="price_asc">
+                        Fiyat (Düşükten Yükseğe)
+                      </SelectItem>
+                      <SelectItem value="price_desc">
+                        Fiyat (Yüksekten Düşüğe)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
+          </>
+        )}
+      </div>
 
-            {/* İstatistik Kartları */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Karşılaştırma */}
-              <Card className="bg-slate-800 border-slate-600">
-                <CardContent className="pt-6">
-                  {!currentData ? (
-                    <div className="text-center py-4 text-slate-400">
-                      <Database className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                      <p className="text-sm">Veri yok</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <Database className="h-5 w-5 text-blue-400" />
-                          <span className="text-sm text-slate-200 font-medium">
-                            Veritabanı
-                          </span>
-                        </div>
-                        <span className="text-2xl font-bold text-white">
-                          {currentData?.comparison?.database || 0}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-5 w-5 text-green-400" />
-                          <span className="text-sm text-slate-200 font-medium">
-                            Sahibinden
-                          </span>
-                        </div>
-                        <span className="text-2xl font-bold text-white">
-                          {currentData?.comparison?.sahibinden || 0}
-                        </span>
-                      </div>
-                      {currentData?.comparison && (
-                        <div className="mt-4 pt-4 border-t border-slate-700">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-slate-300 font-medium">
-                              Fark
-                            </span>
-                            <Badge
-                              className={
-                                currentData.comparison.status === "new"
-                                  ? "bg-emerald-600 text-white"
-                                  : currentData.comparison.status === "removed"
-                                    ? "bg-red-600 text-white"
-                                    : "bg-slate-700 text-slate-200"
-                              }
-                            >
-                              {currentData.comparison.diff > 0 ? "+" : ""}
-                              {currentData.comparison.diff}
-                            </Badge>
-                          </div>
-                        </div>
+      {activeTab === "report" ? (
+        <div className="space-y-8">
+          {selectedDistrict !== "all" ? (
+            // Show single district table
+            <div key={selectedDistrict} className="space-y-3">
+              <h2 className="text-2xl font-bold text-white border-b border-slate-800 pb-2">
+                {selectedDistrict} Mahalle Raporu
+              </h2>
+              {reportLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                </div>
+              ) : (
+                <div className="rounded-lg border border-slate-800 overflow-hidden bg-slate-900/50">
+                  <table className="w-full text-sm text-left text-slate-300">
+                    <thead className="text-xs uppercase bg-slate-900 text-slate-400 font-bold">
+                      <tr>
+                        <th className="px-6 py-3">Mahalle</th>
+                        <th className="px-6 py-3 text-center text-blue-400">
+                          Konut (Sat)
+                        </th>
+                        <th className="px-6 py-3 text-center text-cyan-400">
+                          Konut (Kir)
+                        </th>
+                        <th className="px-6 py-3 text-center text-green-400">
+                          Arsa (Sat)
+                        </th>
+                        <th className="px-6 py-3 text-center text-purple-400">
+                          İşyeri (Sat)
+                        </th>
+                        <th className="px-6 py-3 text-center text-orange-400">
+                          İşyeri (Kir)
+                        </th>
+                        <th className="px-6 py-3 text-center text-red-400">
+                          Bina (Sat)
+                        </th>
+                        <th className="px-6 py-3 text-center text-white bg-slate-800">
+                          Toplam
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupedReport[selectedDistrict]?.map(
+                        (row: any, i: number) => (
+                          <tr
+                            key={i}
+                            className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors"
+                          >
+                            <td className="px-6 py-4 font-medium text-white">
+                              {row.neighborhood}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              {row.konut_satilik || "-"}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              {row.konut_kiralik || "-"}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              {row.arsa_satilik || "-"}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              {row.isyeri_satilik || "-"}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              {row.isyeri_kiralik || "-"}
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              {row.bina_satilik || "-"}
+                            </td>
+                            <td className="px-6 py-4 text-center font-bold text-white bg-slate-800/50">
+                              {row.total}
+                            </td>
+                          </tr>
+                        ),
                       )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Yeni İlanlar */}
-              <Card className="bg-slate-800 border-slate-600">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Sparkles className="h-5 w-5 text-yellow-400" />
-                        <span className="text-sm text-slate-200 font-medium">
-                          Yeni İlanlar
-                        </span>
-                      </div>
-                      <p className="text-3xl font-bold text-yellow-400">
-                        {currentData?.newListings?.length || 0}
-                      </p>
-                    </div>
-                    <TrendingUp className="h-10 w-10 text-yellow-400/30" />
-                  </div>
-                  <p className="text-xs text-slate-400 mt-3">
-                    {currentData
-                      ? "Son 2 gün içinde eklenen"
-                      : "Veri yüklenmedi"}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Kaldırılan İlanlar */}
-              <Card className="bg-slate-800 border-slate-600">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Trash2 className="h-5 w-5 text-red-400" />
-                        <span className="text-sm text-slate-200 font-medium">
-                          Kaldırılan
-                        </span>
-                      </div>
-                      <p className="text-3xl font-bold text-red-400">
-                        {currentData?.removedListings?.length || 0}
-                      </p>
-                    </div>
-                    <TrendingDown className="h-10 w-10 text-red-400/30" />
-                  </div>
-                  <p className="text-xs text-slate-400 mt-3">
-                    {currentData ? "Artık mevcut değil" : "Veri yüklenmedi"}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Detaylı Listeler */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Yeni İlanlar Listesi */}
-              <Card className="bg-slate-800 border-slate-600">
-                <CardHeader className="border-b border-slate-700">
-                  <CardTitle className="flex items-center gap-2 text-white text-lg">
-                    <Sparkles className="h-5 w-5 text-yellow-400" />
-                    Yeni Eklenen İlanlar
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  {!currentData ? (
-                    <div className="text-center py-12 text-slate-400">
-                      <Sparkles className="h-16 w-16 mx-auto mb-3 opacity-20" />
-                      <p className="text-lg font-medium mb-2">
-                        Veri Yüklenmedi
-                      </p>
-                      <p className="text-sm">
-                        "Verileri Yenile" butonuna tıklayın
-                      </p>
-                    </div>
-                  ) : currentData?.isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <RefreshCw className="h-8 w-8 animate-spin text-yellow-400 mb-3" />
-                      <p className="text-slate-300">Yükleniyor...</p>
-                    </div>
-                  ) : currentData?.newListings?.length > 0 ? (
-                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                      {currentData.newListings
-                        .slice(0, 10)
-                        .map((listing: any) => (
-                          <div
-                            key={listing.id}
-                            className="border border-slate-700 rounded-lg p-3 hover:border-yellow-500/50 transition-colors bg-slate-900/50"
+                      {(!groupedReport[selectedDistrict] ||
+                        groupedReport[selectedDistrict].length === 0) && (
+                        <tr>
+                          <td
+                            colSpan={8}
+                            className="px-6 py-8 text-center text-slate-500"
                           >
-                            <div className="flex gap-3">
-                              {listing.resim && (
-                                <img
-                                  src={listing.resim}
-                                  alt={listing.baslik}
-                                  className="w-16 h-16 object-cover rounded"
-                                />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-medium text-white line-clamp-1">
-                                  {listing.baslik}
-                                </h4>
-                                <p className="text-xs text-slate-300 mt-1">
-                                  {listing.konum}
-                                </p>
-                                <div className="flex items-center justify-between mt-2">
-                                  <span className="text-sm font-bold text-green-400">
-                                    {new Intl.NumberFormat("tr-TR", {
-                                      style: "currency",
-                                      currency: "TRY",
-                                      minimumFractionDigits: 0,
-                                    }).format(listing.fiyat)}
-                                  </span>
-                                  <a
-                                    href={listing.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                                  >
-                                    <ExternalLink className="h-3 w-3" />
-                                  </a>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                            Veri bulunamadı.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            Object.keys(groupedReport)
+              .sort()
+              .map((distName) => (
+                <div key={distName} className="space-y-3">
+                  <h2 className="text-2xl font-bold text-white border-b border-slate-800 pb-2 flex items-center gap-2">
+                    {distName}
+                    <Badge
+                      variant="secondary"
+                      className="bg-slate-800 text-slate-400"
+                    >
+                      {groupedReport[distName]?.length} Mahalle
+                    </Badge>
+                  </h2>
+                  {reportLoading ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-slate-400">
-                      <Sparkles className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                      <p>Yeni ilan bulunmuyor</p>
+                    <div className="rounded-lg border border-slate-800 overflow-hidden bg-slate-900/50">
+                      <table className="w-full text-sm text-left text-slate-300">
+                        <thead className="text-xs uppercase bg-slate-900 text-slate-400 font-bold">
+                          <tr>
+                            <th className="px-6 py-3">Mahalle</th>
+                            <th className="px-6 py-3 text-center text-blue-400">
+                              Konut (Sat)
+                            </th>
+                            <th className="px-6 py-3 text-center text-cyan-400">
+                              Konut (Kir)
+                            </th>
+                            <th className="px-6 py-3 text-center text-green-400">
+                              Arsa (Sat)
+                            </th>
+                            <th className="px-6 py-3 text-center text-purple-400">
+                              İşyeri (Sat)
+                            </th>
+                            <th className="px-6 py-3 text-center text-orange-400">
+                              İşyeri (Kir)
+                            </th>
+                            <th className="px-6 py-3 text-center text-red-400">
+                              Bina (Sat)
+                            </th>
+                            <th className="px-6 py-3 text-center text-white bg-slate-800">
+                              Toplam
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {groupedReport[distName].map(
+                            (row: any, i: number) => (
+                              <tr
+                                key={i}
+                                className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors"
+                              >
+                                <td className="px-6 py-4 font-medium text-white">
+                                  {row.neighborhood}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {row.konut_satilik || "-"}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {row.konut_kiralik || "-"}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {row.arsa_satilik || "-"}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {row.isyeri_satilik || "-"}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {row.isyeri_kiralik || "-"}
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {row.bina_satilik || "-"}
+                                </td>
+                                <td className="px-6 py-4 text-center font-bold text-white bg-slate-800/50">
+                                  {row.total}
+                                </td>
+                              </tr>
+                            ),
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              ))
+          )}
 
-              {/* Kaldırılan İlanlar Listesi */}
-              <Card className="bg-slate-800 border-slate-600">
-                <CardHeader className="border-b border-slate-700">
-                  <CardTitle className="flex items-center gap-2 text-white text-lg">
-                    <Trash2 className="h-5 w-5 text-red-400" />
-                    Kaldırılan İlanlar
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  {!currentData ? (
-                    <div className="text-center py-12 text-slate-400">
-                      <Trash2 className="h-16 w-16 mx-auto mb-3 opacity-20" />
-                      <p className="text-lg font-medium mb-2">
-                        Veri Yüklenmedi
-                      </p>
-                      <p className="text-sm">
-                        "Verileri Yenile" butonuna tıklayın
-                      </p>
-                    </div>
-                  ) : currentData?.isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <RefreshCw className="h-8 w-8 animate-spin text-red-400 mb-3" />
-                      <p className="text-slate-300">Yükleniyor...</p>
-                    </div>
-                  ) : currentData?.removedListings?.length > 0 ? (
-                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                      {currentData.removedListings
-                        .slice(0, 10)
-                        .map((listing: any) => (
-                          <div
-                            key={listing.id}
-                            className="border border-slate-700 rounded-lg p-3 hover:border-red-500/50 transition-colors opacity-75 bg-slate-900/50"
-                          >
-                            <div className="flex gap-3">
-                              {listing.resim && (
-                                <img
-                                  src={listing.resim}
-                                  alt={listing.baslik}
-                                  className="w-16 h-16 object-cover rounded grayscale"
-                                />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-medium text-white line-clamp-1">
-                                  {listing.baslik}
-                                </h4>
-                                <p className="text-xs text-slate-300 mt-1">
-                                  {listing.konum}
-                                </p>
-                                <div className="flex items-center justify-between mt-2">
-                                  <span className="text-sm font-bold text-slate-400">
-                                    {new Intl.NumberFormat("tr-TR", {
-                                      style: "currency",
-                                      currency: "TRY",
-                                      minimumFractionDigits: 0,
-                                    }).format(
-                                      listing.fiyat || listing.last_price,
-                                    )}
-                                  </span>
-                                  <Badge className="text-xs bg-red-600/20 text-red-400 border-red-600">
-                                    Kaldırıldı
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-slate-400">
-                      <Trash2 className="h-12 w-12 mx-auto mb-2 opacity-20" />
-                      <p>Kaldırılan ilan bulunmuyor</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Son Güncelleme */}
-            {currentData?.lastUpdate && (
-              <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
-                <Clock className="h-4 w-4" />
-                <span>
-                  Son güncelleme:{" "}
-                  {new Date(currentData.lastUpdate).toLocaleString("tr-TR")}
-                </span>
+          {!selectedDistrict &&
+            Object.keys(groupedReport).length === 0 &&
+            !reportLoading && (
+              <div className="text-center py-20 bg-slate-900/50 rounded-xl border border-slate-800 text-slate-400">
+                Rapor verileri yüklenemedi veya veri yok.
               </div>
             )}
-          </TabsContent>
-        ))}
-      </Tabs>
+        </div>
+      ) : (
+        <>
+          {/* Error State */}
+          {error && (
+            <Card className="bg-red-500/10 border-red-500/30">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-400 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-red-400">Hata Oluştu</p>
+                    <p className="text-red-300 text-sm mt-1">{error}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Loading State */}
+          {loading && !stats && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="h-12 w-12 text-emerald-400 animate-spin mb-4" />
+              <p className="text-slate-300 text-lg">Veriler yükleniyor...</p>
+            </div>
+          )}
+
+          {/* Stats Content */}
+          {stats && (
+            <>
+              {/* Summary Card */}
+              <Card className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 border-slate-700">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-400 font-medium mb-1">
+                        Toplam İlan Sayısı
+                      </p>
+                      <p className="text-5xl font-bold text-white">
+                        {stats.total.toLocaleString("tr-TR")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-400">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      <span>
+                        Son güncelleme:{" "}
+                        {new Date(stats.lastUpdate).toLocaleString("tr-TR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Category Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {stats.categories.map((category) => {
+                  const Icon = ICON_MAP[category.icon] || Home;
+                  const gradientColor =
+                    COLOR_MAP[category.color] || COLOR_MAP.blue;
+                  const borderColor =
+                    BORDER_COLOR_MAP[category.color] || BORDER_COLOR_MAP.blue;
+                  const bgColor =
+                    BG_COLOR_MAP[category.color] || BG_COLOR_MAP.blue;
+
+                  return (
+                    <Card
+                      key={category.id}
+                      className={`bg-slate-800 border ${borderColor} hover:border-opacity-60 transition-all duration-300 hover:shadow-lg hover:shadow-${category.color}-500/10 group`}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div
+                            className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradientColor} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
+                          >
+                            <Icon className="h-6 w-6 text-white" />
+                          </div>
+                          <Badge
+                            className={`${bgColor} text-white border-0 font-bold text-lg px-3 py-1`}
+                          >
+                            {category.count.toLocaleString("tr-TR")}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <h3 className="text-lg font-bold text-white mb-2">
+                          {category.label}
+                        </h3>
+                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                          <TrendingUp className="h-4 w-4" />
+                          <span>Aktif ilan</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Listings List */}
+              <div className="mt-8 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-blue-400" />
+                    İlan Listesi
+                    <Badge
+                      variant="outline"
+                      className="text-slate-400 border-slate-700 ml-2"
+                    >
+                      {listings.length} Gösteriliyor
+                    </Badge>
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {listingsLoading ? (
+                    <div className="text-center py-10 text-slate-400">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                      Yükleniyor...
+                    </div>
+                  ) : listings.length === 0 ? (
+                    <div className="text-center py-10 bg-slate-900/50 rounded-xl border border-slate-800 text-slate-400">
+                      İlan bulunamadı.
+                    </div>
+                  ) : (
+                    listings.map((item) => (
+                      <Card
+                        key={item.id}
+                        className="bg-slate-900/50 border-slate-800 hover:border-slate-700 transition-colors"
+                      >
+                        <CardContent className="p-4 flex flex-col md:flex-row gap-4">
+                          {/* Image */}
+                          <div className="w-full md:w-48 h-32 bg-slate-800 rounded-lg overflow-hidden shrink-0 relative group">
+                            {item.resim ? (
+                              <img
+                                src={item.resim}
+                                alt={item.baslik}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-slate-600">
+                                <Home className="w-8 h-8 opacity-20" />
+                              </div>
+                            )}
+                            <div className="absolute top-2 left-2">
+                              <Badge
+                                className={
+                                  item.transaction === "Satılık"
+                                    ? "bg-red-500"
+                                    : "bg-blue-500"
+                                }
+                              >
+                                {item.transaction}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="w-3 h-3" /> {item.konum}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{item.category}</span>
+                                </div>
+                                <h3 className="font-semibold text-lg text-white mb-2 line-clamp-2 hover:text-blue-400 cursor-pointer transition-colors">
+                                  <a
+                                    href={item.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    {item.baslik}
+                                  </a>
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                  {item.m2 && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="bg-slate-800 text-slate-300 border-slate-700"
+                                    >
+                                      {item.m2} m²
+                                    </Badge>
+                                  )}
+                                  {item.oda && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="bg-slate-800 text-slate-300 border-slate-700"
+                                    >
+                                      {item.oda}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="text-xl font-bold text-emerald-400">
+                                  {item.fiyat?.toLocaleString("tr-TR")} TL
+                                </div>
+                                <div className="text-xs text-slate-500 mt-1">
+                                  {new Date(
+                                    item.tarih || item.crawledAt,
+                                  ).toLocaleDateString("tr-TR")}
+                                </div>
+                                <a
+                                  href={item.link}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 mt-2 hover:underline"
+                                >
+                                  İlana Git <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminHeader } from "@/components/admin/header";
+import { DemirAICommandCenter } from "@/components/admin/DemirAICommandCenter";
 
 export const metadata = {
   title: "DEMİR-NET Komuta Merkezi | Demir Gayrimenkul",
@@ -16,7 +17,12 @@ export default async function AdminLayout({
 
   // Giriş sayfası için sadece children render et
   if (!session?.user) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <DemirAICommandCenter />
+      </>
+    );
   }
 
   return (
@@ -26,6 +32,9 @@ export default async function AdminLayout({
         <AdminSidebar />
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
       </div>
+
+      {/* Global Demir-AI Command Center */}
+      <DemirAICommandCenter />
     </div>
   );
 }

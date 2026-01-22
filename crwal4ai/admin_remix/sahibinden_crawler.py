@@ -67,6 +67,28 @@ def parse_price(price_str):
         return 0
 
 
+def normalize_district(district_str):
+    """
+    İlçe ismini normalize et - case sensitivity düzelt
+    Örnek: "adapazari" -> "Adapazarı", "hendek" -> "Hendek"
+    """
+    if not district_str:
+        return None
+    
+    district_lower = district_str.lower().strip()
+    
+    # İlçe mapping
+    district_map = {
+        'adapazari': 'Adapazarı',
+        'adapazarı': 'Adapazarı',
+        'akyazi': 'Akyazı',
+        'akyazı': 'Akyazı',
+        'hendek': 'Hendek'
+    }
+    
+    return district_map.get(district_lower, district_str.title())
+
+
 def parse_listing_date(date_str: str) -> Optional[datetime]:
     """
     İlan tarihini parse et
@@ -127,7 +149,17 @@ def parse_listing_date(date_str: str) -> Optional[datetime]:
         if len(parts) >= 2:
             day = int(parts[0])
             month_name = parts[1]
-            year = int(parts[2]) if len(parts) >= 3 else now.year
+            
+            # Yıl belirtilmişse kullan, yoksa akıllı tahmin yap
+            if len(parts) >= 3:
+                year = int(parts[2])
+            else:
+                # Yıl yok - akıllı tahmin: Ocak → 2026, diğerleri → 2025
+                if month_name in months:
+                    month = months[month_name]
+                    year = 2026 if month == 1 else 2025
+                else:
+                    year = now.year
 
             if month_name in months:
                 month = months[month_name]
@@ -168,43 +200,93 @@ def is_new_listing(listing_date: Optional[datetime]) -> bool:
 
 
 
-# Hendek kategorileri - SMART CRAWLER: Tarihe göre sıralama eklendi
-HENDEK_CATEGORIES = {
+# Sakarya İlçeleri
+SAKARYA_DISTRICTS = {
+    "hendek": "hendek",
+    "adapazari": "adapazari",
+    "akyazi": "akyazi",
+    "arifiye": "arifiye",
+    "erenler": "erenler",
+    "ferizli": "ferizli",
+    "geyve": "geyve",
+    "karapurcek": "karapurcek",
+    "karasu": "karasu",
+    "kaynarca": "kaynarca",
+    "kocaali": "kocaali",
+    "pamukova": "pamukova",
+    "sapanca": "sapanca",
+    "serdivan": "serdivan",
+    "sogutlu": "sogutlu",
+    "tarakli": "tarakli",
+}
+
+# Kategori şablonları - İlçe dinamik olarak eklenecek
+CATEGORY_TEMPLATES = {
     "konut_satilik": {
-        "url": "https://www.sahibinden.com/satilik/sakarya-hendek?pagingSize=50&sorting=date_desc",
+        "url_template": "https://www.sahibinden.com/satilik/sakarya-{district}?pagingSize=50&sorting=date_desc",
         "category": "konut",
         "transaction": "satilik",
     },
     "konut_kiralik": {
-        "url": "https://www.sahibinden.com/kiralik/sakarya-hendek?pagingSize=50&sorting=date_desc",
+        "url_template": "https://www.sahibinden.com/kiralik/sakarya-{district}?pagingSize=50&sorting=date_desc",
         "category": "konut",
         "transaction": "kiralik",
     },
     "arsa_satilik": {
-        "url": "https://www.sahibinden.com/satilik-arsa/sakarya-hendek?pagingSize=50&sorting=date_desc",
+        "url_template": "https://www.sahibinden.com/satilik-arsa/sakarya-{district}?pagingSize=50&sorting=date_desc",
         "category": "arsa",
         "transaction": "satilik",
     },
     "isyeri_satilik": {
-        "url": "https://www.sahibinden.com/satilik-isyeri/sakarya-hendek?pagingSize=50&sorting=date_desc",
+        "url_template": "https://www.sahibinden.com/satilik-isyeri/sakarya-{district}?pagingSize=50&sorting=date_desc",
         "category": "isyeri",
         "transaction": "satilik",
     },
     "isyeri_kiralik": {
-        "url": "https://www.sahibinden.com/kiralik-isyeri/sakarya-hendek?pagingSize=50&sorting=date_desc",
+        "url_template": "https://www.sahibinden.com/kiralik-isyeri/sakarya-{district}?pagingSize=50&sorting=date_desc",
         "category": "isyeri",
         "transaction": "kiralik",
     },
     "bina_satilik": {
-        "url": "https://www.sahibinden.com/satilik-bina/sakarya-hendek?pagingSize=50&sorting=date_desc",
+        "url_template": "https://www.sahibinden.com/satilik-bina/sakarya-{district}?pagingSize=50&sorting=date_desc",
         "category": "bina",
         "transaction": "satilik",
     },
     "bina_kiralik": {
-        "url": "https://www.sahibinden.com/kiralik-bina/sakarya-hendek?pagingSize=50&sorting=date_desc",
+        "url_template": "https://www.sahibinden.com/kiralik-bina/sakarya-{district}?pagingSize=50&sorting=date_desc",
         "category": "bina",
         "transaction": "kiralik",
     },
+}
+
+def get_category_url(category_key: str, district: str = "hendek") -> dict:
+    """
+    Kategori ve ilçeye göre URL oluştur
+    
+    Args:
+        category_key: Kategori anahtarı (örn: "konut_satilik")
+        district: İlçe adı (örn: "hendek", "adapazari")
+    
+    Returns:
+        dict: URL ve kategori bilgileri
+    """
+    if category_key not in CATEGORY_TEMPLATES:
+        raise ValueError(f"Geçersiz kategori: {category_key}")
+    
+    template = CATEGORY_TEMPLATES[category_key]
+    url = template["url_template"].format(district=district)
+    
+    return {
+        "url": url,
+        "category": template["category"],
+        "transaction": template["transaction"],
+        "district": district,
+    }
+
+# Geriye uyumluluk için Hendek kategorileri (deprecated)
+HENDEK_CATEGORIES = {
+    key: get_category_url(key, "hendek") 
+    for key in CATEGORY_TEMPLATES.keys()
 }
 
 # Ayarlar - MAKSIMUM HIZ MODU + SMART STOPPING
@@ -399,6 +481,14 @@ class SahibindenCrawler:
 
                 # Fiyatı sayıya çevir
                 fiyat = parse_price(listing.get("fiyat", ""))
+                
+                # Tarihi parse et
+                tarih_str = listing.get("tarih", "")
+                parsed_date = parse_listing_date(tarih_str)
+                crawled_at = parsed_date if parsed_date else datetime.now()
+                
+                # İlçeyi normalize et
+                district_normalized = normalize_district(category_config.get("district"))
 
                 db_data = {
                     "id": int(listing_id),
@@ -406,13 +496,12 @@ class SahibindenCrawler:
                     "link": listing.get("link", "")[:500],
                     "fiyat": fiyat,
                     "konum": listing.get("konum", "")[:255],
-                    "tarih": listing.get(
-                        "tarih", ""
-                    ),  # İlan tarihi (string: "Bugün 14:30", "15 Ocak")
+                    "tarih": tarih_str,  # İlan tarihi (string: "Bugün 14:30", "15 Ocak")
                     "resim": listing.get("resim", "")[:500],
                     "category": listing.get("category", ""),
                     "transaction": listing.get("transaction", ""),
-                    "crawled_at": datetime.now().isoformat(),  # ISO format TIMESTAMPTZ için
+                    "ilce": district_normalized,  # Normalize edilmiş ilçe
+                    "crawled_at": crawled_at.isoformat(),  # Parse edilmiş tarih
                 }
                 db_data_list.append(db_data)
 
@@ -426,17 +515,17 @@ class SahibindenCrawler:
                 params_list = []
                 
                 for data in db_data_list:
-                    values_list.append("(%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())")
+                    values_list.append("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())")
                     params_list.extend([
                         data['id'], data['baslik'], data['link'], data['fiyat'], 
                         data['konum'], data['tarih'], data['resim'], 
-                        data['category'], data['transaction']
+                        data['category'], data['transaction'], data.get('ilce')
                     ])
                 
                 values_str = ", ".join(values_list)
                 
                 batch_query = f"""
-                    INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, crawled_at)
+                    INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, ilce, crawled_at)
                     VALUES {values_str}
                     ON CONFLICT (id) 
                     DO UPDATE SET 
@@ -448,6 +537,7 @@ class SahibindenCrawler:
                         resim = EXCLUDED.resim,
                         category = EXCLUDED.category,
                         transaction = EXCLUDED.transaction,
+                        ilce = EXCLUDED.ilce,
                         crawled_at = NOW()
                 """
                 
@@ -552,6 +642,14 @@ class SahibindenCrawler:
 
             # Fiyatı sayıya çevir
             fiyat = parse_price(listing.get("fiyat", ""))
+            
+            # Tarihi parse et
+            tarih_str = listing.get("tarih", "")
+            parsed_date = parse_listing_date(tarih_str)
+            crawled_at = parsed_date if parsed_date else datetime.now()
+            
+            # İlçeyi normalize et
+            district_normalized = normalize_district(category_config.get("district"))
 
             db_data = {
                 "id": int(listing_id),
@@ -559,20 +657,19 @@ class SahibindenCrawler:
                 "link": listing.get("link", "")[:500],
                 "fiyat": fiyat,
                 "konum": listing.get("konum", "")[:255],
-                "tarih": listing.get(
-                    "tarih", ""
-                ),  # İlan tarihi (string: "Bugün 14:30", "15 Ocak")
+                "tarih": tarih_str,  # İlan tarihi (string: "Bugün 14:30", "15 Ocak")
                 "resim": listing.get("resim", "")[:500],
                 "category": listing.get("category", ""),
                 "transaction": listing.get("transaction", ""),
-                "crawled_at": datetime.now().isoformat(),  # ISO format TIMESTAMPTZ için
+                "ilce": district_normalized,  # Normalize edilmiş ilçe
+                "crawled_at": crawled_at.isoformat(),  # Parse edilmiş tarih
             }
 
             # Upsert (varsa güncelle, yoksa ekle)
             db.execute_query(
                 """
-                INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, crawled_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, ilce, crawled_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 ON CONFLICT (id) 
                 DO UPDATE SET 
                     baslik = EXCLUDED.baslik,
@@ -583,9 +680,10 @@ class SahibindenCrawler:
                     resim = EXCLUDED.resim,
                     category = EXCLUDED.category,
                     transaction = EXCLUDED.transaction,
+                    ilce = EXCLUDED.ilce,
                     crawled_at = NOW()
                 """,
-                (db_data['id'], db_data['baslik'], db_data['link'], db_data['fiyat'], db_data['konum'], db_data['tarih'], db_data['resim'], db_data['category'], db_data['transaction']),
+                (db_data['id'], db_data['baslik'], db_data['link'], db_data['fiyat'], db_data['konum'], db_data['tarih'], db_data['resim'], db_data['category'], db_data['transaction'], db_data.get('ilce')),
                 fetch=False
             )
 
@@ -1713,6 +1811,12 @@ if __name__ == "__main__":
         help="Kategoriler (boşlukla ayrılmış)",
     )
     parser.add_argument(
+        "--district",
+        type=str,
+        default="hendek",
+        help="İlçe adı (default: hendek)",
+    )
+    parser.add_argument(
         "--max-pages",
         type=int,
         default=100,
@@ -1750,11 +1854,12 @@ if __name__ == "__main__":
             total_saved = 0
 
             for category_key in args.categories:
-                category_config = HENDEK_CATEGORIES.get(category_key)
-                if not category_config:
-                    logger.warning(
-                        f"⚠️ Kategori bulunamadı: {category_key}, atlanıyor..."
-                    )
+                # İlçeye göre kategori config oluştur
+                try:
+                    category_config = get_category_url(category_key, args.district)
+                    logger.info(f"📍 İlçe: {args.district.upper()}")
+                except ValueError as e:
+                    logger.warning(f"⚠️ {e}, atlanıyor...")
                     continue
 
                 # Kategoriyi crawl et

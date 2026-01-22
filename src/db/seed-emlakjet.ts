@@ -18,7 +18,7 @@ if (!connectionString) {
 }
 console.log(
   "🔗 Bağlantı URL'i:",
-  connectionString.replace(/:[^:@]+@/, ":***@")
+  connectionString.replace(/:[^:@]+@/, ":***@"),
 );
 
 const seedClient = postgres(connectionString, {
@@ -26,14 +26,14 @@ const seedClient = postgres(connectionString, {
   max: 1,
   idle_timeout: 0,
   connect_timeout: 60,
-  prepare: false, // Supabase için önemli
+  prepare: false,
 });
 const db = drizzle(seedClient, { schema });
 
 async function retry<T>(
   fn: () => Promise<T>,
   retries = 3,
-  delay = 2000
+  delay = 2000,
 ): Promise<T> {
   for (let i = 0; i < retries; i++) {
     try {
@@ -43,7 +43,7 @@ async function retry<T>(
       console.log(
         `⚠️  Bağlantı hatası, ${delay / 1000}s sonra tekrar deneniyor... (${
           i + 1
-        }/${retries})`
+        }/${retries})`,
       );
       await new Promise((r) => setTimeout(r, delay));
     }

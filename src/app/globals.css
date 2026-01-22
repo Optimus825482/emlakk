@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../styles/map.css";
 
 :root {
   /* Demir Gayrimenkul Brand Colors */
@@ -27,6 +28,16 @@
   --color-forest: var(--forest);
   --color-cream: var(--cream);
   --color-warm-white: var(--warm-white);
+  --color-primary-50: #fef5ee;
+  --color-primary-100: #fde9d7;
+  --color-primary-200: #fad0ae;
+  --color-primary-300: #f7b07b;
+  --color-primary-400: #f38746;
+  --color-primary-500: #f06820;
+  --color-primary-600: #e14d16;
+  --color-primary-700: #bb3814;
+  --color-primary-800: #952e18;
+  --color-primary-900: #792816;
   --font-sans: var(--font-space-grotesk);
   --font-body: var(--font-noto-sans);
 }

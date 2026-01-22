@@ -24,6 +24,43 @@ breadcrumb %}Dashboard{% endblock %} {% block content %}
       class="flex items-center gap-3 animate-slide-up"
       style="animation-delay: 100ms"
     >
+      <!-- İLÇE FİLTRESİ - YENİ EKLENEN -->
+      <div
+        class="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-slate-200/60 dark:border-slate-700/60 shadow-sm transition-premium hover:border-violet-400"
+      >
+        <svg
+          class="w-4 h-4 text-violet-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+          ></path>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+          ></path>
+        </svg>
+        <select
+          x-model="districtFilter"
+          @change="loadData()"
+          class="bg-transparent text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+        >
+          <option value="all">Tüm İlçeler</option>
+          {% for district in districts %}
+          <option value="{{ district.value }}">
+            {{ district.label }} ({{ district.count }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
       <div
         class="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-slate-200/60 dark:border-slate-700/60 shadow-sm transition-premium hover:border-primary-400"
       >
@@ -608,6 +645,7 @@ breadcrumb %}Dashboard{% endblock %} {% block content %}
     return {
       loading: true,
       timeFilter: "7",
+      districtFilter: "{{ selected_district }}" || "all", // YENİ: İlçe filtresi
       chart: null,
       data: {
         total_listings: 0,
@@ -625,7 +663,7 @@ breadcrumb %}Dashboard{% endblock %} {% block content %}
         this.loading = true;
         try {
           const response = await fetch(
-            `/api/dashboard?days=${this.timeFilter}`,
+            `/api/dashboard?days=${this.timeFilter}&district=${this.districtFilter}`, // YENİ: İlçe parametresi eklendi
           );
           const result = await response.json();
 

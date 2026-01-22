@@ -3,10 +3,6 @@ import { z } from "zod";
 const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   DIRECT_URL: z.string().url().optional(),
-  // Supabase artık kullanılmıyor - optional yapıldı
-  SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_ANON_KEY: z.string().min(1).optional(),
-  SUPABASE_SERVICE_KEY: z.string().min(1).optional(),
   NEXTAUTH_URL: z.string().url().optional().or(z.literal("")),
   // NextAuth v5 için AUTH_SECRET kullanılıyor
   NEXTAUTH_SECRET: z.string().min(1).optional(),

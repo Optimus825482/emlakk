@@ -9,7 +9,7 @@ interface SafeImageProps extends Omit<ImageProps, "src"> {
 
 /**
  * External URL'ler için unoptimized kullanan güvenli Image component
- * Supabase Storage ve diğer external URL'ler için 400 hatasını önler
+ * External storage ve CDN URL'leri için 400 hatasını önler
  */
 export function SafeImage({
   src,
@@ -25,15 +25,5 @@ export function SafeImage({
   // External URL kontrolü
   const isExternal = src.startsWith("http://") || src.startsWith("https://");
 
-  // Supabase Storage URL kontrolü
-  const isSupabaseStorage = src.includes("supabase.co/storage");
-
-  return (
-    <Image
-      src={src}
-      alt={alt}
-      unoptimized={isExternal || isSupabaseStorage}
-      {...props}
-    />
-  );
+  return <Image src={src} alt={alt} unoptimized={isExternal} {...props} />;
 }

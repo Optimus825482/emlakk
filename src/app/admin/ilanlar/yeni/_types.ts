@@ -54,6 +54,94 @@ export interface ListingFormData {
   parentBathroom: boolean;
   kitchenType: string;
   windowType: string;
+  // Yeni özellikler (OZZ.HTML'den)
+  facadeWest: boolean;
+  facadeEast: boolean;
+  facadeSouth: boolean;
+  facadeNorth: boolean;
+  aluminumFrames: boolean;
+  americanDoor: boolean;
+  builtInOven: boolean;
+  barbecue: boolean;
+  whiteGoods: boolean;
+  painted: boolean;
+  dishwasher: boolean;
+  refrigerator: boolean;
+  dryingMachine: boolean;
+  washingMachine: boolean;
+  steelDoor: boolean;
+  showerCabin: boolean;
+  wallpaper: boolean;
+  oven: boolean;
+  builtInWardrobe: boolean;
+  videoIntercom: boolean;
+  intercomSystem: boolean;
+  doubleGlazing: boolean;
+  molding: boolean;
+  pantry: boolean;
+  bathtub: boolean;
+  laminateFlooring: boolean;
+  furniture: boolean;
+  builtInKitchen: boolean;
+  laminateKitchen: boolean;
+  kitchenGas: boolean;
+  blinds: boolean;
+  parquetFlooring: boolean;
+  pvcFrames: boolean;
+  ceramicFlooring: boolean;
+  cooktop: boolean;
+  spotLighting: boolean;
+  waterHeater: boolean;
+  thermosiphon: boolean;
+  chargingStation: boolean;
+  security24: boolean;
+  buildingAttendant: boolean;
+  playground: boolean;
+  thermalInsulation: boolean;
+  generator: boolean;
+  privatePool: boolean;
+  siding: boolean;
+  sportsArea: boolean;
+  waterTank: boolean;
+  fireEscape: boolean;
+  outdoorPool: boolean;
+  indoorPool: boolean;
+  shoppingMall: boolean;
+  municipality: boolean;
+  mosque: boolean;
+  cemevi: boolean;
+  beachfront: boolean;
+  pharmacy: boolean;
+  entertainmentCenter: boolean;
+  hospital: boolean;
+  primarySchool: boolean;
+  fireStation: boolean;
+  highSchool: boolean;
+  market: boolean;
+  park: boolean;
+  policeStation: boolean;
+  healthCenter: boolean;
+  weeklyMarket: boolean;
+  sportsCenter: boolean;
+  cityCenter: boolean;
+  university: boolean;
+  mainRoad: boolean;
+  avenue: boolean;
+  dolmus: boolean;
+  e5: boolean;
+  minibus: boolean;
+  busStop: boolean;
+  tem: boolean;
+  duplex: boolean;
+  topFloor: boolean;
+  middleFloor: boolean;
+  middleFloorDuplex: boolean;
+  gardenDuplex: boolean;
+  roofDuplex: boolean;
+  fourplex: boolean;
+  reverseDuplex: boolean;
+  triplex: boolean;
+  // Mevcut özellikler devam ediyor
   infrastructure: boolean;
   electricity: boolean;
   electricityPower: string;
@@ -125,6 +213,6 @@ export interface FormSectionProps {
   handleChange: (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => void;
 }

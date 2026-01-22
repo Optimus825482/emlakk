@@ -65,8 +65,7 @@ export async function GET() {
         transaction: sahibindenListe.transaction,
       })
       .from(sahibindenListe)
-      .orderBy(desc(sahibindenListe.id))
-      .limit(1000);
+      .orderBy(desc(sahibindenListe.id));
 
     const mappedListings = listings.map((item) => {
       let lat = null;

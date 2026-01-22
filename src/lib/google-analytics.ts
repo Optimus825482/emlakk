@@ -87,6 +87,20 @@ export interface DailyData {
   pageViews: number;
 }
 
+function handleAnalyticsError(error: any) {
+  // 16 = UNAUTHENTICATED
+  if (error.code === 16) {
+    if (analyticsEnabled) {
+      console.warn(
+        "Google Analytics Authentication Failed (Invalid Credentials). Disabling Analytics to prevent log spam.",
+      );
+      analyticsEnabled = false;
+    }
+  } else {
+    console.error("Analytics API error:", error);
+  }
+}
+
 /**
  * Son 7 günlük genel istatistikler
  */
@@ -95,12 +109,28 @@ export async function getAnalyticsOverview(
 ): Promise<AnalyticsOverview> {
   try {
     if (!propertyId) {
-      throw new Error("GA_PROPERTY_ID not configured");
+      console.warn("GA_PROPERTY_ID not configured - returning default values");
+      return {
+        totalUsers: 0,
+        newUsers: 0,
+        sessions: 0,
+        pageViews: 0,
+        avgSessionDuration: 0,
+        bounceRate: 0,
+      };
     }
 
     const client = getClient();
     if (!client) {
-      throw new Error("Analytics client not available");
+      console.warn("Analytics client not available - returning default values");
+      return {
+        totalUsers: 0,
+        newUsers: 0,
+        sessions: 0,
+        pageViews: 0,
+        avgSessionDuration: 0,
+        bounceRate: 0,
+      };
     }
 
     const [response] = await client.runReport({
@@ -128,7 +158,7 @@ export async function getAnalyticsOverview(
       bounceRate: parseFloat(values[5]?.value || "0"),
     };
   } catch (error) {
-    console.error("Analytics API error:", error);
+    handleAnalyticsError(error);
     // Return default values when analytics fails
     return {
       totalUsers: 0,
@@ -147,12 +177,14 @@ export async function getAnalyticsOverview(
 export async function getTopPages(limit: number = 10): Promise<PageViewData[]> {
   try {
     if (!propertyId) {
-      throw new Error("GA_PROPERTY_ID not configured");
+      console.warn("GA_PROPERTY_ID not configured - returning empty array");
+      return [];
     }
 
     const client = getClient();
     if (!client) {
-      throw new Error("Analytics client not available");
+      console.warn("Analytics client not available - returning empty array");
+      return [];
     }
 
     const [response] = await client.runReport({
@@ -170,7 +202,7 @@ export async function getTopPages(limit: number = 10): Promise<PageViewData[]> {
       views: parseInt(row.metricValues?.[0]?.value || "0"),
     }));
   } catch (error) {
-    console.error("Analytics API error:", error);
+    handleAnalyticsError(error);
     return [];
   }
 }
@@ -183,12 +215,14 @@ export async function getTrafficSources(
 ): Promise<TrafficSource[]> {
   try {
     if (!propertyId) {
-      throw new Error("GA_PROPERTY_ID not configured");
+      console.warn("GA_PROPERTY_ID not configured - returning empty array");
+      return [];
     }
 
     const client = getClient();
     if (!client) {
-      throw new Error("Analytics client not available");
+      console.warn("Analytics client not available - returning empty array");
+      return [];
     }
 
     const [response] = await client.runReport({
@@ -207,7 +241,7 @@ export async function getTrafficSources(
       users: parseInt(row.metricValues?.[1]?.value || "0"),
     }));
   } catch (error) {
-    console.error("Analytics API error:", error);
+    handleAnalyticsError(error);
     return [];
   }
 }
@@ -218,12 +252,14 @@ export async function getTrafficSources(
 export async function getDailyTrend(days: number = 30): Promise<DailyData[]> {
   try {
     if (!propertyId) {
-      throw new Error("GA_PROPERTY_ID not configured");
+      console.warn("GA_PROPERTY_ID not configured - returning empty array");
+      return [];
     }
 
     const client = getClient();
     if (!client) {
-      throw new Error("Analytics client not available");
+      console.warn("Analytics client not available - returning empty array");
+      return [];
     }
 
     const [response] = await client.runReport({
@@ -245,7 +281,7 @@ export async function getDailyTrend(days: number = 30): Promise<DailyData[]> {
       pageViews: parseInt(row.metricValues?.[2]?.value || "0"),
     }));
   } catch (error) {
-    console.error("Analytics API error:", error);
+    handleAnalyticsError(error);
     return [];
   }
 }
@@ -271,7 +307,7 @@ export async function getRealtimeUsers(): Promise<number> {
 
     return parseInt(response.rows?.[0]?.metricValues?.[0]?.value || "0");
   } catch (error) {
-    console.error("Analytics API error:", error);
+    handleAnalyticsError(error);
     return 0;
   }
 }

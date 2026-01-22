@@ -355,6 +355,71 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
           ></span>
         </div>
 
+        <!-- İLÇE SEÇİMİ - YENİ EKLENEN BÖLÜM -->
+        <div
+          class="mb-8 bg-gradient-to-br from-primary-50 to-violet-50 dark:from-primary-900/10 dark:to-violet-900/10 p-6 rounded-3xl border border-primary-200 dark:border-primary-800/30"
+        >
+          <div class="flex items-center gap-4">
+            <div
+              class="w-12 h-12 bg-primary-500/10 border border-primary-500/20 rounded-2xl flex items-center justify-center shrink-0"
+            >
+              <svg
+                class="w-6 h-6 text-primary-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                ></path>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <label
+                class="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest block mb-2"
+              >
+                📍 Hedef İlçe Seçin
+              </label>
+              <select
+                x-model="form.district"
+                class="w-full bg-white dark:bg-slate-800 px-6 py-3 rounded-2xl text-sm font-bold text-slate-900 dark:text-white border-2 border-primary-200 dark:border-primary-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-premium cursor-pointer shadow-sm"
+              >
+                <option value="hendek">Hendek</option>
+                <option value="adapazari">Adapazarı</option>
+                <option value="akyazi">Akyazı</option>
+                <option value="arifiye">Arifiye</option>
+                <option value="erenler">Erenler</option>
+                <option value="ferizli">Ferizli</option>
+                <option value="geyve">Geyve</option>
+                <option value="karapurcek">Karapürçek</option>
+                <option value="karasu">Karasu</option>
+                <option value="kaynarca">Kaynarca</option>
+                <option value="kocaali">Kocaali</option>
+                <option value="pamukova">Pamukova</option>
+                <option value="sapanca">Sapanca</option>
+                <option value="serdivan">Serdivan</option>
+                <option value="sogutlu">Söğütlü</option>
+                <option value="tarakli">Taraklı</option>
+              </select>
+            </div>
+          </div>
+          <p
+            class="text-[10px] text-primary-600/70 dark:text-primary-400/70 font-medium mt-3 ml-16"
+          >
+            Seçilen ilçedeki tüm kategoriler taranacaktır. İlçe değişikliği
+            kategori seçimini etkilemez.
+          </p>
+        </div>
+
         <template x-if="loadingCounts">
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <template x-for="i in 8" :key="i">
@@ -753,6 +818,7 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
       status: { running: false, job_id: null, job: null },
       form: {
         categories: ["konut_satilik"],
+        district: "hendek", // YENİ: İlçe seçimi
         max_pages: 50,
         force: false,
         reverse_sort: false,
@@ -846,9 +912,12 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
         }
 
         const modeText = this.form.parallel ? "PARALEL (2 Worker)" : "Tekli";
+        const districtText =
+          this.form.district.charAt(0).toUpperCase() +
+          this.form.district.slice(1);
         if (
           !confirm(
-            `${this.form.categories.length} kategori için ${modeText} crawler başlatılacak. Onaylıyor musunuz?`,
+            `${districtText} ilçesinde ${this.form.categories.length} kategori için ${modeText} crawler başlatılacak. Onaylıyor musunuz?`,
           )
         )
           return;
@@ -863,6 +932,7 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               categories: this.form.categories,
+              district: this.form.district, // YENİ: İlçe parametresi eklendi
               max_pages: parseInt(this.form.max_pages),
               force: this.form.force,
               reverse_sort: this.form.reverse_sort,
@@ -890,6 +960,7 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
       resetForm() {
         this.form = {
           categories: ["konut_satilik"],
+          district: "hendek", // YENİ: İlçe default değeri
           max_pages: 50,
           force: false,
           reverse_sort: false,

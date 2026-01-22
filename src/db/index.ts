@@ -7,14 +7,13 @@ const globalForDb = globalThis as unknown as {
   queryClient: Sql | undefined;
 };
 
-const isSupabase =
-  env.DATABASE_URL.includes("supabase.com") ||
-  env.DATABASE_URL.includes("pooler.supabase.com");
+// Localhost için SSL kapalı, uzak sunucu için de kapalı (self-signed cert sorunu)
+const requireSSL = false;
 
 const queryClient =
   globalForDb.queryClient ??
   postgres(env.DATABASE_URL, {
-    ssl: isSupabase ? "require" : false,
+    ssl: requireSSL,
     max: 10,
     idle_timeout: 20,
     connect_timeout: 60,

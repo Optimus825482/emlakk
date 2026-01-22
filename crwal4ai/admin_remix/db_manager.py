@@ -88,5 +88,137 @@ class DatabaseManager:
         finally:
             self.put_conn(conn)
 
+    def get_district_list(self):
+        """
+        Veritabanındaki tüm ilçeleri listele
+        
+        Returns:
+            List of dicts: [{'value': 'hendek', 'label': 'Hendek', 'count': 123}, ...]
+        """
+        query = """
+            SELECT 
+                LOWER(TRIM(SPLIT_PART(konum, ',', 2))) as district,
+                COUNT(*) as count
+            FROM sahibinden_liste
+            WHERE konum IS NOT NULL AND konum != ''
+            GROUP BY LOWER(TRIM(SPLIT_PART(konum, ',', 2)))
+            HAVING LOWER(TRIM(SPLIT_PART(konum, ',', 2))) != ''
+            ORDER BY count DESC
+        """
+        
+        try:
+            results = self.execute_query(query)
+            districts = []
+            
+            for row in (results or []):
+                district_value = row['district']
+                if district_value:
+                    # İlk harfi büyük yap
+                    district_label = district_value.capitalize()
+                    districts.append({
+                        'value': district_value,
+                        'label': district_label,
+                        'count': row['count']
+                    })
+            
+            return districts
+        except Exception as e:
+            print(f"❌ get_district_list error: {e}")
+            return []
+
+    def get_category_stats(self, district=None):
+        """
+        Kategori istatistikleri - ilçe bazlı filtreleme ile
+        
+        Args:
+            district: İlçe adı (opsiyonel). None veya 'all' ise tüm ilçeler
+        
+        Returns:
+            Dict: {'konut': {'satilik': 10, 'kiralik': 5, ...}, ...}
+        """
+        try:
+            # Base query
+            if district and district != 'all':
+                query = """
+                    SELECT 
+                        category, 
+                        transaction, 
+                        COUNT(*) as count
+                    FROM sahibinden_liste
+                    WHERE LOWER(konum) LIKE %s
+                    GROUP BY category, transaction
+                """
+                params = (f'%{district.lower()}%',)
+            else:
+                query = """
+                    SELECT 
+                        category, 
+                        transaction, 
+                        COUNT(*) as count
+                    FROM sahibinden_liste
+                    GROUP BY category, transaction
+                """
+                params = None
+            
+            results = self.execute_query(query, params)
+            
+            # Sonuçları organize et
+            stats = {}
+            for row in (results or []):
+                category = row['category']
+                transaction = row['transaction']
+                count = row['count']
+                
+                if category not in stats:
+                    stats[category] = {
+                        'satilik': 0,
+                        'kiralik': 0,
+                        'new_satilik': 0,
+                        'new_kiralik': 0
+                    }
+                
+                stats[category][transaction] = count
+            
+            # Yeni ilanları da ekle (son 7 gün)
+            if district and district != 'all':
+                new_query = """
+                    SELECT 
+                        category, 
+                        transaction, 
+                        COUNT(*) as count
+                    FROM new_listings
+                    WHERE LOWER(konum) LIKE %s
+                        AND created_at >= NOW() - INTERVAL '7 days'
+                    GROUP BY category, transaction
+                """
+                new_params = (f'%{district.lower()}%',)
+            else:
+                new_query = """
+                    SELECT 
+                        category, 
+                        transaction, 
+                        COUNT(*) as count
+                    FROM new_listings
+                    WHERE created_at >= NOW() - INTERVAL '7 days'
+                    GROUP BY category, transaction
+                """
+                new_params = None
+            
+            new_results = self.execute_query(new_query, new_params)
+            
+            for row in (new_results or []):
+                category = row['category']
+                transaction = row['transaction']
+                count = row['count']
+                
+                if category in stats:
+                    stats[category][f'new_{transaction}'] = count
+            
+            return stats
+            
+        except Exception as e:
+            print(f"❌ get_category_stats error: {e}")
+            return {}
+
 # Singleton instance
 db = DatabaseManager()
