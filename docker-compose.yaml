@@ -27,9 +27,7 @@ services:
     extra_hosts:
       - "wgkosgwkg8o4wg4k8cgcw4og:host-gateway"
     volumes:
-      # Persist uploaded images across container restarts
-      - uploads:/app/public/uploads
+      # Persist uploaded images across container restarts (bind mount to host)
+      - /var/www/uploads:/app/public/uploads
 
-volumes:
-  uploads:
-    driver: local
+# No named volumes needed - using bind mount directly
