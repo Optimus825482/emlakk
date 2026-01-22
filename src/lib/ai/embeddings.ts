@@ -355,10 +355,10 @@ export class EmbeddingService {
           this.currentProvider = provider;
           return provider;
         }
-      } catch (error) {
+} catch (error) {
         console.warn(
           `⚠️ Provider ${provider.name} check failed:`,
-          error.message,
+          error instanceof Error ? error.message : String(error),
         );
       }
     }
@@ -383,10 +383,10 @@ export class EmbeddingService {
         provider: provider.name,
         dimensions: provider.dimensions,
       };
-    } catch (error) {
+} catch (error) {
       console.error(
         `❌ Embedding failed with ${provider.name}:`,
-        error.message,
+        error instanceof Error ? error.message : String(error),
       );
       // Reset current provider and retry with next
       this.currentProvider = null;

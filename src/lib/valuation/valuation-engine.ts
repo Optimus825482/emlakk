@@ -176,8 +176,8 @@ export async function performValuation(
     // 8. Temel değerleme hesapla (ağırlıklı ortalama + konum skoru etkisi)
     const baseValue = finalAvgPricePerM2 * features.area;
 
-    // Konum skoru etkisi: %0 ile %20 arasında artış/azalış
-    const locationMultiplier = 1 + ((locationScore.total - 50) / 100) * 0.2;
+// Konum skoru etkisi: %0 ile %10 arasında artış/azalış (düşürüldü)
+    const locationMultiplier = 1 + ((locationScore.total - 50) / 100) * 0.1;
     const adjustedValue = baseValue * locationMultiplier;
 
     // 8. Standart sapma ile fiyat aralığı belirle
@@ -447,8 +447,8 @@ Final m² fiyatı: %${weights.local * 100} yerel + %${weights.province * 100} il
 Final m² fiyatı: %${weights.local * 100} yerel + %${weights.neighborhood * 100} mahalle ağırlıklı ortalaması ile hesaplanmıştır.`;
   }
 
-  methodology += `
-Konum skoru (${locationScore.total}/100) değerlemeye %${(((locationScore.total - 50) / 100) * 20).toFixed(1)} etki etmiştir.
+methodology += `
+Konum skoru (${locationScore.total}/100) değerlemeye %${(((locationScore.total - 50) / 100) * 10).toFixed(1)} etki etmiştir.
 Yakındaki ${locationScore.advantages.length} avantaj ve ${locationScore.disadvantages.length} dezavantaj faktörü analiz edilmiştir.`;
 
   return methodology.trim();

@@ -262,7 +262,7 @@ export default function SahibindenIlanlarPage() {
     setCurrentPage(1);
   };
 
-  const resetFilters = () => {
+const resetFilters = () => {
     setFilters({
       search: "",
       category: "all",
@@ -271,6 +271,7 @@ export default function SahibindenIlanlarPage() {
       maxPrice: "",
       konum: "",
       district: "all",
+      sortBy: "date",
     });
   };
 

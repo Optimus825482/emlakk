@@ -84,6 +84,34 @@ export function MapLocationPicker({
             ) {
               mahalle = component.long_name;
             }
+            // Fallback: route veya sublocality'den mahalle al
+            if (!mahalle && component.types.includes("sublocality")) {
+              mahalle = component.long_name;
+            }
+            if (!mahalle && component.types.includes("route")) {
+              // Son çare: sokak/cadde adından mahalle çıkar
+              const routeName = component.long_name;
+              // "Merkez Mahallesi", "Cumhuriyet Mahallesi" gibi
+              if (routeName.toLowerCase().includes("mahalle")) {
+                mahalle = routeName;
+              }
+            }
+          }
+          
+          // Fallback: formatted_address'ten mahalle parse et
+          // Format: "Sokak No, Mahalle, İlçe/İl, Ülke"
+          if (!mahalle && formattedAddress) {
+            const parts = formattedAddress.split(",").map((p: string) => p.trim());
+            // Genellikle 2. veya 3. part mahalle oluyor
+            for (let i = 1; i < Math.min(parts.length, 4); i++) {
+              const part = parts[i];
+              if (part.toLowerCase().includes("mah") || 
+                  part.toLowerCase().includes("köy") ||
+                  part.toLowerCase().includes("mahallesi")) {
+                mahalle = part;
+                break;
+              }
+            }
           }
 
           const location: LocationPoint = {
@@ -134,6 +162,29 @@ export function MapLocationPicker({
             component.types.includes("neighborhood")
           ) {
             mahalle = component.long_name;
+          }
+          if (!mahalle && component.types.includes("sublocality")) {
+            mahalle = component.long_name;
+          }
+          if (!mahalle && component.types.includes("route")) {
+            const routeName = component.long_name;
+            if (routeName.toLowerCase().includes("mahalle")) {
+              mahalle = routeName;
+            }
+          }
+        }
+        
+        const formattedAddress = response.results[0].formatted_address;
+        if (!mahalle && formattedAddress) {
+          const parts = formattedAddress.split(",").map((p: string) => p.trim());
+          for (let i = 1; i < Math.min(parts.length, 4); i++) {
+            const part = parts[i];
+            if (part.toLowerCase().includes("mah") || 
+                part.toLowerCase().includes("köy") ||
+                part.toLowerCase().includes("mahallesi")) {
+              mahalle = part;
+              break;
+            }
           }
         }
 

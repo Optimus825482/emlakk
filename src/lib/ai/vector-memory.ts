@@ -5,7 +5,7 @@
 
 import { db } from "@/db";
 import { aiMemory } from "@/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 import { getEmbeddingService } from "./embeddings";
 
 export interface MemorySearchResult {
@@ -155,7 +155,14 @@ export class VectorMemoryService {
       .split(" ")
       .filter((w) => w.length > 2);
 
-    let queryBuilder = db
+const whereCondition = category
+      ? and(
+          sql`${aiMemory.importanceScore} >= ${minImportance}`,
+          eq(aiMemory.category, category)
+        )
+      : sql`${aiMemory.importanceScore} >= ${minImportance}`;
+
+    const results = await db
       .select({
         id: aiMemory.id,
         content: aiMemory.content,
@@ -165,22 +172,14 @@ export class VectorMemoryService {
         createdAt: aiMemory.createdAt,
       })
       .from(aiMemory)
-      .where(sql`${aiMemory.importanceScore} >= ${minImportance}`)
+      .where(whereCondition)
       .orderBy(desc(aiMemory.importanceScore), desc(aiMemory.createdAt))
       .limit(limit);
 
-    if (category) {
-      queryBuilder = queryBuilder.where(
-        eq(aiMemory.category, category),
-      ) as typeof queryBuilder;
-    }
-
-    const results = await queryBuilder;
-
-    // Simple keyword matching for similarity score
     return results.map((r) => ({
       ...r,
       similarity: this.calculateKeywordSimilarity(query, r.content),
+      importanceScore: r.importanceScore ?? 0,
     }));
   }
 
@@ -203,11 +202,13 @@ export class VectorMemoryService {
   /**
    * Get recent memories
    */
-  async getRecentMemories(
+async getRecentMemories(
     limit: number = 10,
     category?: string,
   ): Promise<MemorySearchResult[]> {
-    let query = db
+    const whereCondition = category ? eq(aiMemory.category, category) : undefined;
+    
+    const results = await db
       .select({
         id: aiMemory.id,
         content: aiMemory.content,
@@ -217,18 +218,14 @@ export class VectorMemoryService {
         createdAt: aiMemory.createdAt,
       })
       .from(aiMemory)
+      .where(whereCondition)
       .orderBy(desc(aiMemory.createdAt))
       .limit(limit);
 
-    if (category) {
-      query = query.where(eq(aiMemory.category, category)) as typeof query;
-    }
-
-    const results = await query;
-
-    return results.map((r) => ({
+return results.map((r) => ({
       ...r,
-      similarity: 1.0, // Recent memories are always relevant
+      similarity: 1.0,
+      importanceScore: r.importanceScore ?? 0,
     }));
   }
 
@@ -253,9 +250,10 @@ export class VectorMemoryService {
       .orderBy(desc(aiMemory.importanceScore))
       .limit(limit);
 
-    return results.map((r) => ({
+return results.map((r) => ({
       ...r,
-      similarity: r.importanceScore / 100,
+      similarity: (r.importanceScore ?? 0) / 100,
+      importanceScore: r.importanceScore ?? 0,
     }));
   }
 

@@ -37,35 +37,39 @@ export async function findComparableProperties(
       categories,
     });
 
-    // 2. Kademeli arama stratejisi
+  // 2. Kademeli arama stratejisi (Mahalle bazlı, ±30% max alan toleransı)
     const searchStrategies = [
       {
-        name: "Dar Filtre (İlçe + Alan ±20%)",
-        areaMultiplier: 0.2,
+        name: "Dar Filtre (Mahalle + Alan ±10%)",
+        areaMultiplier: 0.1,
         includeDistrict: true,
-        includeNeighbors: false,
-        minResults: 10,
-      },
-      {
-        name: "Orta Filtre (İlçe + Alan ±50%)",
-        areaMultiplier: 0.5,
-        includeDistrict: true,
+        includeMahalle: true,
         includeNeighbors: false,
         minResults: 5,
       },
       {
-        name: "Geniş Filtre (Komşu İlçeler + Alan ±50%)",
-        areaMultiplier: 0.5,
+        name: "Orta Filtre (Mahalle + Alan ±20%)",
+        areaMultiplier: 0.2,
         includeDistrict: true,
-        includeNeighbors: true,
-        minResults: 3,
+        includeMahalle: true,
+        includeNeighbors: false,
+        minResults: 5,
       },
       {
-        name: "En Geniş Filtre (Tüm İl + Alan ±70%)",
-        areaMultiplier: 0.7,
-        includeDistrict: false,
+        name: "Geniş Filtre (İlçe + Alan ±30%)",
+        areaMultiplier: 0.3,
+        includeDistrict: true,
+        includeMahalle: false,
         includeNeighbors: false,
-        minResults: 1,
+        minResults: 5,
+      },
+      {
+        name: "En Geniş Filtre (Komşu İlçeler + Alan ±30%)",
+        areaMultiplier: 0.3,
+        includeDistrict: true,
+        includeMahalle: false,
+        includeNeighbors: true,
+        minResults: 5,
       },
     ];
 
@@ -111,38 +115,38 @@ async function searchWithStrategy(
   strategy: {
     areaMultiplier: number;
     includeDistrict: boolean;
+    includeMahalle?: boolean;
     includeNeighbors: boolean;
   },
 ): Promise<ComparableProperty[]> {
-  // Alan aralığı
   const minArea = features.area * (1 - strategy.areaMultiplier);
   const maxArea = features.area * (1 + strategy.areaMultiplier);
 
-  // İlçe bilgisi
   const ilce = location.ilce || "";
+  const mahalle = location.mahalle || "";
 
-  // Komşu ilçeler (Hendek için)
   const neighborDistricts: Record<string, string[]> = {
     Hendek: ["Adapazarı", "Akyazı", "Geyve", "Karasu"],
     Adapazarı: ["Hendek", "Akyazı", "Serdivan", "Erenler"],
     Akyazı: ["Hendek", "Adapazarı", "Geyve"],
   };
 
-  // İlçe filtresi oluştur
-  let districtFilter = sql``;
-  if (strategy.includeDistrict && ilce) {
+  let locationFilter = sql``;
+  
+  if (strategy.includeMahalle && mahalle && ilce) {
+    locationFilter = sql`AND ilce ILIKE ${`%${ilce}%`} AND konum ILIKE ${`%${mahalle}%`}`;
+  } else if (strategy.includeDistrict && ilce) {
     if (strategy.includeNeighbors && neighborDistricts[ilce]) {
       const allDistricts = [ilce, ...neighborDistricts[ilce]];
       const districtConditions = allDistricts
         .map((d) => `ilce ILIKE '%${d}%' OR konum ILIKE '%${d}%'`)
         .join(" OR ");
-      districtFilter = sql.raw(`AND (${districtConditions})`);
+      locationFilter = sql.raw(`AND (${districtConditions})`);
     } else {
-      districtFilter = sql`AND (ilce ILIKE ${`%${ilce}%`} OR konum ILIKE ${`%${ilce}%`})`;
+      locationFilter = sql`AND (ilce ILIKE ${`%${ilce}%`} OR konum ILIKE ${`%${ilce}%`})`;
     }
   }
 
-  // PostgreSQL sorgusu - ARRAY literal düzeltildi
   const categoryArray = `{${categories.join(",")}}`;
 
   const results = await db.execute(sql`
@@ -157,21 +161,7 @@ async function searchWithStrategy(
       koordinatlar,
       ozellikler,
       ek_ozellikler,
-      ilce,
-      -- Haversine formula ile mesafe hesaplama (km) - koordinat varsa
-      CASE 
-        WHEN koordinatlar IS NOT NULL THEN
-          (
-            6371 * acos(
-              cos(radians(${location.lat})) * 
-              cos(radians((koordinatlar->>'lat')::float)) * 
-              cos(radians((koordinatlar->>'lng')::float) - radians(${location.lng})) + 
-              sin(radians(${location.lat})) * 
-              sin(radians((koordinatlar->>'lat')::float))
-            )
-          )
-        ELSE 999999 -- Koordinat yoksa çok büyük değer (en sona sıralanır)
-      END as distance
+      ilce
     FROM sahibinden_liste
     WHERE 
       category = ANY(${sql.raw(`'${categoryArray}'::text[]`)})
@@ -179,8 +169,8 @@ async function searchWithStrategy(
       AND fiyat IS NOT NULL 
       AND fiyat > 0
       AND m2 IS NOT NULL
-      ${districtFilter}
-    ORDER BY distance ASC
+      AND CAST(REGEXP_REPLACE(m2, '[^0-9]', '', 'g') AS INTEGER) BETWEEN ${Math.floor(minArea)} AND ${Math.ceil(maxArea)}
+      ${locationFilter}
     LIMIT 100
   `);
 
@@ -200,7 +190,6 @@ async function searchWithStrategy(
     return [];
   }
 
-  // Her ilan için benzerlik skoru hesapla ve filtrele
   const comparables: ComparableProperty[] = (rows || [])
     .map((row) => {
       const m2Value = parseFloat(row.m2?.toString().replace(/\D/g, "") || "0");
@@ -208,22 +197,32 @@ async function searchWithStrategy(
         typeof row.fiyat === "number"
           ? row.fiyat
           : parseInt(row.fiyat?.toString() || "0");
-      const distance = parseFloat(row.distance);
 
-      // Alan filtresi
       if (m2Value < minArea || m2Value > maxArea) {
         return null;
       }
 
-      // Koordinat yoksa mesafe 999999 olur, bu ilanları kabul et ama düşük skor ver
-      const hasCoordinates = distance < 999999;
+      const ozellikler = row.ozellikler || {};
+      const emlakTipi = ozellikler["Emlak Tipi"]?.toString().toLowerCase() || "";
+      
+      if (features.propertyType === "konut") {
+        const isDaire = emlakTipi.includes("daire") || emlakTipi.includes("apartman");
+        const isMustakil = emlakTipi.includes("müstakil") || emlakTipi.includes("villa") || emlakTipi.includes("dubleks");
+        
+        const targetIsDaire = features.area <= 200;
+        
+        if (targetIsDaire && isMustakil) {
+          return null;
+        }
+        if (!targetIsDaire && isDaire) {
+          return null;
+        }
+      }
 
-      // Benzerlik skoru hesapla
       const similarity = calculateSimilarityScore(
         features,
         {
           area: m2Value,
-          distance: hasCoordinates ? distance : 50, // Koordinat yoksa orta mesafe varsay
           ilce: row.ilce,
           mahalle: extractMahalle(row.konum),
           ozellikler: row.ozellikler,
@@ -238,27 +237,25 @@ async function searchWithStrategy(
         fiyat,
         m2: m2Value,
         konum: row.konum || "",
-        distance: hasCoordinates ? Math.round(distance * 100) / 100 : 0,
+        distance: 0,
         pricePerM2: Math.round(fiyat / m2Value),
         similarity,
       };
     })
-    .filter((c): c is ComparableProperty => c !== null && c.similarity >= 30) // Minimum %30 benzerlik
+    .filter((c): c is ComparableProperty => c !== null && c.similarity >= 40)
     .sort((a, b) => b.similarity - a.similarity)
-    .slice(0, 20); // En iyi 20 sonuç
+    .slice(0, 20);
 
   return comparables;
 }
 
 /**
- * Benzerlik skoru hesaplama algoritması
- * Faktörler: Alan, Mesafe, Konum, Özellikler
+ * Benzerlik skoru - Mahalle bazlı (koordinat kullanılmıyor)
  */
 function calculateSimilarityScore(
   targetFeatures: PropertyFeatures,
   comparable: {
     area: number;
-    distance: number;
     ilce?: string;
     mahalle?: string;
     ozellikler?: any;
@@ -268,43 +265,28 @@ function calculateSimilarityScore(
 ): number {
   let score = 0;
 
-  // 1. Alan benzerliği (0-30 puan)
   const areaDiff =
     Math.abs(targetFeatures.area - comparable.area) / targetFeatures.area;
-  if (areaDiff <= 0.1)
-    score += 30; // %10 fark
-  else if (areaDiff <= 0.2)
-    score += 25; // %20 fark
-  else if (areaDiff <= 0.3)
-    score += 20; // %30 fark
+  if (areaDiff <= 0.1) score += 35;
+  else if (areaDiff <= 0.2) score += 28;
+  else if (areaDiff <= 0.3) score += 20;
   else score += 10;
 
-  // 2. Mesafe benzerliği (0-25 puan)
-  if (comparable.distance <= 0.5)
-    score += 25; // 500m içinde
-  else if (comparable.distance <= 1)
-    score += 20; // 1km içinde
-  else if (comparable.distance <= 2)
-    score += 15; // 2km içinde
-  else if (comparable.distance <= 3)
-    score += 10; // 3km içinde
-  else if (comparable.distance <= 5) score += 5; // 5km içinde
-
-  // 3. İlçe/Mahalle eşleşmesi (0-20 puan)
-  if (targetLocation.ilce && comparable.ilce) {
-    if (
-      comparable.ilce.toLowerCase().includes(targetLocation.ilce.toLowerCase())
-    ) {
-      score += 10;
-    }
-  }
   if (targetLocation.mahalle && comparable.mahalle) {
     if (
       comparable.mahalle
         .toLowerCase()
         .includes(targetLocation.mahalle.toLowerCase())
     ) {
-      score += 10;
+      score += 30;
+    }
+  }
+
+  if (targetLocation.ilce && comparable.ilce) {
+    if (
+      comparable.ilce.toLowerCase().includes(targetLocation.ilce.toLowerCase())
+    ) {
+      score += 15;
     }
   }
 
@@ -313,33 +295,44 @@ function calculateSimilarityScore(
     const ozellikler = comparable.ozellikler || {};
     const ekOzellikler = comparable.ekOzellikler || {};
 
-    // Oda sayısı
-    if (targetFeatures.roomCount && ozellikler.odaSayisi) {
-      const roomDiff = Math.abs(
-        targetFeatures.roomCount - parseInt(ozellikler.odaSayisi),
-      );
-      if (roomDiff === 0) score += 8;
-      else if (roomDiff === 1) score += 5;
-      else if (roomDiff === 2) score += 3;
+    // Oda sayısı (veritabanında "Oda Sayısı" olarak saklanıyor)
+    if (targetFeatures.roomCount && ozellikler["Oda Sayısı"]) {
+      // "3+1" formatını parse et
+      const roomStr = ozellikler["Oda Sayısı"].toString();
+      const roomMatch = roomStr.match(/^(\d+)/); // İlk sayıyı al (3+1 → 3)
+      if (roomMatch) {
+        const comparableRooms = parseInt(roomMatch[1]);
+        const roomDiff = Math.abs(targetFeatures.roomCount - comparableRooms);
+        if (roomDiff === 0) score += 8;
+        else if (roomDiff === 1) score += 5;
+        else if (roomDiff === 2) score += 3;
+      }
     }
 
-    // Bina yaşı
-    if (targetFeatures.buildingAge && ozellikler.binaYasi) {
-      const ageDiff = Math.abs(
-        targetFeatures.buildingAge - parseInt(ozellikler.binaYasi),
-      );
-      if (ageDiff <= 2) score += 7;
-      else if (ageDiff <= 5) score += 5;
-      else if (ageDiff <= 10) score += 3;
+    // Bina yaşı (veritabanında "Bina Yaşı" olarak saklanıyor)
+    if (targetFeatures.buildingAge && ozellikler["Bina Yaşı"]) {
+      // "11-15 arası" formatını parse et
+      const ageStr = ozellikler["Bina Yaşı"].toString();
+      const ageMatch = ageStr.match(/^(\d+)/); // İlk sayıyı al
+      if (ageMatch) {
+        const comparableAge = parseInt(ageMatch[1]);
+        const ageDiff = Math.abs(targetFeatures.buildingAge - comparableAge);
+        if (ageDiff <= 2) score += 7;
+        else if (ageDiff <= 5) score += 5;
+        else if (ageDiff <= 10) score += 3;
+      }
     }
 
-    // Kat
-    if (targetFeatures.floor && ozellikler.bulunduguKat) {
-      const floorDiff = Math.abs(
-        targetFeatures.floor - parseInt(ozellikler.bulunduguKat),
-      );
-      if (floorDiff === 0) score += 5;
-      else if (floorDiff <= 2) score += 3;
+    // Kat (veritabanında "Bulunduğu Kat" olarak saklanıyor)
+    if (targetFeatures.floor && ozellikler["Bulunduğu Kat"]) {
+      const floorStr = ozellikler["Bulunduğu Kat"].toString();
+      const floorMatch = floorStr.match(/^(\d+)/); // İlk sayıyı al
+      if (floorMatch) {
+        const comparableFloor = parseInt(floorMatch[1]);
+        const floorDiff = Math.abs(targetFeatures.floor - comparableFloor);
+        if (floorDiff === 0) score += 5;
+        else if (floorDiff <= 2) score += 3;
+      }
     }
 
     // Ekstra özellikler (asansör, otopark, balkon)
@@ -542,12 +535,11 @@ export async function findProvinceBenchmark(
       tarim: ["arsa"],
     };
 
-    const categories = categoryMap[features.propertyType] || ["konut"];
+const categories = categoryMap[features.propertyType] || ["konut"];
     const categoryArray = `{${categories.join(",")}}`;
 
-    // Alan aralığı: ±10%
-    const minArea = features.area * 0.9;
-    const maxArea = features.area * 1.1;
+    const minArea = features.area * 0.8;
+    const maxArea = features.area * 1.2;
 
     // Bina yaşı filtresi YOK - Tüm konutları al, amortisman faktörü ile ayarla
     // Her +5 yıl = %5 fiyat düşüşü (valuation-engine.ts'de uygulanacak)
@@ -656,8 +648,8 @@ export async function findProvinceBenchmark(
 }
 
 /**
- * İstatistiksel analiz: Ortalama, medyan, standart sapma
- * Outlier filtreleme ile (IQR method)
+ * MAD (Median Absolute Deviation) tabanlı outlier filtreleme
+ * IQR'dan daha robust - küçük veri setlerinde daha iyi çalışır
  */
 export function calculateMarketStatistics(comparables: ComparableProperty[]): {
   avgPricePerM2: number;
@@ -677,53 +669,56 @@ export function calculateMarketStatistics(comparables: ComparableProperty[]): {
   }
 
   const pricesPerM2 = comparables.map((c) => c.pricePerM2);
-
-  // Outlier filtreleme (IQR method)
   const sorted = [...pricesPerM2].sort((a, b) => a - b);
-  const q1Index = Math.floor(sorted.length * 0.25);
-  const q3Index = Math.floor(sorted.length * 0.75);
-  const q1 = sorted[q1Index];
-  const q3 = sorted[q3Index];
-  const iqr = q3 - q1;
-  const lowerBound = q1 - 1.5 * iqr;
-  const upperBound = q3 + 1.5 * iqr;
+  
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
 
-  // Outlier'ları filtrele
+  const absoluteDeviations = pricesPerM2.map((p) => Math.abs(p - median));
+  const sortedDeviations = [...absoluteDeviations].sort((a, b) => a - b);
+  const madMid = Math.floor(sortedDeviations.length / 2);
+  const mad = sortedDeviations.length % 2 === 0
+    ? (sortedDeviations[madMid - 1] + sortedDeviations[madMid]) / 2
+    : sortedDeviations[madMid];
+
+  const k = 2.5;
+  const lowerBound = median - k * mad * 1.4826;
+  const upperBound = median + k * mad * 1.4826;
+
   const filteredPrices = pricesPerM2.filter(
     (p) => p >= lowerBound && p <= upperBound,
   );
   const outlierCount = pricesPerM2.length - filteredPrices.length;
 
-  console.log("📊 Outlier Analysis:", {
+  console.log("📊 MAD Outlier Analysis:", {
     total: pricesPerM2.length,
     filtered: filteredPrices.length,
     outliers: outlierCount,
+    median: Math.round(median),
+    mad: Math.round(mad),
     bounds: { lower: Math.round(lowerBound), upper: Math.round(upperBound) },
   });
 
-  // Filtrelenmiş verilerle istatistik hesapla
   const dataToUse = filteredPrices.length >= 3 ? filteredPrices : pricesPerM2;
 
-  // Ortalama
   const avgPricePerM2 = Math.round(
     dataToUse.reduce((sum, p) => sum + p, 0) / dataToUse.length,
   );
 
-  // Medyan
   const sortedFiltered = [...dataToUse].sort((a, b) => a - b);
-  const mid = Math.floor(sortedFiltered.length / 2);
+  const filteredMid = Math.floor(sortedFiltered.length / 2);
   const medianPricePerM2 =
     sortedFiltered.length % 2 === 0
-      ? Math.round((sortedFiltered[mid - 1] + sortedFiltered[mid]) / 2)
-      : sortedFiltered[mid];
+      ? Math.round((sortedFiltered[filteredMid - 1] + sortedFiltered[filteredMid]) / 2)
+      : sortedFiltered[filteredMid];
 
-  // Standart sapma
   const variance =
     dataToUse.reduce((sum, p) => sum + Math.pow(p - avgPricePerM2, 2), 0) /
     dataToUse.length;
   const stdDeviation = Math.round(Math.sqrt(variance));
 
-  // Fiyat aralığı (filtrelenmiş veriden)
   const priceRange = {
     min: Math.min(...dataToUse),
     max: Math.max(...dataToUse),
