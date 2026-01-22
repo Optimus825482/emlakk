@@ -71,6 +71,8 @@ export default function DegerlemePage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<any | null>(null);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
   const handleTypeSelect = (type: PropertyType) => {
     setPropertyType(type);
