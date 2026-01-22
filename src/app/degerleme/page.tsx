@@ -95,6 +95,15 @@ export default function DegerlemePage() {
     e.preventDefault();
     if (!propertyType || !location) return;
 
+    if (!disclaimerAccepted) {
+      setShowDisclaimer(true);
+      return;
+    }
+
+    await performValuation();
+  };
+
+  const performValuation = async () => {
     setIsSubmitting(true);
 
     try {
@@ -144,9 +153,60 @@ export default function DegerlemePage() {
     }
   };
 
+  const handleDisclaimerAccept = () => {
+    setDisclaimerAccepted(true);
+    setShowDisclaimer(false);
+    performValuation();
+  };
+
   return (
     <>
       <Navbar />
+      
+      {showDisclaimer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-[var(--demir-charcoal)] border border-white/20 rounded-3xl p-8 max-w-lg w-full shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto rounded-full bg-[var(--terracotta)]/20 flex items-center justify-center mb-4">
+                <Icon name="info" className="text-[var(--terracotta)] text-3xl" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">
+                Önemli Bilgilendirme
+              </h3>
+            </div>
+            
+            <div className="space-y-4 text-gray-300 text-sm leading-relaxed mb-6">
+              <p>
+                Özel değerleme algoritmamız ile mülkünüzün bulunduğu konum ve diğer 
+                özellikleri değerlendirilerek oluşturulmuş mülk değerlemesi sunulmaktadır.
+              </p>
+              <p className="bg-white/5 p-4 rounded-xl border border-white/10">
+                <Icon name="gavel" className="text-[var(--terracotta)] mr-2" />
+                <strong>Yasal Uyarı:</strong> Bu değerleme, tamamen bölge dinamikleri ile 
+                matematiksel hesaplama modelleri kullanılarak oluşturulan <strong>tavsiye fiyattır</strong>. 
+                Herhangi bir bağlayıcılığı yoktur ve resmi ekspertiz raporu yerine geçmez.
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDisclaimer(false)}
+                className="flex-1 px-6 py-3 border border-white/20 text-white rounded-xl font-medium hover:bg-white/5 transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleDisclaimerAccept}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-[var(--terracotta)] to-[var(--terracotta-light)] text-white rounded-xl font-bold hover:shadow-lg hover:shadow-[var(--terracotta)]/30 transition-all"
+              >
+                <Icon name="check" />
+                Anladım, Devam Et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <main className="min-h-screen bg-gradient-to-br from-[var(--demir-charcoal)] to-[var(--demir-slate)]">
         {/* Background Effects */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -465,9 +525,9 @@ export default function DegerlemePage() {
                   <h2 className="text-2xl font-bold text-white mb-2">
                     Değerleme Tamamlandı!
                   </h2>
-                  <p className="text-gray-400">
-                    {result.comparableProperties?.length || 0} benzer ilan
-                    analiz edildi
+                  <p className="text-gray-400 max-w-md mx-auto">
+                    Özel değerleme algoritmamız ile mülkünüzün bulunduğu konum ve 
+                    diğer özellikleri değerlendirilerek oluşturulmuş tavsiye fiyat
                   </p>
                 </div>
 
@@ -480,47 +540,77 @@ export default function DegerlemePage() {
                     Aralık: ₺{(result.priceRange.min / 1000000).toFixed(2)}M - ₺
                     {(result.priceRange.max / 1000000).toFixed(2)}M
                   </p>
-                  <div className="flex items-center justify-center gap-2 text-green-400">
-                    <Icon name="verified" filled />
+                  <div className="flex items-center justify-center gap-2 text-[var(--terracotta)]">
+                    <Icon name="auto_awesome" filled />
                     <span className="font-semibold">
-                      %{result.confidenceScore} Güven Oranı
+                      Demir AI Değerleme
                     </span>
                   </div>
                 </div>
 
-                {/* Location Score */}
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <Icon name="info" className="text-amber-400 mt-0.5" />
+                    <p className="text-amber-200 text-sm leading-relaxed">
+                      <strong>Bilgilendirme:</strong> Bu değerleme, tamamen bölge dinamikleri 
+                      ile matematiksel hesaplama modelleri kullanılarak oluşturulan tavsiye fiyattır. 
+                      Herhangi bir bağlayıcılığı yoktur ve resmi ekspertiz raporu yerine geçmez.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="bg-white/5 rounded-2xl p-6 text-left">
                   <h3 className="text-white font-bold mb-4 flex items-center gap-2">
                     <Icon
                       name="location_on"
                       className="text-[var(--terracotta)]"
                     />
-                    Konum Skoru: {result.locationScore.total}/100
+                    Konum Analizi
                   </h3>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <p className="text-gray-400 text-sm">Ulaşım</p>
-                      <p className="text-white font-semibold">
-                        {result.locationScore.breakdown.transportation}/20
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-white/10 rounded-full h-2">
+                          <div 
+                            className="bg-[var(--terracotta)] h-2 rounded-full" 
+                            style={{ width: `${(result.locationScore.breakdown.transportation / 20) * 100}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Eğitim</p>
-                      <p className="text-white font-semibold">
-                        {result.locationScore.breakdown.education}/15
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-white/10 rounded-full h-2">
+                          <div 
+                            className="bg-[var(--terracotta)] h-2 rounded-full" 
+                            style={{ width: `${(result.locationScore.breakdown.education / 15) * 100}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Sosyal Tesisler</p>
-                      <p className="text-white font-semibold">
-                        {result.locationScore.breakdown.amenities}/20
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-white/10 rounded-full h-2">
+                          <div 
+                            className="bg-[var(--terracotta)] h-2 rounded-full" 
+                            style={{ width: `${(result.locationScore.breakdown.amenities / 20) * 100}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Sağlık</p>
-                      <p className="text-white font-semibold">
-                        {result.locationScore.breakdown.health}/10
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-white/10 rounded-full h-2">
+                          <div 
+                            className="bg-[var(--terracotta)] h-2 rounded-full" 
+                            style={{ width: `${(result.locationScore.breakdown.health / 10) * 100}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                   {result.locationScore.advantages.length > 0 && (
@@ -539,7 +629,6 @@ export default function DegerlemePage() {
                   )}
                 </div>
 
-                {/* AI Insights */}
                 <div className="bg-white/5 rounded-2xl p-6 text-left">
                   <h3 className="text-white font-bold mb-3 flex items-center gap-2">
                     <Icon
@@ -547,7 +636,7 @@ export default function DegerlemePage() {
                       className="text-[var(--terracotta)]"
                       filled
                     />
-                    AI Değerlendirme
+                    Değerlendirme Özeti
                   </h3>
                   <p className="text-gray-300 text-sm leading-relaxed">
                     {result.aiInsights}
@@ -560,6 +649,7 @@ export default function DegerlemePage() {
                     setResult(null);
                     setPropertyType(null);
                     setLocation(null);
+                    setDisclaimerAccepted(false);
                   }}
                   className="px-8 py-3 border border-white/20 text-white rounded-xl font-medium hover:bg-white/5 transition-colors"
                 >
