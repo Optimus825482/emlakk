@@ -10,6 +10,8 @@ import { detectNearbyPOIs, calculateLocationScore } from "./poi-detector";
 import {
   findComparableProperties,
   calculateMarketStatistics,
+  findProvinceBenchmark,
+  findNeighborhoodAverage,
 } from "./comparable-finder";
 
 /**
@@ -56,40 +58,165 @@ export async function performValuation(
     console.log("📈 Piyasa analizi yapılıyor...");
     const marketStats = calculateMarketStatistics(comparableProperties);
 
-    // 5. Temel değerleme hesapla (ortalama + konum skoru etkisi)
-    const baseValue = marketStats.avgPricePerM2 * features.area;
+    console.log("📊 Market Statistics:", {
+      avgPricePerM2: marketStats.avgPricePerM2,
+      medianPricePerM2: marketStats.medianPricePerM2,
+      outliers: marketStats.outlierCount,
+      comparables: comparableProperties.length,
+    });
+
+    // 5. İl geneli benchmark (metrekare bazlı - tüm bina yaşları)
+    console.log("🌍 İl geneli benchmark hesaplanıyor...");
+    const provinceBenchmark = await findProvinceBenchmark(features);
+
+    // Bina yaşı amortisman faktörü uygula (her +5 yıl = %5 düşüş)
+    let adjustedProvincePricePerM2 = provinceBenchmark.avgPricePerM2;
+    if (
+      features.propertyType === "konut" &&
+      features.buildingAge &&
+      provinceBenchmark.avgPricePerM2 > 0
+    ) {
+      const depreciationFactor = 1 - (features.buildingAge / 5) * 0.05;
+      const clampedFactor = Math.max(0.5, Math.min(1.0, depreciationFactor)); // Min %50, Max %100
+      adjustedProvincePricePerM2 = Math.round(
+        provinceBenchmark.avgPricePerM2 * clampedFactor,
+      );
+
+      console.log("📉 Bina Yaşı Amortisman Faktörü:", {
+        buildingAge: features.buildingAge,
+        depreciationFactor: clampedFactor,
+        originalPricePerM2: provinceBenchmark.avgPricePerM2,
+        adjustedPricePerM2: adjustedProvincePricePerM2,
+        discount: `${((1 - clampedFactor) * 100).toFixed(1)}%`,
+      });
+    }
+
+    console.log("📊 Province Benchmark:", {
+      avgPricePerM2: adjustedProvincePricePerM2,
+      originalAvg: provinceBenchmark.avgPricePerM2,
+      count: provinceBenchmark.count,
+      priceRange: provinceBenchmark.priceRange,
+    });
+
+    // 6. Mahalle mikro-piyasa analizi (YENİ!)
+    console.log("🏘️ Mahalle mikro-piyasa analizi yapılıyor...");
+    const neighborhoodAvg = await findNeighborhoodAverage(
+      location,
+      features.propertyType,
+    );
+
+    console.log("📊 Neighborhood Average:", {
+      avgPricePerM2: neighborhoodAvg.avgPricePerM2,
+      count: neighborhoodAvg.count,
+      priceRange: neighborhoodAvg.priceRange,
+    });
+
+    // 7. 3 Katmanlı Ağırlıklı Ortalama
+    // Yerel: %50, Mahalle: %35, İl Geneli: %15
+    let finalAvgPricePerM2 = marketStats.avgPricePerM2;
+    let weights = {
+      local: 1.0, // %100 (fallback)
+      neighborhood: 0,
+      province: 0,
+    };
+
+    // Mahalle ve il geneli varsa ağırlıklı ortalama (il geneli amortisman uygulanmış)
+    if (
+      neighborhoodAvg.count > 0 &&
+      neighborhoodAvg.avgPricePerM2 > 0 &&
+      provinceBenchmark.count > 0 &&
+      adjustedProvincePricePerM2 > 0
+    ) {
+      // 3 katman: %50 + %35 + %15
+      finalAvgPricePerM2 = Math.round(
+        marketStats.avgPricePerM2 * 0.5 +
+          neighborhoodAvg.avgPricePerM2 * 0.35 +
+          adjustedProvincePricePerM2 * 0.15,
+      );
+      weights = { local: 0.5, neighborhood: 0.35, province: 0.15 };
+
+      console.log("⚖️ 3 Katmanlı Ağırlıklı Ortalama:", {
+        local: marketStats.avgPricePerM2,
+        neighborhood: neighborhoodAvg.avgPricePerM2,
+        province: adjustedProvincePricePerM2,
+        weighted: finalAvgPricePerM2,
+        formula:
+          "50% yerel + 35% mahalle + 15% il geneli (amortisman uygulanmış)",
+      });
+    } else if (provinceBenchmark.count > 0 && adjustedProvincePricePerM2 > 0) {
+      // Sadece il geneli: %85 + %15
+      finalAvgPricePerM2 = Math.round(
+        marketStats.avgPricePerM2 * 0.85 + adjustedProvincePricePerM2 * 0.15,
+      );
+      weights = { local: 0.85, neighborhood: 0, province: 0.15 };
+
+      console.log("⚖️ 2 Katmanlı Ağırlıklı Ortalama:", {
+        local: marketStats.avgPricePerM2,
+        province: adjustedProvincePricePerM2,
+        weighted: finalAvgPricePerM2,
+        formula: "85% yerel + 15% il geneli (amortisman uygulanmış)",
+      });
+    } else if (neighborhoodAvg.count > 0 && neighborhoodAvg.avgPricePerM2 > 0) {
+      // Sadece mahalle: %65 + %35
+      finalAvgPricePerM2 = Math.round(
+        marketStats.avgPricePerM2 * 0.65 + neighborhoodAvg.avgPricePerM2 * 0.35,
+      );
+      weights = { local: 0.65, neighborhood: 0.35, province: 0 };
+
+      console.log("⚖️ 2 Katmanlı Ağırlıklı Ortalama:", {
+        local: marketStats.avgPricePerM2,
+        neighborhood: neighborhoodAvg.avgPricePerM2,
+        weighted: finalAvgPricePerM2,
+        formula: "65% yerel + 35% mahalle",
+      });
+    } else {
+      console.log("⚠️ Sadece yerel veri kullanılıyor (%100)");
+    }
+
+    // 8. Temel değerleme hesapla (ağırlıklı ortalama + konum skoru etkisi)
+    const baseValue = finalAvgPricePerM2 * features.area;
 
     // Konum skoru etkisi: %0 ile %20 arasında artış/azalış
     const locationMultiplier = 1 + ((locationScore.total - 50) / 100) * 0.2;
     const adjustedValue = baseValue * locationMultiplier;
 
-    // 6. Standart sapma ile fiyat aralığı belirle
+    // 8. Standart sapma ile fiyat aralığı belirle
     const priceRange = {
       min: Math.round(adjustedValue - marketStats.stdDeviation * features.area),
       max: Math.round(adjustedValue + marketStats.stdDeviation * features.area),
     };
 
-    // 7. Güven skoru hesapla
+    // 9. Güven skoru hesapla
     const confidenceScore = calculateConfidenceScore(
       comparableProperties.length,
       marketStats.stdDeviation,
-      marketStats.avgPricePerM2,
+      finalAvgPricePerM2,
       locationScore.total,
+      provinceBenchmark.count,
+      neighborhoodAvg.count,
     );
 
-    // 8. AI insights oluştur
+    // 10. AI insights oluştur
     const aiInsights = generateAIInsights(
       adjustedValue,
       marketStats,
       locationScore,
       comparableProperties.length,
+      provinceBenchmark,
+      neighborhoodAvg,
+      adjustedProvincePricePerM2,
     );
 
-    // 9. Metodoloji açıklaması
+    // 11. Metodoloji açıklaması
     const methodology = generateMethodology(
       comparableProperties.length,
       marketStats,
       locationScore,
+      provinceBenchmark,
+      neighborhoodAvg,
+      weights,
+      features,
+      adjustedProvincePricePerM2,
     );
 
     return {
@@ -129,27 +256,41 @@ function calculateConfidenceScore(
   stdDeviation: number,
   avgPrice: number,
   locationScore: number,
+  provinceBenchmarkCount: number,
+  neighborhoodCount: number,
 ): number {
   let score = 0;
 
-  // 1. Karşılaştırma sayısı (0-40 puan)
-  if (comparableCount >= 15) score += 40;
-  else if (comparableCount >= 10) score += 35;
-  else if (comparableCount >= 5) score += 25;
-  else score += 15;
-
-  // 2. Veri tutarlılığı - Standart sapma (0-30 puan)
-  const coefficientOfVariation = stdDeviation / avgPrice;
-  if (coefficientOfVariation <= 0.15)
-    score += 30; // %15 varyasyon
-  else if (coefficientOfVariation <= 0.25)
-    score += 25; // %25 varyasyon
-  else if (coefficientOfVariation <= 0.35)
-    score += 20; // %35 varyasyon
+  // 1. Karşılaştırma sayısı (0-30 puan)
+  if (comparableCount >= 15) score += 30;
+  else if (comparableCount >= 10) score += 25;
+  else if (comparableCount >= 5) score += 18;
   else score += 10;
 
-  // 3. Konum skoru (0-30 puan)
-  score += (locationScore / 100) * 30;
+  // 2. Veri tutarlılığı - Standart sapma (0-20 puan)
+  const coefficientOfVariation = stdDeviation / avgPrice;
+  if (coefficientOfVariation <= 0.15)
+    score += 20; // %15 varyasyon
+  else if (coefficientOfVariation <= 0.25)
+    score += 16; // %25 varyasyon
+  else if (coefficientOfVariation <= 0.35)
+    score += 12; // %35 varyasyon
+  else score += 6;
+
+  // 3. Konum skoru (0-15 puan)
+  score += (locationScore / 100) * 15;
+
+  // 4. Mahalle mikro-piyasa bonus (0-20 puan) - YENİ!
+  if (neighborhoodCount >= 20) score += 20;
+  else if (neighborhoodCount >= 10) score += 15;
+  else if (neighborhoodCount >= 5) score += 10;
+  else if (neighborhoodCount >= 3) score += 5;
+
+  // 5. İl geneli benchmark bonus (0-15 puan)
+  if (provinceBenchmarkCount >= 50) score += 15;
+  else if (provinceBenchmarkCount >= 30) score += 12;
+  else if (provinceBenchmarkCount >= 15) score += 8;
+  else if (provinceBenchmarkCount >= 5) score += 4;
 
   return Math.min(Math.round(score), 100);
 }
@@ -171,25 +312,62 @@ function generateAIInsights(
   marketStats: any,
   locationScore: LocationScore,
   comparableCount: number,
+  provinceBenchmark: { avgPricePerM2: number; count: number },
+  neighborhoodAvg: { avgPricePerM2: number; count: number },
+  adjustedProvincePricePerM2: number,
 ): string {
   const insights: string[] = [];
 
   // Değerleme özeti
+  const sources = [];
+  if (comparableCount > 0) sources.push(`${comparableCount} yerel ilan`);
+  if (neighborhoodAvg.count > 0)
+    sources.push(`${neighborhoodAvg.count} mahalle ilanı`);
+  if (provinceBenchmark.count > 0)
+    sources.push(`${provinceBenchmark.count} il geneli ilan`);
+
   insights.push(
-    `${comparableCount} benzer ilan analiz edilerek ${(estimatedValue / 1000000).toFixed(2)}M TL değerleme yapıldı.`,
+    `${sources.join(", ")} analiz edilerek ${(estimatedValue / 1000000).toFixed(2)}M TL değerleme yapıldı.`,
   );
 
-  // Piyasa durumu
-  const avgValue = marketStats.avgPricePerM2;
-  const deviation = ((estimatedValue / avgValue - 1) * 100).toFixed(1);
-  if (Math.abs(parseFloat(deviation)) < 5) {
-    insights.push("Değerleme piyasa ortalamasına çok yakın.");
-  } else if (parseFloat(deviation) > 0) {
-    insights.push(`Değerleme piyasa ortalamasının %${deviation} üzerinde.`);
-  } else {
-    insights.push(
-      `Değerleme piyasa ortalamasının %${Math.abs(parseFloat(deviation))} altında.`,
-    );
+  // Mahalle karşılaştırması
+  if (neighborhoodAvg.count > 0) {
+    const localAvg = marketStats.avgPricePerM2;
+    const neighborhoodPrice = neighborhoodAvg.avgPricePerM2;
+    const diff = ((localAvg / neighborhoodPrice - 1) * 100).toFixed(1);
+
+    if (Math.abs(parseFloat(diff)) < 5) {
+      insights.push("Seçilen konum mahalle ortalamasına çok yakın.");
+    } else if (parseFloat(diff) > 0) {
+      insights.push(
+        `Bu konum mahalle ortalamasının %${diff} üzerinde değerleniyor.`,
+      );
+    } else {
+      insights.push(
+        `Bu konum mahalle ortalamasının %${Math.abs(parseFloat(diff))} altında değerleniyor.`,
+      );
+    }
+  }
+
+  // İl geneli karşılaştırma (amortisman uygulanmış)
+  if (provinceBenchmark.count > 0 && neighborhoodAvg.count > 0) {
+    const neighborhoodPrice = neighborhoodAvg.avgPricePerM2;
+    const provinceAvg = adjustedProvincePricePerM2;
+    const diff = ((neighborhoodPrice / provinceAvg - 1) * 100).toFixed(1);
+
+    if (Math.abs(parseFloat(diff)) < 5) {
+      insights.push(
+        "Mahalle fiyatları il geneli ortalamasına yakın (amortisman uygulanmış).",
+      );
+    } else if (parseFloat(diff) > 0) {
+      insights.push(
+        `Bu mahalle il geneli ortalamasının %${diff} üzerinde fiyatlanıyor (amortisman uygulanmış).`,
+      );
+    } else {
+      insights.push(
+        `Bu mahalle il geneli ortalamasının %${Math.abs(parseFloat(diff))} altında fiyatlanıyor (amortisman uygulanmış).`,
+      );
+    }
   }
 
   // Konum değerlendirmesi
@@ -222,12 +400,56 @@ function generateMethodology(
   comparableCount: number,
   marketStats: any,
   locationScore: LocationScore,
+  provinceBenchmark: { avgPricePerM2: number; count: number },
+  neighborhoodAvg: { avgPricePerM2: number; count: number },
+  weights: { local: number; neighborhood: number; province: number },
+  features: PropertyFeatures,
+  adjustedProvincePricePerM2: number,
 ): string {
-  return `
-Bu değerleme ${comparableCount} benzer satılık ilan üzerinden yapılmıştır. 
-Ortalama m² fiyatı ${marketStats.avgPricePerM2.toLocaleString("tr-TR")} TL olarak hesaplanmış, 
-standart sapma ${marketStats.stdDeviation.toLocaleString("tr-TR")} TL'dir. 
+  let methodology = `
+Bu değerleme ${comparableCount} yerel benzer ilan üzerinden yapılmıştır.`;
+
+  // Mahalle analizi
+  if (neighborhoodAvg.count > 0) {
+    methodology += `
+Aynı mahallede ${neighborhoodAvg.count} satılık konut analiz edilmiş, 
+mahalle ortalaması ${neighborhoodAvg.avgPricePerM2.toLocaleString("tr-TR")} TL/m² olarak hesaplanmıştır.`;
+  }
+
+  // İl geneli analizi
+  if (provinceBenchmark.count > 0) {
+    const depreciationFactor =
+      features.buildingAge && features.propertyType === "konut"
+        ? 1 - (features.buildingAge / 5) * 0.05
+        : 1.0;
+    const clampedFactor = Math.max(0.5, Math.min(1.0, depreciationFactor));
+
+    methodology += `
+İl genelinde ${provinceBenchmark.count} benzer ilan (alan ±10%, tüm bina yaşları) analiz edilmiş,
+il geneli ortalama ${provinceBenchmark.avgPricePerM2.toLocaleString("tr-TR")} TL/m² olarak hesaplanmıştır.`;
+
+    if (features.buildingAge && features.propertyType === "konut") {
+      methodology += `
+Bina yaşı amortisman faktörü uygulanmıştır: ${features.buildingAge} yıl → %${((1 - clampedFactor) * 100).toFixed(1)} düşüş.
+Amortisman sonrası il geneli: ${adjustedProvincePricePerM2.toLocaleString("tr-TR")} TL/m².`;
+    }
+  }
+
+  // Ağırlıklı ortalama formülü
+  if (weights.neighborhood > 0 && weights.province > 0) {
+    methodology += `
+Final m² fiyatı: %${weights.local * 100} yerel + %${weights.neighborhood * 100} mahalle + %${weights.province * 100} il geneli ağırlıklı ortalaması ile hesaplanmıştır.`;
+  } else if (weights.province > 0) {
+    methodology += `
+Final m² fiyatı: %${weights.local * 100} yerel + %${weights.province * 100} il geneli ağırlıklı ortalaması ile hesaplanmıştır.`;
+  } else if (weights.neighborhood > 0) {
+    methodology += `
+Final m² fiyatı: %${weights.local * 100} yerel + %${weights.neighborhood * 100} mahalle ağırlıklı ortalaması ile hesaplanmıştır.`;
+  }
+
+  methodology += `
 Konum skoru (${locationScore.total}/100) değerlemeye %${(((locationScore.total - 50) / 100) * 20).toFixed(1)} etki etmiştir.
-Yakındaki ${locationScore.advantages.length} avantaj ve ${locationScore.disadvantages.length} dezavantaj faktörü analiz edilmiştir.
-  `.trim();
+Yakındaki ${locationScore.advantages.length} avantaj ve ${locationScore.disadvantages.length} dezavantaj faktörü analiz edilmiştir.`;
+
+  return methodology.trim();
 }

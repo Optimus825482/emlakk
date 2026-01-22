@@ -1,8 +1,7 @@
 // Sahibinden İlanları ile Eşleştirme ve Benzerlik Skoru Hesaplama
 
 import { db } from "@/db";
-import { sahibindenListe } from "@/db/schema/crawler";
-import { sql, and, eq, gte, lte, isNotNull } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { LocationPoint, PropertyFeatures, ComparableProperty } from "./types";
 
 /**
@@ -143,7 +142,9 @@ async function searchWithStrategy(
     }
   }
 
-  // PostgreSQL sorgusu
+  // PostgreSQL sorgusu - ARRAY literal düzeltildi
+  const categoryArray = `{${categories.join(",")}}`;
+
   const results = await db.execute(sql`
     SELECT 
       id,
@@ -173,7 +174,7 @@ async function searchWithStrategy(
       END as distance
     FROM sahibinden_liste
     WHERE 
-      category = ANY(ARRAY[${sql.raw(categories.map((c) => `'${c}'`).join(","))}])
+      category = ANY(${sql.raw(`'${categoryArray}'::text[]`)})
       AND transaction = 'satilik'
       AND fiyat IS NOT NULL 
       AND fiyat > 0
@@ -183,11 +184,13 @@ async function searchWithStrategy(
     LIMIT 100
   `);
 
-  // Drizzle ORM response structure kontrol et
-  const rows = (results.rows || results) as any[];
+  // Drizzle ORM response structure - direkt results kullan
+  const rows = Array.isArray(results)
+    ? results
+    : (((results as any).rows || []) as any[]);
 
   console.log("📊 SQL Query Results:", {
-    hasRows: !!results.rows,
+    hasRows: !!(results as any).rows,
     isArray: Array.isArray(results),
     rowCount: rows?.length || 0,
     firstRow: rows?.[0] || null,
@@ -349,6 +352,155 @@ function calculateSimilarityScore(
 }
 
 /**
+ * Mahalle bazlı mikro-piyasa analizi
+ * Aynı ilçe + mahallede satılık tüm konutların ortalama m² fiyatı
+ */
+export async function findNeighborhoodAverage(
+  location: LocationPoint,
+  propertyType: PropertyFeatures["propertyType"],
+): Promise<{
+  avgPricePerM2: number;
+  count: number;
+  priceRange: { min: number; max: number };
+}> {
+  try {
+    console.log("🏘️ Mahalle mikro-piyasa analizi yapılıyor...", {
+      ilce: location.ilce,
+      mahalle: location.mahalle,
+      propertyType,
+    });
+
+    // Kategori mapping
+    const categoryMap: Record<PropertyFeatures["propertyType"], string[]> = {
+      konut: ["konut"],
+      arsa: ["arsa"],
+      isyeri: ["isyeri"],
+      sanayi: ["isyeri"],
+      tarim: ["arsa"],
+    };
+
+    const categories = categoryMap[propertyType] || ["konut"];
+    const categoryArray = `{${categories.join(",")}}`;
+
+    // Mahalle filtresi
+    const ilce = location.ilce || "";
+    const mahalle = location.mahalle || "";
+
+    if (!ilce) {
+      console.warn("⚠️ İlçe bilgisi yok, mahalle analizi yapılamıyor");
+      return {
+        avgPricePerM2: 0,
+        count: 0,
+        priceRange: { min: 0, max: 0 },
+      };
+    }
+
+    // Mahalle bazlı sorgu (alan filtresi YOK - tüm konutlar)
+    const results = await db.execute(sql`
+      SELECT 
+        fiyat,
+        m2,
+        konum,
+        ilce,
+        CAST(fiyat AS BIGINT) / CAST(REGEXP_REPLACE(m2, '[^0-9]', '', 'g') AS INTEGER) as price_per_m2
+      FROM sahibinden_liste
+      WHERE 
+        category = ANY(${sql.raw(`'${categoryArray}'::text[]`)})
+        AND transaction = 'satilik'
+        AND fiyat IS NOT NULL 
+        AND fiyat > 0
+        AND m2 IS NOT NULL
+        AND ilce ILIKE ${`%${ilce}%`}
+        ${mahalle ? sql`AND konum ILIKE ${`%${mahalle}%`}` : sql``}
+      LIMIT 100
+    `);
+
+    const rows = Array.isArray(results)
+      ? results
+      : (((results as any).rows || []) as any[]);
+
+    console.log("📊 Mahalle Mikro-Piyasa Results:", {
+      rowCount: rows.length,
+      ilce,
+      mahalle: mahalle || "Tüm mahalleler",
+    });
+
+    if (rows.length === 0) {
+      return {
+        avgPricePerM2: 0,
+        count: 0,
+        priceRange: { min: 0, max: 0 },
+      };
+    }
+
+    // m² fiyatlarını çıkar
+    const pricesPerM2 = rows
+      .map((row) => {
+        const m2Value = parseFloat(
+          row.m2?.toString().replace(/\D/g, "") || "0",
+        );
+        const fiyat =
+          typeof row.fiyat === "number"
+            ? row.fiyat
+            : parseInt(row.fiyat?.toString() || "0");
+        return m2Value > 0 ? Math.round(fiyat / m2Value) : 0;
+      })
+      .filter((p) => p > 0);
+
+    if (pricesPerM2.length === 0) {
+      return {
+        avgPricePerM2: 0,
+        count: 0,
+        priceRange: { min: 0, max: 0 },
+      };
+    }
+
+    // Outlier filtreleme (IQR)
+    const sorted = [...pricesPerM2].sort((a, b) => a - b);
+    const q1Index = Math.floor(sorted.length * 0.25);
+    const q3Index = Math.floor(sorted.length * 0.75);
+    const q1 = sorted[q1Index];
+    const q3 = sorted[q3Index];
+    const iqr = q3 - q1;
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
+
+    const filteredPrices = pricesPerM2.filter(
+      (p) => p >= lowerBound && p <= upperBound,
+    );
+
+    console.log("📊 Mahalle Outlier Analysis:", {
+      total: pricesPerM2.length,
+      filtered: filteredPrices.length,
+      outliers: pricesPerM2.length - filteredPrices.length,
+    });
+
+    const dataToUse = filteredPrices.length >= 3 ? filteredPrices : pricesPerM2;
+
+    // Ortalama hesapla
+    const avgPricePerM2 = Math.round(
+      dataToUse.reduce((sum, p) => sum + p, 0) / dataToUse.length,
+    );
+
+    return {
+      avgPricePerM2,
+      count: dataToUse.length,
+      priceRange: {
+        min: Math.min(...dataToUse),
+        max: Math.max(...dataToUse),
+      },
+    };
+  } catch (error) {
+    console.error("Neighborhood average error:", error);
+    return {
+      avgPricePerM2: 0,
+      count: 0,
+      priceRange: { min: 0, max: 0 },
+    };
+  }
+}
+
+/**
  * Konum string'inden mahalle çıkar
  */
 function extractMahalle(konum: string): string {
@@ -364,13 +516,155 @@ function extractMahalle(konum: string): string {
 }
 
 /**
+ * İl genelinde bina yaşı ve metrekare bazlı benchmark
+ * Tüm ilçelerde aynı özelliklere sahip ilanların ortalamasını alır
+ */
+export async function findProvinceBenchmark(
+  features: PropertyFeatures,
+): Promise<{
+  avgPricePerM2: number;
+  count: number;
+  priceRange: { min: number; max: number };
+}> {
+  try {
+    console.log("🌍 İl geneli benchmark aranıyor...", {
+      propertyType: features.propertyType,
+      area: features.area,
+      buildingAge: features.buildingAge,
+    });
+
+    // Kategori mapping
+    const categoryMap: Record<PropertyFeatures["propertyType"], string[]> = {
+      konut: ["konut"],
+      arsa: ["arsa"],
+      isyeri: ["isyeri"],
+      sanayi: ["isyeri"],
+      tarim: ["arsa"],
+    };
+
+    const categories = categoryMap[features.propertyType] || ["konut"];
+    const categoryArray = `{${categories.join(",")}}`;
+
+    // Alan aralığı: ±10%
+    const minArea = features.area * 0.9;
+    const maxArea = features.area * 1.1;
+
+    // Bina yaşı filtresi YOK - Tüm konutları al, amortisman faktörü ile ayarla
+    // Her +5 yıl = %5 fiyat düşüşü (valuation-engine.ts'de uygulanacak)
+
+    // İl geneli sorgu (tüm ilçeler, tüm bina yaşları)
+    const results = await db.execute(sql`
+      SELECT 
+        fiyat,
+        m2,
+        ilce,
+        CAST(fiyat AS BIGINT) / CAST(REGEXP_REPLACE(m2, '[^0-9]', '', 'g') AS INTEGER) as price_per_m2
+      FROM sahibinden_liste
+      WHERE 
+        category = ANY(${sql.raw(`'${categoryArray}'::text[]`)})
+        AND transaction = 'satilik'
+        AND fiyat IS NOT NULL 
+        AND fiyat > 0
+        AND m2 IS NOT NULL
+        AND CAST(REGEXP_REPLACE(m2, '[^0-9]', '', 'g') AS INTEGER) BETWEEN ${minArea} AND ${maxArea}
+      LIMIT 200
+    `);
+
+    const rows = Array.isArray(results)
+      ? results
+      : (((results as any).rows || []) as any[]);
+
+    console.log("📊 İl Geneli Benchmark Results:", {
+      rowCount: rows.length,
+      areaRange: `${Math.round(minArea)}-${Math.round(maxArea)} m²`,
+      note: "Tüm bina yaşları dahil - Amortisman faktörü ile ayarlanacak",
+    });
+
+    if (rows.length === 0) {
+      return {
+        avgPricePerM2: 0,
+        count: 0,
+        priceRange: { min: 0, max: 0 },
+      };
+    }
+
+    // m² fiyatlarını çıkar
+    const pricesPerM2 = rows
+      .map((row) => {
+        const m2Value = parseFloat(
+          row.m2?.toString().replace(/\D/g, "") || "0",
+        );
+        const fiyat =
+          typeof row.fiyat === "number"
+            ? row.fiyat
+            : parseInt(row.fiyat?.toString() || "0");
+        return m2Value > 0 ? Math.round(fiyat / m2Value) : 0;
+      })
+      .filter((p) => p > 0);
+
+    if (pricesPerM2.length === 0) {
+      return {
+        avgPricePerM2: 0,
+        count: 0,
+        priceRange: { min: 0, max: 0 },
+      };
+    }
+
+    // Outlier filtreleme (IQR)
+    const sorted = [...pricesPerM2].sort((a, b) => a - b);
+    const q1Index = Math.floor(sorted.length * 0.25);
+    const q3Index = Math.floor(sorted.length * 0.75);
+    const q1 = sorted[q1Index];
+    const q3 = sorted[q3Index];
+    const iqr = q3 - q1;
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
+
+    const filteredPrices = pricesPerM2.filter(
+      (p) => p >= lowerBound && p <= upperBound,
+    );
+
+    console.log("📊 İl Geneli Outlier Analysis:", {
+      total: pricesPerM2.length,
+      filtered: filteredPrices.length,
+      outliers: pricesPerM2.length - filteredPrices.length,
+    });
+
+    const dataToUse = filteredPrices.length >= 3 ? filteredPrices : pricesPerM2;
+
+    // Ortalama hesapla
+    const avgPricePerM2 = Math.round(
+      dataToUse.reduce((sum, p) => sum + p, 0) / dataToUse.length,
+    );
+
+    return {
+      avgPricePerM2,
+      count: dataToUse.length,
+      priceRange: {
+        min: Math.min(...dataToUse),
+        max: Math.max(...dataToUse),
+      },
+    };
+  } catch (error) {
+    console.error("Province benchmark error:", error);
+    return {
+      avgPricePerM2: 0,
+      count: 0,
+      priceRange: { min: 0, max: 0 },
+    };
+  }
+}
+
+/**
  * İstatistiksel analiz: Ortalama, medyan, standart sapma
+ * Outlier filtreleme ile (IQR method)
  */
 export function calculateMarketStatistics(comparables: ComparableProperty[]): {
   avgPricePerM2: number;
   medianPricePerM2: number;
   stdDeviation: number;
   priceRange: { min: number; max: number };
+  outlierCount: number;
 } {
   if (comparables.length === 0) {
     return {
@@ -378,34 +672,61 @@ export function calculateMarketStatistics(comparables: ComparableProperty[]): {
       medianPricePerM2: 0,
       stdDeviation: 0,
       priceRange: { min: 0, max: 0 },
+      outlierCount: 0,
     };
   }
 
   const pricesPerM2 = comparables.map((c) => c.pricePerM2);
 
+  // Outlier filtreleme (IQR method)
+  const sorted = [...pricesPerM2].sort((a, b) => a - b);
+  const q1Index = Math.floor(sorted.length * 0.25);
+  const q3Index = Math.floor(sorted.length * 0.75);
+  const q1 = sorted[q1Index];
+  const q3 = sorted[q3Index];
+  const iqr = q3 - q1;
+  const lowerBound = q1 - 1.5 * iqr;
+  const upperBound = q3 + 1.5 * iqr;
+
+  // Outlier'ları filtrele
+  const filteredPrices = pricesPerM2.filter(
+    (p) => p >= lowerBound && p <= upperBound,
+  );
+  const outlierCount = pricesPerM2.length - filteredPrices.length;
+
+  console.log("📊 Outlier Analysis:", {
+    total: pricesPerM2.length,
+    filtered: filteredPrices.length,
+    outliers: outlierCount,
+    bounds: { lower: Math.round(lowerBound), upper: Math.round(upperBound) },
+  });
+
+  // Filtrelenmiş verilerle istatistik hesapla
+  const dataToUse = filteredPrices.length >= 3 ? filteredPrices : pricesPerM2;
+
   // Ortalama
   const avgPricePerM2 = Math.round(
-    pricesPerM2.reduce((sum, p) => sum + p, 0) / pricesPerM2.length,
+    dataToUse.reduce((sum, p) => sum + p, 0) / dataToUse.length,
   );
 
   // Medyan
-  const sorted = [...pricesPerM2].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
+  const sortedFiltered = [...dataToUse].sort((a, b) => a - b);
+  const mid = Math.floor(sortedFiltered.length / 2);
   const medianPricePerM2 =
-    sorted.length % 2 === 0
-      ? Math.round((sorted[mid - 1] + sorted[mid]) / 2)
-      : sorted[mid];
+    sortedFiltered.length % 2 === 0
+      ? Math.round((sortedFiltered[mid - 1] + sortedFiltered[mid]) / 2)
+      : sortedFiltered[mid];
 
   // Standart sapma
   const variance =
-    pricesPerM2.reduce((sum, p) => sum + Math.pow(p - avgPricePerM2, 2), 0) /
-    pricesPerM2.length;
+    dataToUse.reduce((sum, p) => sum + Math.pow(p - avgPricePerM2, 2), 0) /
+    dataToUse.length;
   const stdDeviation = Math.round(Math.sqrt(variance));
 
-  // Fiyat aralığı
+  // Fiyat aralığı (filtrelenmiş veriden)
   const priceRange = {
-    min: Math.min(...pricesPerM2),
-    max: Math.max(...pricesPerM2),
+    min: Math.min(...dataToUse),
+    max: Math.max(...dataToUse),
   };
 
   return {
@@ -413,5 +734,6 @@ export function calculateMarketStatistics(comparables: ComparableProperty[]): {
     medianPricePerM2,
     stdDeviation,
     priceRange,
+    outlierCount,
   };
 }

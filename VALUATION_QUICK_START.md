@@ -175,6 +175,98 @@ src/
 - Benzer ilanların kalitesini kontrol et
 - Standart sapma çok yüksekse veri kalitesi düşük
 
+## 🧪 Test Etme
+
+### 1. Development Server Başlat
+
+```bash
+npm run dev
+```
+
+### 2. Değerleme Sayfasını Aç
+
+```
+http://localhost:3000/degerleme
+```
+
+### 3. Test Senaryosu
+
+**Adım 1**: Konum Seç
+
+- Haritada Hendek'i bul
+- Bir noktaya tıkla (örn: 40.800, 30.745)
+
+**Adım 2**: Mülk Bilgileri
+
+- Mülk Tipi: Konut
+- Alan: 120 m²
+- Oda Sayısı: 3+1
+- Bina Yaşı: 5 yıl
+
+**Adım 3**: Değerle
+
+- "Değerle" butonuna tıkla
+- Console log'larını kontrol et
+
+### 4. Beklenen Console Log'ları
+
+```
+🚀 Değerleme başlatılıyor... {location: '40.800, 30.745', propertyType: 'konut', area: 120}
+🔍 POI tespiti yapılıyor...
+📊 Konum skoru hesaplanıyor...
+🏘️ Benzer ilanlar aranıyor...
+🔍 Comparable search started: {location: {...}, propertyType: 'konut', area: 120}
+📂 Category mapping: {propertyType: 'konut', categories: ['konut']}
+🎯 Trying strategy: Dar Filtre (İlçe + Alan ±20%)
+📊 SQL Query Results: {hasRows: false, isArray: true, rowCount: 45, firstRow: {...}}
+✅ Found 45 results with strategy: Dar Filtre (İlçe + Alan ±20%)
+📈 Piyasa analizi yapılıyor...
+```
+
+### 5. Beklenen Sonuç
+
+**Değerleme Raporu**:
+
+- Tahmini Değer: 2.5M - 3M TL
+- Güven Skoru: 75-85%
+- Konum Skoru: 60-80/100
+- Benzer İlanlar: 20-50 adet
+- Piyasa Analizi: Ortalama m² fiyatı, medyan, standart sapma
+
+### 6. Hata Durumları
+
+**Eğer "0 sonuç" dönerse**:
+
+1. **Veritabanı Kontrolü**:
+
+```sql
+SELECT COUNT(*) FROM sahibinden_liste
+WHERE category = 'konut' AND transaction = 'satilik';
+```
+
+2. **Category Değerleri**:
+
+```sql
+SELECT DISTINCT category FROM sahibinden_liste;
+```
+
+3. **İlçe Değerleri**:
+
+```sql
+SELECT DISTINCT ilce FROM sahibinden_liste WHERE ilce LIKE '%Hendek%';
+```
+
+**Eğer PostgreSQL hatası alırsa**:
+
+- Array literal formatını kontrol et: `'{konut}'::text[]`
+- Drizzle ORM response structure'ı kontrol et
+- `VALUATION_BUG_FIX.md` dosyasını oku
+
+**Eğer Google Maps hatası alırsa**:
+
+- `GOOGLE_MAPS_SETUP.md` dosyasını oku
+- 3 API'yi aktif et: Geocoding, Maps JavaScript, Places
+
 ## 🚀 Sonraki Adımlar
 
 1. **Test Et**: `/degerleme` sayfasını aç ve farklı konumlar dene
