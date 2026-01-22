@@ -8,16 +8,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const propertyType = searchParams.get("propertyType");
 
-    let query = db
-      .select()
-      .from(valuations)
-      .orderBy(desc(valuations.createdAt));
+    // Build query with proper Drizzle chain order
+    let query = db.select().from(valuations);
 
+    // Apply where filter first if needed
     if (propertyType && propertyType !== "all") {
       query = query.where(eq(valuations.propertyType, propertyType as any));
     }
 
-    const results = await query;
+    // Then apply orderBy
+    const results = await query.orderBy(desc(valuations.createdAt));
 
     return NextResponse.json({
       success: true,
