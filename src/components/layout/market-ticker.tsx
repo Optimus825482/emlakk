@@ -51,25 +51,10 @@ export function MarketTicker() {
           if (data && data.length > 0) {
             setListings(data);
 
-            // İstatistikleri hesapla
-            const prices = data
-              .map((l: { price: string }) =>
-                parseInt(l.price?.replace(/\D/g, "") || "0"),
-              )
-              .filter((p: number) => p > 0);
-
-            const avgPrice =
-              prices.length > 0
-                ? Math.round(
-                    prices.reduce((a: number, b: number) => a + b, 0) /
-                      prices.length,
-                  )
-                : 0;
-
             setStats({
               totalListings: pagination?.total || data.length,
               monthlySales: Math.floor(Math.random() * 20) + 10, // Bu gerçek veriden gelmeli
-              avgPrice: formatPrice(avgPrice).replace("₺", ""), // ₺ işareti zaten gösteriliyor
+              avgPrice: "0", // Artık kullanılmıyor
             });
           }
         }
@@ -153,9 +138,7 @@ export function MarketTicker() {
                     {listing.title}
                   </span>
                   <span className="text-[var(--hazelnut)] font-bold">
-                    {formatPrice(
-                      parseInt(listing.price?.replace(/\D/g, "") || "0"),
-                    )}
+                    {formatPrice(listing.price)}
                   </span>
                 </Link>
                 {idx < listings.length - 1 && (
@@ -163,15 +146,6 @@ export function MarketTicker() {
                 )}
               </span>
             ))}
-
-            {/* Fiyat */}
-            <span className="text-gray-600">•</span>
-            <span className="flex items-center gap-2 text-sm">
-              <span className="text-[var(--terracotta)] font-bold">FİYAT</span>
-              <span className="text-[var(--hazelnut)] font-bold">
-                ₺{stats.avgPrice}
-              </span>
-            </span>
           </div>
         ))}
       </div>

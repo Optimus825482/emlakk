@@ -13,6 +13,7 @@ import {
   findProvinceBenchmark,
   findNeighborhoodAverage,
 } from "./comparable-finder";
+import { analyzePriceTrend } from "./trend-analyzer";
 
 /**
  * Mülk değerleme - Ana fonksiyon
@@ -218,6 +219,9 @@ export async function performValuation(
       adjustedProvincePricePerM2,
     );
 
+    console.log("📈 Fiyat trendi analizi yapılıyor...");
+    const trendAnalysis = await analyzePriceTrend(location, features);
+
     return {
       estimatedValue: Math.round(adjustedValue),
       priceRange,
@@ -233,10 +237,11 @@ export async function performValuation(
           min: marketStats.priceRange.min * features.area,
           max: marketStats.priceRange.max * features.area,
         },
-        trend: determineTrend(comparableProperties),
-        trendPercentage: 0, // TODO: Zaman serisi analizi ile hesaplanabilir
+        trend: trendAnalysis.trend,
+        trendPercentage: trendAnalysis.trendPercentage,
+        trendDescription: trendAnalysis.description,
       },
-      comparableProperties: comparableProperties.slice(0, 10), // İlk 10 sonuç
+      comparableProperties: comparableProperties.slice(0, 10),
       nearbyPOIs,
       aiInsights,
       methodology,
@@ -315,74 +320,75 @@ function generateAIInsights(
   neighborhoodAvg: { avgPricePerM2: number; count: number },
   adjustedProvincePricePerM2: number,
 ): string {
-  const insights: string[] = [];
+  const sections: string[] = [];
 
-  const layers: string[] = [];
-  if (comparableCount > 0) layers.push("yerel");
-  if (neighborhoodAvg.count > 0) layers.push("mahalle");
-  if (provinceBenchmark.count > 0) layers.push("il geneli");
+  sections.push(
+    `Özel matematiksel algoritmamız, güncel piyasa trendleri ve bölge dinamikleri analiz edilerek ` +
+    `mülkünüzün tahmini satış değeri ${(estimatedValue / 1000000).toFixed(2)} Milyon TL olarak belirlenmiştir.`
+  );
 
-  if (layers.length > 0) {
-    insights.push(
-      `${layers.join(", ")} bazlı değerlendirmeler yapılmış olup tahmini değer ${(estimatedValue / 1000000).toFixed(2)}M TL olarak hesaplanmıştır.`,
-    );
-  }
-
-  if (neighborhoodAvg.count > 0) {
+  if (neighborhoodAvg.count > 0 && provinceBenchmark.count > 0) {
     const localAvg = marketStats.avgPricePerM2;
     const neighborhoodPrice = neighborhoodAvg.avgPricePerM2;
-    const diff = ((localAvg / neighborhoodPrice - 1) * 100).toFixed(1);
+    const provincePrice = adjustedProvincePricePerM2;
+    
+    const vsNeighborhood = ((localAvg / neighborhoodPrice - 1) * 100);
+    const vsProvince = ((neighborhoodPrice / provincePrice - 1) * 100);
 
-    if (Math.abs(parseFloat(diff)) < 5) {
-      insights.push("Seçilen konum mahalle ortalamasına çok yakın.");
-    } else if (parseFloat(diff) > 0) {
-      insights.push(
-        `Bu konum mahalle ortalamasının %${diff} üzerinde değerleniyor.`,
-      );
+    let positionText = "";
+    if (Math.abs(vsNeighborhood) < 5) {
+      positionText = "mahalle ortalamasıyla uyumlu";
+    } else if (vsNeighborhood > 0) {
+      positionText = `mahalle ortalamasının %${vsNeighborhood.toFixed(0)} üzerinde`;
     } else {
-      insights.push(
-        `Bu konum mahalle ortalamasının %${Math.abs(parseFloat(diff))} altında değerleniyor.`,
-      );
+      positionText = `mahalle ortalamasının %${Math.abs(vsNeighborhood).toFixed(0)} altında`;
     }
-  }
 
-  if (provinceBenchmark.count > 0 && neighborhoodAvg.count > 0) {
-    const neighborhoodPrice = neighborhoodAvg.avgPricePerM2;
-    const provinceAvg = adjustedProvincePricePerM2;
-    const diff = ((neighborhoodPrice / provinceAvg - 1) * 100).toFixed(1);
-
-    if (Math.abs(parseFloat(diff)) < 5) {
-      insights.push("Mahalle fiyatları il geneli ortalamasına yakın.");
-    } else if (parseFloat(diff) > 0) {
-      insights.push(
-        `Bu mahalle il geneli ortalamasının %${diff} üzerinde fiyatlanıyor.`,
-      );
+    let areaText = "";
+    if (Math.abs(vsProvince) < 5) {
+      areaText = "il geneli ile benzer seviyede";
+    } else if (vsProvince > 0) {
+      areaText = `il ortalamasına göre %${vsProvince.toFixed(0)} primli`;
     } else {
-      insights.push(
-        `Bu mahalle il geneli ortalamasının %${Math.abs(parseFloat(diff))} altında fiyatlanıyor.`,
-      );
+      areaText = `il ortalamasına göre %${Math.abs(vsProvince).toFixed(0)} uygun fiyatlı`;
     }
-  }
 
-  if (locationScore.total >= 80) {
-    insights.push("Konum çok avantajlı - sosyal tesislere ve ulaşıma yakın.");
-  } else if (locationScore.total >= 60) {
-    insights.push("Konum avantajlı - temel ihtiyaçlara erişim iyi.");
-  } else if (locationScore.total >= 40) {
-    insights.push("Konum orta seviye - bazı gelişim alanları mevcut.");
-  } else {
-    insights.push(
-      "Konum gelişmeye açık - altyapı yatırımları değer artışı sağlayabilir.",
+    sections.push(
+      `Konum bazlı analiz: Mülk ${positionText} konumlanmaktadır. ` +
+      `Bölge genelinde fiyatlar ${areaText} bir seyir izlemektedir.`
     );
+  } else if (neighborhoodAvg.count > 0) {
+    const localAvg = marketStats.avgPricePerM2;
+    const neighborhoodPrice = neighborhoodAvg.avgPricePerM2;
+    const diff = ((localAvg / neighborhoodPrice - 1) * 100);
+
+    if (Math.abs(diff) < 5) {
+      sections.push("Mülk fiyatlandırması bölge dinamikleriyle uyumludur.");
+    } else if (diff > 0) {
+      sections.push(`Mülk, bölge ortalamasının %${diff.toFixed(0)} üzerinde değer görmektedir.`);
+    } else {
+      sections.push(`Mülk, bölge ortalamasının %${Math.abs(diff).toFixed(0)} altında fiyatlanmaktadır.`);
+    }
   }
+
+  let locationText = "";
+  if (locationScore.total >= 80) {
+    locationText = "Konum değerlendirmesi: Üstün. Ulaşım, eğitim ve sosyal tesislere yakınlık açısından yüksek puan almaktadır.";
+  } else if (locationScore.total >= 60) {
+    locationText = "Konum değerlendirmesi: İyi. Temel ihtiyaç noktalarına erişim kolaylığı mevcuttur.";
+  } else if (locationScore.total >= 40) {
+    locationText = "Konum değerlendirmesi: Orta. Bazı altyapı eksiklikleri bulunmakla birlikte gelişim potansiyeli taşımaktadır.";
+  } else {
+    locationText = "Konum değerlendirmesi: Gelişmeye açık. Bölgesel yatırımlar ile değer artış potansiyeli mevcuttur.";
+  }
+  sections.push(locationText);
 
   if (locationScore.advantages.length > 0) {
-    insights.push(
-      `Avantajlar: ${locationScore.advantages.slice(0, 3).join(", ")}.`,
-    );
+    const topAdvantages = locationScore.advantages.slice(0, 3);
+    sections.push(`Öne çıkan avantajlar: ${topAdvantages.join("; ")}.`);
   }
 
-  return insights.join(" ");
+  return sections.join("\n\n");
 }
 
 /**

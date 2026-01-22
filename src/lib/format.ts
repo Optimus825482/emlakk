@@ -6,12 +6,14 @@ export function formatPrice(price: number | string): string {
   let num: number;
 
   if (typeof price === "string") {
-    // String'den tüm sayısal olmayan karakterleri temizle
-    const cleaned = price.replace(/[^\d]/g, "");
-    num = parseInt(cleaned, 10);
+    // Önce float'a çevir (ondalık kısmı için)
+    num = parseFloat(price);
   } else {
-    num = Math.round(price);
+    num = price;
   }
+
+  // Round to integer
+  num = Math.round(num);
 
   if (isNaN(num) || num === 0) return "₺0";
 

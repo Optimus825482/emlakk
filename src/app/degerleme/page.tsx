@@ -691,7 +691,7 @@ export default function DegerlemePage() {
                 </div>
 
                 <div className="bg-white/5 rounded-2xl p-6 text-left">
-                  <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+                  <h3 className="text-white font-bold mb-4 flex items-center gap-2">
                     <Icon
                       name="auto_awesome"
                       className="text-[var(--terracotta)]"
@@ -699,9 +699,13 @@ export default function DegerlemePage() {
                     />
                     Değerlendirme Özeti
                   </h3>
-                  <p className="text-gray-300 text-sm leading-relaxed">
-                    {result.aiInsights}
-                  </p>
+                  <div className="space-y-3">
+                    {result.aiInsights.split('\n\n').map((paragraph: string, i: number) => (
+                      <p key={i} className="text-gray-300 text-sm leading-relaxed">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
                 </div>
 
                 <button

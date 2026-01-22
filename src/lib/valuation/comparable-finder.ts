@@ -1,8 +1,7 @@
-// Sahibinden İlanları ile Eşleştirme ve Benzerlik Skoru Hesaplama
-
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
 import { LocationPoint, PropertyFeatures, ComparableProperty } from "./types";
+import { normalizeMahalle, mahalleMatches, normalizeIlce } from "./utils";
 
 /**
  * Benzer ilanları bul ve benzerlik skoruna göre sırala
@@ -132,9 +131,15 @@ async function searchWithStrategy(
   };
 
   let locationFilter = sql``;
+  const normalizedMahalle = normalizeMahalle(mahalle);
   
-  if (strategy.includeMahalle && mahalle && ilce) {
-    locationFilter = sql`AND ilce = ${ilce} AND (mahalle ILIKE ${`%${mahalle}%`} OR mahalle ILIKE ${`%${mahalle.replace(/\s*(Mh\.?|Mahallesi)\s*/gi, '')}%`})`;
+  if (strategy.includeMahalle && normalizedMahalle && ilce) {
+    locationFilter = sql`AND ilce = ${ilce} AND (
+      LOWER(mahalle) ILIKE ${`%${normalizedMahalle}%`} 
+      OR LOWER(mahalle) ILIKE ${`%${normalizedMahalle} mh%`}
+      OR LOWER(mahalle) ILIKE ${`%${normalizedMahalle} mah%`}
+      OR LOWER(mahalle) ILIKE ${`%${normalizedMahalle} mahallesi%`}
+    )`;
   } else if (strategy.includeDistrict && ilce) {
     if (strategy.includeNeighbors && neighborDistricts[ilce]) {
       const allDistricts = [ilce, ...neighborDistricts[ilce]];
@@ -274,21 +279,17 @@ function calculateSimilarityScore(
   else score += 10;
 
   if (targetLocation.mahalle && comparable.mahalle) {
-    const targetMahalle = targetLocation.mahalle.toLowerCase().trim();
-    const compMahalle = comparable.mahalle.toLowerCase().trim();
+    const matchResult = mahalleMatches(targetLocation.mahalle, comparable.mahalle);
     
-    if (targetMahalle === compMahalle) {
+    if (matchResult.type === "exact") {
       score += 35;
-    } else if (compMahalle.includes(targetMahalle) || targetMahalle.includes(compMahalle)) {
+    } else if (matchResult.type === "partial") {
       score += 25;
     }
   }
 
   if (targetLocation.ilce && comparable.ilce) {
-    const targetIlce = targetLocation.ilce.toLowerCase().trim();
-    const compIlce = comparable.ilce.toLowerCase().trim();
-    
-    if (targetIlce === compIlce) {
+    if (normalizeIlce(targetLocation.ilce) === normalizeIlce(comparable.ilce)) {
       score += 15;
     }
   }
@@ -381,6 +382,7 @@ export async function findNeighborhoodAverage(
     // Mahalle filtresi
     const ilce = location.ilce || "";
     const mahalle = location.mahalle || "";
+    const normalizedMahalle = normalizeMahalle(mahalle);
 
     if (!ilce) {
       console.warn("⚠️ İlçe bilgisi yok, mahalle analizi yapılamıyor");
@@ -391,7 +393,6 @@ export async function findNeighborhoodAverage(
       };
     }
 
-    // Mahalle bazlı sorgu (alan filtresi YOK - tüm konutlar)
     const results = await db.execute(sql`
       SELECT 
         fiyat,
@@ -408,7 +409,12 @@ export async function findNeighborhoodAverage(
         AND fiyat > 0
         AND m2 IS NOT NULL
         AND ilce = ${ilce}
-        ${mahalle ? sql`AND (mahalle ILIKE ${`%${mahalle}%`} OR mahalle ILIKE ${`%${mahalle.replace(/\s*(Mh\.?|Mahallesi)\s*/gi, '')}%`})` : sql``}
+        ${normalizedMahalle ? sql`AND (
+          LOWER(mahalle) ILIKE ${`%${normalizedMahalle}%`} 
+          OR LOWER(mahalle) ILIKE ${`%${normalizedMahalle} mh%`}
+          OR LOWER(mahalle) ILIKE ${`%${normalizedMahalle} mah%`}
+          OR LOWER(mahalle) ILIKE ${`%${normalizedMahalle} mahallesi%`}
+        )` : sql``}
       LIMIT 100
     `);
 

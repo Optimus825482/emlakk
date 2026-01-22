@@ -40,7 +40,7 @@ const coreModules = [
   {
     href: "/admin/degerlemeler",
     icon: "calculate",
-    label: "Değerlemeler",
+    label: "Değerleme Raporları",
     badgeKey: "valuations",
   },
   {

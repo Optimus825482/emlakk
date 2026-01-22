@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   ExternalLink,
   MapPin,
+  ArrowLeft,
 } from "lucide-react";
 
 interface CategoryStat {
@@ -93,7 +94,7 @@ export default function SahibindenIncelemePage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [districts, setDistricts] = useState<District[]>([]);
-  const [selectedDistrict, setSelectedDistrict] = useState<string>("all");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("Hendek"); // Default: Hendek
   const [neighborhoods, setNeighborhoods] = useState<
     { id: string; name: string }[]
   >([]);
@@ -107,6 +108,11 @@ export default function SahibindenIncelemePage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [reportData, setReportData] = useState<any[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
+  const [filteredView, setFilteredView] = useState<{
+    mahalle: string;
+    category: string;
+    transaction: string;
+  } | null>(null);
 
   const fetchDistricts = async () => {
     try {
@@ -238,10 +244,10 @@ export default function SahibindenIncelemePage() {
 
   useEffect(() => {
     fetchDistricts();
-    fetchStats();
+    fetchStats("Hendek"); // Default: Hendek
     fetchListings();
-    // Fetch initial reports
-    fetchNeighborhoodReport();
+    // Fetch initial reports with Hendek
+    fetchNeighborhoodReport("Hendek");
   }, []);
 
   // Update stats and listings when filters change
@@ -263,11 +269,34 @@ export default function SahibindenIncelemePage() {
   };
 
   // Group report data by district
-  const groupedReport = reportData.reduce((acc: any, curr: any) => {
+  const groupedReport = (reportData || []).reduce((acc: any, curr: any) => {
     if (!acc[curr.district]) acc[curr.district] = [];
     acc[curr.district].push(curr);
     return acc;
   }, {});
+
+  // Handle category click - navigate to filtered listings
+  const handleCategoryClick = (
+    mahalle: string,
+    category: string,
+    transaction: string,
+  ) => {
+    setFilteredView({ mahalle, category, transaction });
+    setSelectedNeighborhood(mahalle);
+    setSelectedCategory(category);
+    setSelectedTransaction(transaction);
+    setActiveTab("overview");
+    // fetchListings will be triggered by useEffect
+  };
+
+  // Handle back to report
+  const handleBackToReport = () => {
+    setFilteredView(null);
+    setSelectedNeighborhood("all");
+    setSelectedCategory("all");
+    setSelectedTransaction("all");
+    setActiveTab("report");
+  };
 
   return (
     <div className="space-y-6">
@@ -313,6 +342,39 @@ export default function SahibindenIncelemePage() {
 
         {activeTab === "overview" && (
           <>
+            {/* Back to Report Button - Only show when filtered from report */}
+            {filteredView && (
+              <Card className="bg-blue-900/20 border-blue-500/30 mb-4">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={handleBackToReport}
+                        variant="outline"
+                        className="bg-slate-800 border-slate-700 hover:bg-slate-700 text-white"
+                      >
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Mahalle Raporuna Dön
+                      </Button>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Badge className="bg-blue-600 text-white">
+                          {filteredView.mahalle}
+                        </Badge>
+                        <span className="text-slate-400">•</span>
+                        <Badge className="bg-emerald-600 text-white">
+                          {filteredView.category}
+                        </Badge>
+                        <span className="text-slate-400">•</span>
+                        <Badge className="bg-purple-600 text-white">
+                          {filteredView.transaction}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="flex justify-end mb-4">
               <Button
                 onClick={() => {
@@ -546,22 +608,118 @@ export default function SahibindenIncelemePage() {
                                 {row.neighborhood}
                               </td>
                               <td className="px-6 py-4 text-center">
-                                {row.konut_satilik || "-"}
+                                <button
+                                  onClick={() =>
+                                    handleCategoryClick(
+                                      row.neighborhood,
+                                      "Konut",
+                                      "Satılık",
+                                    )
+                                  }
+                                  disabled={!row.konut_satilik}
+                                  className={`${
+                                    row.konut_satilik
+                                      ? "text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
+                                      : "text-slate-600 cursor-not-allowed"
+                                  } transition-colors`}
+                                >
+                                  {row.konut_satilik || "-"}
+                                </button>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                {row.konut_kiralik || "-"}
+                                <button
+                                  onClick={() =>
+                                    handleCategoryClick(
+                                      row.neighborhood,
+                                      "Konut",
+                                      "Kiralık",
+                                    )
+                                  }
+                                  disabled={!row.konut_kiralik}
+                                  className={`${
+                                    row.konut_kiralik
+                                      ? "text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer"
+                                      : "text-slate-600 cursor-not-allowed"
+                                  } transition-colors`}
+                                >
+                                  {row.konut_kiralik || "-"}
+                                </button>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                {row.arsa_satilik || "-"}
+                                <button
+                                  onClick={() =>
+                                    handleCategoryClick(
+                                      row.neighborhood,
+                                      "Arsa",
+                                      "Satılık",
+                                    )
+                                  }
+                                  disabled={!row.arsa_satilik}
+                                  className={`${
+                                    row.arsa_satilik
+                                      ? "text-green-400 hover:text-green-300 hover:underline cursor-pointer"
+                                      : "text-slate-600 cursor-not-allowed"
+                                  } transition-colors`}
+                                >
+                                  {row.arsa_satilik || "-"}
+                                </button>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                {row.isyeri_satilik || "-"}
+                                <button
+                                  onClick={() =>
+                                    handleCategoryClick(
+                                      row.neighborhood,
+                                      "İşyeri",
+                                      "Satılık",
+                                    )
+                                  }
+                                  disabled={!row.isyeri_satilik}
+                                  className={`${
+                                    row.isyeri_satilik
+                                      ? "text-purple-400 hover:text-purple-300 hover:underline cursor-pointer"
+                                      : "text-slate-600 cursor-not-allowed"
+                                  } transition-colors`}
+                                >
+                                  {row.isyeri_satilik || "-"}
+                                </button>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                {row.isyeri_kiralik || "-"}
+                                <button
+                                  onClick={() =>
+                                    handleCategoryClick(
+                                      row.neighborhood,
+                                      "İşyeri",
+                                      "Kiralık",
+                                    )
+                                  }
+                                  disabled={!row.isyeri_kiralik}
+                                  className={`${
+                                    row.isyeri_kiralik
+                                      ? "text-orange-400 hover:text-orange-300 hover:underline cursor-pointer"
+                                      : "text-slate-600 cursor-not-allowed"
+                                  } transition-colors`}
+                                >
+                                  {row.isyeri_kiralik || "-"}
+                                </button>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                {row.bina_satilik || "-"}
+                                <button
+                                  onClick={() =>
+                                    handleCategoryClick(
+                                      row.neighborhood,
+                                      "Bina",
+                                      "Satılık",
+                                    )
+                                  }
+                                  disabled={!row.bina_satilik}
+                                  className={`${
+                                    row.bina_satilik
+                                      ? "text-red-400 hover:text-red-300 hover:underline cursor-pointer"
+                                      : "text-slate-600 cursor-not-allowed"
+                                  } transition-colors`}
+                                >
+                                  {row.bina_satilik || "-"}
+                                </button>
                               </td>
                               <td className="px-6 py-4 text-center font-bold text-white bg-slate-800/50">
                                 {row.total}
@@ -643,22 +801,118 @@ export default function SahibindenIncelemePage() {
                                     {row.neighborhood}
                                   </td>
                                   <td className="px-6 py-4 text-center">
-                                    {row.konut_satilik || "-"}
+                                    <button
+                                      onClick={() =>
+                                        handleCategoryClick(
+                                          row.neighborhood,
+                                          "Konut",
+                                          "Satılık",
+                                        )
+                                      }
+                                      disabled={!row.konut_satilik}
+                                      className={`${
+                                        row.konut_satilik
+                                          ? "text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
+                                          : "text-slate-600 cursor-not-allowed"
+                                      } transition-colors`}
+                                    >
+                                      {row.konut_satilik || "-"}
+                                    </button>
                                   </td>
                                   <td className="px-6 py-4 text-center">
-                                    {row.konut_kiralik || "-"}
+                                    <button
+                                      onClick={() =>
+                                        handleCategoryClick(
+                                          row.neighborhood,
+                                          "Konut",
+                                          "Kiralık",
+                                        )
+                                      }
+                                      disabled={!row.konut_kiralik}
+                                      className={`${
+                                        row.konut_kiralik
+                                          ? "text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer"
+                                          : "text-slate-600 cursor-not-allowed"
+                                      } transition-colors`}
+                                    >
+                                      {row.konut_kiralik || "-"}
+                                    </button>
                                   </td>
                                   <td className="px-6 py-4 text-center">
-                                    {row.arsa_satilik || "-"}
+                                    <button
+                                      onClick={() =>
+                                        handleCategoryClick(
+                                          row.neighborhood,
+                                          "Arsa",
+                                          "Satılık",
+                                        )
+                                      }
+                                      disabled={!row.arsa_satilik}
+                                      className={`${
+                                        row.arsa_satilik
+                                          ? "text-green-400 hover:text-green-300 hover:underline cursor-pointer"
+                                          : "text-slate-600 cursor-not-allowed"
+                                      } transition-colors`}
+                                    >
+                                      {row.arsa_satilik || "-"}
+                                    </button>
                                   </td>
                                   <td className="px-6 py-4 text-center">
-                                    {row.isyeri_satilik || "-"}
+                                    <button
+                                      onClick={() =>
+                                        handleCategoryClick(
+                                          row.neighborhood,
+                                          "İşyeri",
+                                          "Satılık",
+                                        )
+                                      }
+                                      disabled={!row.isyeri_satilik}
+                                      className={`${
+                                        row.isyeri_satilik
+                                          ? "text-purple-400 hover:text-purple-300 hover:underline cursor-pointer"
+                                          : "text-slate-600 cursor-not-allowed"
+                                      } transition-colors`}
+                                    >
+                                      {row.isyeri_satilik || "-"}
+                                    </button>
                                   </td>
                                   <td className="px-6 py-4 text-center">
-                                    {row.isyeri_kiralik || "-"}
+                                    <button
+                                      onClick={() =>
+                                        handleCategoryClick(
+                                          row.neighborhood,
+                                          "İşyeri",
+                                          "Kiralık",
+                                        )
+                                      }
+                                      disabled={!row.isyeri_kiralik}
+                                      className={`${
+                                        row.isyeri_kiralik
+                                          ? "text-orange-400 hover:text-orange-300 hover:underline cursor-pointer"
+                                          : "text-slate-600 cursor-not-allowed"
+                                      } transition-colors`}
+                                    >
+                                      {row.isyeri_kiralik || "-"}
+                                    </button>
                                   </td>
                                   <td className="px-6 py-4 text-center">
-                                    {row.bina_satilik || "-"}
+                                    <button
+                                      onClick={() =>
+                                        handleCategoryClick(
+                                          row.neighborhood,
+                                          "Bina",
+                                          "Satılık",
+                                        )
+                                      }
+                                      disabled={!row.bina_satilik}
+                                      className={`${
+                                        row.bina_satilik
+                                          ? "text-red-400 hover:text-red-300 hover:underline cursor-pointer"
+                                          : "text-slate-600 cursor-not-allowed"
+                                      } transition-colors`}
+                                    >
+                                      {row.bina_satilik || "-"}
+                                    </button>
                                   </td>
                                   <td className="px-6 py-4 text-center font-bold text-white bg-slate-800/50">
                                     {row.total}
@@ -727,13 +981,19 @@ export default function SahibindenIncelemePage() {
                       <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                       <span>
                         Son güncelleme:{" "}
-                        {new Date(stats.lastUpdate).toLocaleString("tr-TR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {(() => {
+                          if (!stats.lastUpdate) return "Bilinmiyor";
+                          const date = new Date(stats.lastUpdate);
+                          return !isNaN(date.getTime())
+                            ? date.toLocaleString("tr-TR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "Bilinmiyor";
+                        })()}
                       </span>
                     </div>
                   </div>
@@ -886,9 +1146,28 @@ export default function SahibindenIncelemePage() {
                                   {item.fiyat?.toLocaleString("tr-TR")} TL
                                 </div>
                                 <div className="text-xs text-slate-500 mt-1">
-                                  {new Date(
-                                    item.tarih || item.crawledAt,
-                                  ).toLocaleDateString("tr-TR")}
+                                  {(() => {
+                                    const dateValue =
+                                      item.tarih || item.crawledAt;
+                                    if (!dateValue)
+                                      return "Tarih belirtilmemiş";
+
+                                    // Eğer tarih "31 Aralık" formatındaysa (yıl yok)
+                                    if (
+                                      typeof dateValue === "string" &&
+                                      !dateValue.includes("202")
+                                    ) {
+                                      const isOcak = dateValue.includes("Ocak");
+                                      const yil = isOcak ? 2026 : 2025;
+                                      return `${dateValue} ${yil}`;
+                                    }
+
+                                    // Normal tarih formatı
+                                    const date = new Date(dateValue);
+                                    return !isNaN(date.getTime())
+                                      ? date.toLocaleDateString("tr-TR")
+                                      : "Tarih belirtilmemiş";
+                                  })()}
                                 </div>
                                 <a
                                   href={item.link}

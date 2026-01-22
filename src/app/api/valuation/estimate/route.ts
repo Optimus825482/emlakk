@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { performValuation } from "@/lib/valuation/valuation-engine";
 import { LocationPoint, PropertyFeatures } from "@/lib/valuation/types";
+import { saveValuationRequest } from "@/lib/valuation/actions";
 
 // Request validation schema
 const valuationRequestSchema = z.object({
@@ -73,10 +74,20 @@ export async function POST(request: NextRequest) {
       comparables: result.comparableProperties.length,
     });
 
-    // TODO: Kullanıcı bilgisi varsa veritabanına kaydet
-    if (userInfo) {
-      // await saveValuationRequest(userInfo, location, features, result);
-    }
+    // Veritabanına kaydet
+    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+    const userAgent = request.headers.get("user-agent") || "Unknown";
+
+    // Kullanıcı bilgisi varsa veya anonim olarak kaydetmek istiyorsak
+    // Erkan "Yapılan tüm mülk değerlemelerinin kaydedilmesini" istediği için userInfo kontrolü yerine direkt kaydediyoruz
+    await saveValuationRequest(
+      userInfo || { name: "Anonim", email: "anonim@demir.com", phone: "-" },
+      location as LocationPoint,
+      features as PropertyFeatures,
+      result,
+      ip,
+      userAgent,
+    );
 
     return NextResponse.json({
       success: true,

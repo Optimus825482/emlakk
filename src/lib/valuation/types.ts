@@ -88,6 +88,7 @@ export interface MarketAnalysis {
   };
   trend: "rising" | "stable" | "falling";
   trendPercentage: number;
+  trendDescription?: string;
 }
 
 export interface ValuationResult {

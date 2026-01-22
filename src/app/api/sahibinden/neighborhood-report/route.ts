@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const ilce = searchParams.get("ilce");
 
-    // Base SQL query
+    // neighborhoods tablosundan TÜM mahalleleri al, LEFT JOIN ile ilan sayılarını ekle
     let query = sql`
       SELECT
         n.district,
@@ -21,8 +21,8 @@ export async function GET(request: Request) {
         COUNT(l.id)::int as total
       FROM public.neighborhoods n
       LEFT JOIN public.sahibinden_liste l 
-        ON l.konum ILIKE '%' || n.district || '%' 
-        AND l.konum ILIKE '%' || n.name || '%'
+        ON l.ilce = n.district 
+        AND l.mahalle = n.name
     `;
 
     // Add district filter if present
@@ -36,11 +36,11 @@ export async function GET(request: Request) {
       ORDER BY n.district, n.name ASC
     `;
 
-    const data = await db.execute(query);
+    const result = await db.execute(query);
 
     return NextResponse.json({
       success: true,
-      data,
+      data: result,
     });
   } catch (error: any) {
     console.error("Neighborhood stats error:", error);
