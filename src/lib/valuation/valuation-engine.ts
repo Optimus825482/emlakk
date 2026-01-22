@@ -111,37 +111,36 @@ export async function performValuation(
       priceRange: neighborhoodAvg.priceRange,
     });
 
-    // 7. 3 Katmanlı Ağırlıklı Ortalama
-    // Yerel: %50, Mahalle: %35, İl Geneli: %15
+    // 7. 3 Katmanlı Ağırlıklı Ortalama (Mahalle Öncelikli)
+    // Mahalle eşleşmesi varsa: Yerel %40, Mahalle %45, İl %15
+    // Mahalle yoksa: Yerel %85, İl %15
     let finalAvgPricePerM2 = marketStats.avgPricePerM2;
     let weights = {
-      local: 1.0, // %100 (fallback)
+      local: 1.0,
       neighborhood: 0,
       province: 0,
     };
 
-    // Mahalle ve il geneli varsa ağırlıklı ortalama (il geneli amortisman uygulanmış)
     if (
       neighborhoodAvg.count > 0 &&
       neighborhoodAvg.avgPricePerM2 > 0 &&
       provinceBenchmark.count > 0 &&
       adjustedProvincePricePerM2 > 0
     ) {
-      // 3 katman: %50 + %35 + %15
       finalAvgPricePerM2 = Math.round(
-        marketStats.avgPricePerM2 * 0.5 +
-          neighborhoodAvg.avgPricePerM2 * 0.35 +
+        marketStats.avgPricePerM2 * 0.40 +
+          neighborhoodAvg.avgPricePerM2 * 0.45 +
           adjustedProvincePricePerM2 * 0.15,
       );
-      weights = { local: 0.5, neighborhood: 0.35, province: 0.15 };
+      weights = { local: 0.40, neighborhood: 0.45, province: 0.15 };
 
-      console.log("⚖️ 3 Katmanlı Ağırlıklı Ortalama:", {
+      console.log("⚖️ 3 Katmanlı Ağırlıklı Ortalama (Mahalle Öncelikli):", {
         local: marketStats.avgPricePerM2,
         neighborhood: neighborhoodAvg.avgPricePerM2,
         province: adjustedProvincePricePerM2,
         weighted: finalAvgPricePerM2,
         formula:
-          "50% yerel + 35% mahalle + 15% il geneli (amortisman uygulanmış)",
+          "40% yerel + 45% mahalle + 15% il geneli",
       });
     } else if (provinceBenchmark.count > 0 && adjustedProvincePricePerM2 > 0) {
       // Sadece il geneli: %85 + %15

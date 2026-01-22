@@ -162,7 +162,7 @@ export async function GET(request: Request) {
             categories: { konut: 0, arsa: 0, isyeri: 0, bina: 0 },
           },
           filters: {
-            district,
+            district: normalizedDistrict,
             category: category || "all",
             transaction: transaction || "all",
           },
@@ -213,7 +213,7 @@ export async function GET(request: Request) {
         markers,
         stats,
         filters: {
-          district,
+          district: normalizedDistrict,
           category: category || "all",
           transaction: transaction || "all",
         },

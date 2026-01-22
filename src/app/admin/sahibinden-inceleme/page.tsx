@@ -138,6 +138,27 @@ export default function SahibindenIncelemePage() {
     }
   };
 
+  const fetchNeighborhoodReport = async (district?: string) => {
+    try {
+      setReportLoading(true);
+      const url =
+        district && district !== "all"
+          ? `/api/sahibinden/neighborhood-report?ilce=${district}`
+          : `/api/sahibinden/neighborhood-report`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.success) {
+        setReportData(data.data);
+      }
+    } catch (error) {
+      console.error("Neighborhood report fetch error:", error);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   const fetchStats = async (
     district?: string,
     neighborhood?: string,
@@ -219,6 +240,8 @@ export default function SahibindenIncelemePage() {
     fetchDistricts();
     fetchStats();
     fetchListings();
+    // Fetch initial reports
+    fetchNeighborhoodReport();
   }, []);
 
   // Update stats and listings when filters change
@@ -273,7 +296,10 @@ export default function SahibindenIncelemePage() {
             </Button>
             <Button
               variant={activeTab === "report" ? "default" : "secondary"}
-              onClick={() => setActiveTab("report")}
+              onClick={() => {
+                setActiveTab("report");
+                fetchNeighborhoodReport(selectedDistrict);
+              }}
               className={
                 activeTab === "report"
                   ? "bg-emerald-600 hover:bg-emerald-500"
@@ -415,192 +441,247 @@ export default function SahibindenIncelemePage() {
       </div>
 
       {activeTab === "report" ? (
-        <div className="space-y-8">
-          {selectedDistrict !== "all" ? (
-            // Show single district table
-            <div key={selectedDistrict} className="space-y-3">
-              <h2 className="text-2xl font-bold text-white border-b border-slate-800 pb-2">
-                {selectedDistrict} Mahalle Raporu
-              </h2>
-              {reportLoading ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+        <div className="space-y-6">
+          {/* Mahalle Raporu Header ve Filtre */}
+          <Card className="bg-slate-900/50 border-slate-800">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-1">
+                    Mahalle Bazlı İstatistikler
+                  </h2>
+                  <p className="text-sm text-slate-400">
+                    İlçe seçerek mahalle bazında detaylı analiz görüntüleyin
+                  </p>
                 </div>
-              ) : (
-                <div className="rounded-lg border border-slate-800 overflow-hidden bg-slate-900/50">
-                  <table className="w-full text-sm text-left text-slate-300">
-                    <thead className="text-xs uppercase bg-slate-900 text-slate-400 font-bold">
-                      <tr>
-                        <th className="px-6 py-3">Mahalle</th>
-                        <th className="px-6 py-3 text-center text-blue-400">
-                          Konut (Sat)
-                        </th>
-                        <th className="px-6 py-3 text-center text-cyan-400">
-                          Konut (Kir)
-                        </th>
-                        <th className="px-6 py-3 text-center text-green-400">
-                          Arsa (Sat)
-                        </th>
-                        <th className="px-6 py-3 text-center text-purple-400">
-                          İşyeri (Sat)
-                        </th>
-                        <th className="px-6 py-3 text-center text-orange-400">
-                          İşyeri (Kir)
-                        </th>
-                        <th className="px-6 py-3 text-center text-red-400">
-                          Bina (Sat)
-                        </th>
-                        <th className="px-6 py-3 text-center text-white bg-slate-800">
-                          Toplam
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {groupedReport[selectedDistrict]?.map(
-                        (row: any, i: number) => (
-                          <tr
-                            key={i}
-                            className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors"
-                          >
-                            <td className="px-6 py-4 font-medium text-white">
-                              {row.neighborhood}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              {row.konut_satilik || "-"}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              {row.konut_kiralik || "-"}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              {row.arsa_satilik || "-"}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              {row.isyeri_satilik || "-"}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              {row.isyeri_kiralik || "-"}
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              {row.bina_satilik || "-"}
-                            </td>
-                            <td className="px-6 py-4 text-center font-bold text-white bg-slate-800/50">
-                              {row.total}
+                <div className="flex items-center gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-400">İlçe Seçin</label>
+                    <Select
+                      value={selectedDistrict}
+                      onValueChange={(value) => {
+                        setSelectedDistrict(value);
+                        fetchNeighborhoodReport(value);
+                      }}
+                    >
+                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white w-48">
+                        <SelectValue placeholder="İlçe Seçin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tüm İlçeler</SelectItem>
+                        {districts.map((d) => (
+                          <SelectItem key={d.value} value={d.label}>
+                            {d.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={() => fetchNeighborhoodReport(selectedDistrict)}
+                    disabled={reportLoading}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white mt-5"
+                  >
+                    {reportLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Yenile
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mahalle Raporu Tablosu */}
+          <div className="space-y-8">
+            {selectedDistrict !== "all" ? (
+              // Show single district table
+              <div key={selectedDistrict} className="space-y-3">
+                <h2 className="text-2xl font-bold text-white border-b border-slate-800 pb-2">
+                  {selectedDistrict} Mahalle Raporu
+                </h2>
+                {reportLoading ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-slate-800 overflow-hidden bg-slate-900/50">
+                    <table className="w-full text-sm text-left text-slate-300">
+                      <thead className="text-xs uppercase bg-slate-900 text-slate-400 font-bold">
+                        <tr>
+                          <th className="px-6 py-3">Mahalle</th>
+                          <th className="px-6 py-3 text-center text-blue-400">
+                            Konut (Sat)
+                          </th>
+                          <th className="px-6 py-3 text-center text-cyan-400">
+                            Konut (Kir)
+                          </th>
+                          <th className="px-6 py-3 text-center text-green-400">
+                            Arsa (Sat)
+                          </th>
+                          <th className="px-6 py-3 text-center text-purple-400">
+                            İşyeri (Sat)
+                          </th>
+                          <th className="px-6 py-3 text-center text-orange-400">
+                            İşyeri (Kir)
+                          </th>
+                          <th className="px-6 py-3 text-center text-red-400">
+                            Bina (Sat)
+                          </th>
+                          <th className="px-6 py-3 text-center text-white bg-slate-800">
+                            Toplam
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {groupedReport[selectedDistrict]?.map(
+                          (row: any, i: number) => (
+                            <tr
+                              key={i}
+                              className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors"
+                            >
+                              <td className="px-6 py-4 font-medium text-white">
+                                {row.neighborhood}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                {row.konut_satilik || "-"}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                {row.konut_kiralik || "-"}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                {row.arsa_satilik || "-"}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                {row.isyeri_satilik || "-"}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                {row.isyeri_kiralik || "-"}
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                {row.bina_satilik || "-"}
+                              </td>
+                              <td className="px-6 py-4 text-center font-bold text-white bg-slate-800/50">
+                                {row.total}
+                              </td>
+                            </tr>
+                          ),
+                        )}
+                        {(!groupedReport[selectedDistrict] ||
+                          groupedReport[selectedDistrict].length === 0) && (
+                          <tr>
+                            <td
+                              colSpan={8}
+                              className="px-6 py-8 text-center text-slate-500"
+                            >
+                              Veri bulunamadı.
                             </td>
                           </tr>
-                        ),
-                      )}
-                      {(!groupedReport[selectedDistrict] ||
-                        groupedReport[selectedDistrict].length === 0) && (
-                        <tr>
-                          <td
-                            colSpan={8}
-                            className="px-6 py-8 text-center text-slate-500"
-                          >
-                            Veri bulunamadı.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : (
+              Object.keys(groupedReport)
+                .sort()
+                .map((distName) => (
+                  <div key={distName} className="space-y-3">
+                    <h2 className="text-2xl font-bold text-white border-b border-slate-800 pb-2 flex items-center gap-2">
+                      {distName}
+                      <Badge
+                        variant="secondary"
+                        className="bg-slate-800 text-slate-400"
+                      >
+                        {groupedReport[distName]?.length} Mahalle
+                      </Badge>
+                    </h2>
+                    {reportLoading ? (
+                      <div className="flex justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-slate-800 overflow-hidden bg-slate-900/50">
+                        <table className="w-full text-sm text-left text-slate-300">
+                          <thead className="text-xs uppercase bg-slate-900 text-slate-400 font-bold">
+                            <tr>
+                              <th className="px-6 py-3">Mahalle</th>
+                              <th className="px-6 py-3 text-center text-blue-400">
+                                Konut (Sat)
+                              </th>
+                              <th className="px-6 py-3 text-center text-cyan-400">
+                                Konut (Kir)
+                              </th>
+                              <th className="px-6 py-3 text-center text-green-400">
+                                Arsa (Sat)
+                              </th>
+                              <th className="px-6 py-3 text-center text-purple-400">
+                                İşyeri (Sat)
+                              </th>
+                              <th className="px-6 py-3 text-center text-orange-400">
+                                İşyeri (Kir)
+                              </th>
+                              <th className="px-6 py-3 text-center text-red-400">
+                                Bina (Sat)
+                              </th>
+                              <th className="px-6 py-3 text-center text-white bg-slate-800">
+                                Toplam
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupedReport[distName].map(
+                              (row: any, i: number) => (
+                                <tr
+                                  key={i}
+                                  className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors"
+                                >
+                                  <td className="px-6 py-4 font-medium text-white">
+                                    {row.neighborhood}
+                                  </td>
+                                  <td className="px-6 py-4 text-center">
+                                    {row.konut_satilik || "-"}
+                                  </td>
+                                  <td className="px-6 py-4 text-center">
+                                    {row.konut_kiralik || "-"}
+                                  </td>
+                                  <td className="px-6 py-4 text-center">
+                                    {row.arsa_satilik || "-"}
+                                  </td>
+                                  <td className="px-6 py-4 text-center">
+                                    {row.isyeri_satilik || "-"}
+                                  </td>
+                                  <td className="px-6 py-4 text-center">
+                                    {row.isyeri_kiralik || "-"}
+                                  </td>
+                                  <td className="px-6 py-4 text-center">
+                                    {row.bina_satilik || "-"}
+                                  </td>
+                                  <td className="px-6 py-4 text-center font-bold text-white bg-slate-800/50">
+                                    {row.total}
+                                  </td>
+                                </tr>
+                              ),
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ))
+            )}
+
+            {!selectedDistrict &&
+              Object.keys(groupedReport).length === 0 &&
+              !reportLoading && (
+                <div className="text-center py-20 bg-slate-900/50 rounded-xl border border-slate-800 text-slate-400">
+                  Rapor verileri yüklenemedi veya veri yok.
                 </div>
               )}
-            </div>
-          ) : (
-            Object.keys(groupedReport)
-              .sort()
-              .map((distName) => (
-                <div key={distName} className="space-y-3">
-                  <h2 className="text-2xl font-bold text-white border-b border-slate-800 pb-2 flex items-center gap-2">
-                    {distName}
-                    <Badge
-                      variant="secondary"
-                      className="bg-slate-800 text-slate-400"
-                    >
-                      {groupedReport[distName]?.length} Mahalle
-                    </Badge>
-                  </h2>
-                  {reportLoading ? (
-                    <div className="flex justify-center py-12">
-                      <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-slate-800 overflow-hidden bg-slate-900/50">
-                      <table className="w-full text-sm text-left text-slate-300">
-                        <thead className="text-xs uppercase bg-slate-900 text-slate-400 font-bold">
-                          <tr>
-                            <th className="px-6 py-3">Mahalle</th>
-                            <th className="px-6 py-3 text-center text-blue-400">
-                              Konut (Sat)
-                            </th>
-                            <th className="px-6 py-3 text-center text-cyan-400">
-                              Konut (Kir)
-                            </th>
-                            <th className="px-6 py-3 text-center text-green-400">
-                              Arsa (Sat)
-                            </th>
-                            <th className="px-6 py-3 text-center text-purple-400">
-                              İşyeri (Sat)
-                            </th>
-                            <th className="px-6 py-3 text-center text-orange-400">
-                              İşyeri (Kir)
-                            </th>
-                            <th className="px-6 py-3 text-center text-red-400">
-                              Bina (Sat)
-                            </th>
-                            <th className="px-6 py-3 text-center text-white bg-slate-800">
-                              Toplam
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {groupedReport[distName].map(
-                            (row: any, i: number) => (
-                              <tr
-                                key={i}
-                                className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors"
-                              >
-                                <td className="px-6 py-4 font-medium text-white">
-                                  {row.neighborhood}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  {row.konut_satilik || "-"}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  {row.konut_kiralik || "-"}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  {row.arsa_satilik || "-"}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  {row.isyeri_satilik || "-"}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  {row.isyeri_kiralik || "-"}
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                  {row.bina_satilik || "-"}
-                                </td>
-                                <td className="px-6 py-4 text-center font-bold text-white bg-slate-800/50">
-                                  {row.total}
-                                </td>
-                              </tr>
-                            ),
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              ))
-          )}
-
-          {!selectedDistrict &&
-            Object.keys(groupedReport).length === 0 &&
-            !reportLoading && (
-              <div className="text-center py-20 bg-slate-900/50 rounded-xl border border-slate-800 text-slate-400">
-                Rapor verileri yüklenemedi veya veri yok.
-              </div>
-            )}
+          </div>
         </div>
       ) : (
         <>

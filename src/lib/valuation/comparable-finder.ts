@@ -45,7 +45,7 @@ export async function findComparableProperties(
         includeDistrict: true,
         includeMahalle: true,
         includeNeighbors: false,
-        minResults: 5,
+        minResults: 3,
       },
       {
         name: "Orta Filtre (Mahalle + Alan ±20%)",
@@ -53,7 +53,7 @@ export async function findComparableProperties(
         includeDistrict: true,
         includeMahalle: true,
         includeNeighbors: false,
-        minResults: 5,
+        minResults: 3,
       },
       {
         name: "Geniş Filtre (İlçe + Alan ±30%)",
@@ -61,7 +61,7 @@ export async function findComparableProperties(
         includeDistrict: true,
         includeMahalle: false,
         includeNeighbors: false,
-        minResults: 5,
+        minResults: 3,
       },
       {
         name: "En Geniş Filtre (Komşu İlçeler + Alan ±30%)",
@@ -69,7 +69,7 @@ export async function findComparableProperties(
         includeDistrict: true,
         includeMahalle: false,
         includeNeighbors: true,
-        minResults: 5,
+        minResults: 3,
       },
     ];
 
@@ -134,16 +134,16 @@ async function searchWithStrategy(
   let locationFilter = sql``;
   
   if (strategy.includeMahalle && mahalle && ilce) {
-    locationFilter = sql`AND ilce ILIKE ${`%${ilce}%`} AND konum ILIKE ${`%${mahalle}%`}`;
+    locationFilter = sql`AND ilce = ${ilce} AND (mahalle ILIKE ${`%${mahalle}%`} OR mahalle ILIKE ${`%${mahalle.replace(/\s*(Mh\.?|Mahallesi)\s*/gi, '')}%`})`;
   } else if (strategy.includeDistrict && ilce) {
     if (strategy.includeNeighbors && neighborDistricts[ilce]) {
       const allDistricts = [ilce, ...neighborDistricts[ilce]];
       const districtConditions = allDistricts
-        .map((d) => `ilce ILIKE '%${d}%' OR konum ILIKE '%${d}%'`)
+        .map((d) => `ilce = '${d}'`)
         .join(" OR ");
       locationFilter = sql.raw(`AND (${districtConditions})`);
     } else {
-      locationFilter = sql`AND (ilce ILIKE ${`%${ilce}%`} OR konum ILIKE ${`%${ilce}%`})`;
+      locationFilter = sql`AND ilce = ${ilce}`;
     }
   }
 
@@ -161,7 +161,8 @@ async function searchWithStrategy(
       koordinatlar,
       ozellikler,
       ek_ozellikler,
-      ilce
+      ilce,
+      mahalle
     FROM sahibinden_liste
     WHERE 
       category = ANY(${sql.raw(`'${categoryArray}'::text[]`)})
@@ -224,7 +225,7 @@ async function searchWithStrategy(
         {
           area: m2Value,
           ilce: row.ilce,
-          mahalle: extractMahalle(row.konum),
+          mahalle: row.mahalle || extractMahalle(row.konum),
           ozellikler: row.ozellikler,
           ekOzellikler: row.ek_ozellikler,
         },
@@ -242,7 +243,7 @@ async function searchWithStrategy(
         similarity,
       };
     })
-    .filter((c): c is ComparableProperty => c !== null && c.similarity >= 40)
+    .filter((c): c is ComparableProperty => c !== null && c.similarity >= 25)
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, 20);
 
@@ -267,25 +268,27 @@ function calculateSimilarityScore(
 
   const areaDiff =
     Math.abs(targetFeatures.area - comparable.area) / targetFeatures.area;
-  if (areaDiff <= 0.1) score += 35;
-  else if (areaDiff <= 0.2) score += 28;
-  else if (areaDiff <= 0.3) score += 20;
+  if (areaDiff <= 0.1) score += 30;
+  else if (areaDiff <= 0.2) score += 24;
+  else if (areaDiff <= 0.3) score += 18;
   else score += 10;
 
   if (targetLocation.mahalle && comparable.mahalle) {
-    if (
-      comparable.mahalle
-        .toLowerCase()
-        .includes(targetLocation.mahalle.toLowerCase())
-    ) {
-      score += 30;
+    const targetMahalle = targetLocation.mahalle.toLowerCase().trim();
+    const compMahalle = comparable.mahalle.toLowerCase().trim();
+    
+    if (targetMahalle === compMahalle) {
+      score += 35;
+    } else if (compMahalle.includes(targetMahalle) || targetMahalle.includes(compMahalle)) {
+      score += 25;
     }
   }
 
   if (targetLocation.ilce && comparable.ilce) {
-    if (
-      comparable.ilce.toLowerCase().includes(targetLocation.ilce.toLowerCase())
-    ) {
+    const targetIlce = targetLocation.ilce.toLowerCase().trim();
+    const compIlce = comparable.ilce.toLowerCase().trim();
+    
+    if (targetIlce === compIlce) {
       score += 15;
     }
   }
@@ -395,6 +398,7 @@ export async function findNeighborhoodAverage(
         m2,
         konum,
         ilce,
+        mahalle,
         CAST(fiyat AS BIGINT) / CAST(REGEXP_REPLACE(m2, '[^0-9]', '', 'g') AS INTEGER) as price_per_m2
       FROM sahibinden_liste
       WHERE 
@@ -403,8 +407,8 @@ export async function findNeighborhoodAverage(
         AND fiyat IS NOT NULL 
         AND fiyat > 0
         AND m2 IS NOT NULL
-        AND ilce ILIKE ${`%${ilce}%`}
-        ${mahalle ? sql`AND konum ILIKE ${`%${mahalle}%`}` : sql``}
+        AND ilce = ${ilce}
+        ${mahalle ? sql`AND (mahalle ILIKE ${`%${mahalle}%`} OR mahalle ILIKE ${`%${mahalle.replace(/\s*(Mh\.?|Mahallesi)\s*/gi, '')}%`})` : sql``}
       LIMIT 100
     `);
 

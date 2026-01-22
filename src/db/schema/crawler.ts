@@ -39,7 +39,9 @@ export const sahibindenListe = pgTable("sahibinden_liste", {
   konumOzellikleri: jsonb("konum_ozellikleri"),
   cephe: text("cephe"),
   resimler: jsonb("resimler").$type<string[]>(),
-  ilce: varchar("ilce", { length: 255 }), // İlçe bilgisi
+  ilce: varchar("ilce", { length: 255 }),
+  semt: varchar("semt", { length: 255 }),
+  mahalle: varchar("mahalle", { length: 255 }),
 });
 
 export const miningJobs = pgTable("mining_jobs", {
