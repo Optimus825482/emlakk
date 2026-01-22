@@ -53,11 +53,11 @@ export function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 group">
               <div className="relative">
-                {settings.logo ? (
+                {settings.logo || "/logo.png" ? (
                   <img
-                    src={settings.logo}
+                    src={settings.logo || "/logo.png"}
                     alt={settings.siteName}
-                    className="w-10 h-10 rounded-xl object-cover"
+                    className="w-23 h-20 rounded-2xl object-cover"
                   />
                 ) : (
                   <div className="w-10 h-10 bg-[var(--demir-slate)] rounded-xl flex items-center justify-center shadow-lg">

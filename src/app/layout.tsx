@@ -20,28 +20,49 @@ const notoSans = Noto_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "DEMİR Gayrimenkul | Hendek'in Sağlam Kararı",
+  title: {
+    default: "DEMİR Gayrimenkul | Sakarya Hendek Emlak & Yatırım Danışmanlığı",
+    template: "%s | DEMİR Gayrimenkul",
+  },
   description:
-    "Demir Gayrimenkul - Hendek'in Premium Gayrimenkul Danışmanlığı. AI destekli değerleme, sanayi, tarım ve konut yatırımları.",
+    "Demir Gayrimenkul - Sakarya ve Hendek'in öncü emlak ve gayrimenkul yatırım danışmanlığı. AI destekli değerleme, kiralık ve satılık daire, arsa, sanayi ve tarım arazileri.",
   keywords: [
+    "emlak",
     "gayrimenkul",
-    "hendek",
-    "sakarya",
-    "arsa",
-    "sanayi",
-    "tarım",
-    "konut",
-    "yatırım",
+    "hendek emlak",
+    "sakarya emlak",
+    "hendek gayrimenkul",
+    "sakarya gayrimenkul",
+    "satılık daire hendek",
+    "kiralık daire hendek",
+    "satılık arsa sakarya",
+    "yatırım danışmanlığı",
     "değerleme",
-    "AI",
+    "arsa",
+    "tarım arazisi",
+    "sanayi parseli",
+    "AI emlak",
   ],
   authors: [{ name: "Demir Gayrimenkul" }],
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
   openGraph: {
     title: "DEMİR Gayrimenkul | Hendek'in Sağlam Kararı",
     description:
-      "Geleneksel dürüstlük, yapay zeka destekli yatırım öngörüleri ile buluşuyor.",
+      "Geleneksel dürüstlük, yapay zeka destekli yatırım öngörüleri ile buluşuyor. Sakarya Hendek'te güvenilir emlak ortağınız.",
     type: "website",
     locale: "tr_TR",
+    images: [
+      {
+        url: "/logo.png",
+        width: 1200,
+        height: 630,
+        alt: "Demir Gayrimenkul Logo",
+      },
+    ],
   },
 };
 

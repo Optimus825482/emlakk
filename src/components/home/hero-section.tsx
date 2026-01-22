@@ -35,15 +35,15 @@ interface HeroContent {
 }
 
 const defaultContent: HeroContent = {
-  badge: "Hendek'in Premium Gayrimenkulü",
+  badge: "Sakarya Hendek Premium Emlak & Gayrimenkul",
   title: "Demir Gayrimenkul:",
-  titleHighlight: "Akıllı",
+  titleHighlight: "Güvenli",
   titleAccent: "Yatırım",
-  titleEnd: "Demir Güven.",
+  titleEnd: "Doğru Karar.",
   description:
-    "Yılların getirdiği yerel esnaf samimiyetini, küresel dünyanın veri bilimiyle harmanlıyoruz. Hendek in her sokağını, her ağacını bilen bir hafıza, şimdi en ileri teknolojiyle analiz ediliyor.",
-  ctaPrimary: "Hendek'i Keşfedin",
-  ctaSecondary: "Mülk Değerleme Platformu",
+    "Hendek'in en köklü emlak hafızasını, modern veri bilimi ve yapay zeka ile birleştiriyoruz. Sakarya'da gayrimenkul yatırımınız için en sağlam verileri sunan uzman ekibimizle tanışın.",
+  ctaPrimary: "İlanları İncele",
+  ctaSecondary: "Ücretsiz Değerleme",
   founderName: "Mustafa Demir",
   founderTitle: "Gayrimenkul Danışmanı | Yatırım & Proje Geliştirme  ",
   founderQuote: "Bence değil, Verilere göre yatırım...",

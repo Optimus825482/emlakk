@@ -43,8 +43,47 @@ export default function HomePage() {
       .finally(() => setLoaded(true));
   }, []);
 
+  // Organization JSON-LD
+  const orgJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "RealEstateAgent",
+    name: "Demir Gayrimenkul",
+    alternateName: "Demir Emlak & Yatırım",
+    url: "https://demirgayrimenkul.com",
+    logo: "https://demirgayrimenkul.com/logo.png",
+    image: "https://demirgayrimenkul.com/logo.png",
+    description:
+      "Hendek ve Sakarya'nın öncü emlak ve gayrimenkul yatırım danışmanlığı. AI destekli değerleme ve uzman portföy.",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Hendek",
+      addressRegion: "Sakarya",
+      addressCountry: "TR",
+    },
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: 40.8385,
+      longitude: 30.749,
+    },
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: "+90-264-123-4567",
+      contactType: "customer service",
+      areaServed: "TR",
+      availableLanguage: "Turkish",
+    },
+    sameAs: [
+      "https://www.instagram.com/demirgayrimenkul",
+      "https://www.linkedin.com/company/demirgayrimenkul",
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+      />
       {/* Navigation (MarketTicker içinde) */}
       <Navbar />
 

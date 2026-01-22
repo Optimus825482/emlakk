@@ -147,8 +147,35 @@ export default async function IlanDetayPage({ params }: PageProps) {
   if (features.soilType)
     displayFeatures["Toprak Tipi"] = String(features.soilType);
 
+  // JSON-LD Structured Data for RealEstateListing
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "RealEstateListing",
+    name: listing.title,
+    description: listing.description,
+    url: `${process.env.NEXT_PUBLIC_APP_URL || "https://demirgayrimenkul.com"}/ilanlar/${listing.slug}`,
+    image: listing.thumbnail || (listing.images && listing.images[0]),
+    datePosted: listing.createdAt,
+    offers: {
+      "@type": "Offer",
+      price: listing.price,
+      priceCurrency: "TRY",
+      availability: "https://schema.org/InStock",
+    },
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: listing.district || "Hendek",
+      addressRegion: "Sakarya",
+      addressCountry: "TR",
+    },
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Navbar />
       <ListingTracker listingId={listing.id} />
       <main className="min-h-screen bg-[var(--cream)]">

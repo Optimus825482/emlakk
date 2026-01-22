@@ -65,12 +65,11 @@ export function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-                <Icon
-                  name="apartment"
-                  className="text-[var(--demir-slate)] text-xl"
-                />
-              </div>
+              <img
+                src="/logo.png"
+                alt="Demir Gayrimenkul"
+                className="w-10 h-10 rounded-xl object-cover bg-white"
+              />
               <div>
                 <span className="text-xl font-bold text-white">DEMİR</span>
                 <span className="block text-[10px] font-medium text-[var(--terracotta)] tracking-widest uppercase -mt-1">

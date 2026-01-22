@@ -79,7 +79,7 @@ export function CategoryListings() {
               iconBg="bg-blue-500/20"
               iconColor="text-blue-400"
               title="Sanayi Fırsatları"
-              subtitle="Hendek OSB ve çevresindeki stratejik yatırımlar"
+              subtitle="Hendek OSB ve çevresindeki stratejik emlak yatırımları"
               linkHref="/ilanlar?type=sanayi"
               linkColor="text-white/70 hover:text-white"
             />
@@ -101,7 +101,7 @@ export function CategoryListings() {
               iconBg="bg-[var(--forest)]/20"
               iconColor="text-[var(--forest)]"
               title="Tarım Arazileri"
-              subtitle="Fındık bahçeleri ve verimli tarım arazileri"
+              subtitle="Fındık bahçeleri ve verimli tarım gayrimenkulleri"
               linkHref="/ilanlar?type=tarim"
               linkColor="text-[var(--forest)] hover:text-[var(--forest)]/80"
               dark={false}
@@ -124,7 +124,7 @@ export function CategoryListings() {
               iconBg="bg-[var(--terracotta)]/20"
               iconColor="text-[var(--terracotta)]"
               title="Konut Projeleri"
-              subtitle="Villa, daire ve imarlı arsalar"
+              subtitle="Hendek ve Sakarya kiralık/satılık konut emlak projeleri"
               linkHref="/ilanlar?type=konut"
               linkColor="text-[var(--terracotta)] hover:text-[var(--terracotta-light)]"
               dark={false}
