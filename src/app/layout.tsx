@@ -46,6 +46,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Demir Gayrimenkul" }],
   verification: {
     google: "olsqZYoGQT6m4V-kcBAI2-VCG6Z_TRLqZNLY4LRbvXs",
+    yandex: "17f21331080420eb",
   },
   icons: {
     icon: "/favicon.png",
