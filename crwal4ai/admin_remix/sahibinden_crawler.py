@@ -11,6 +11,7 @@ Kullanım:
    python sahibinden_crawler.py --max-pages 5
    python sahibinden_crawler.py --job-id <uuid>
 """
+
 import undetected_chromedriver as uc
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -28,8 +29,10 @@ import random
 import logging
 import argparse
 from datetime import datetime, timedelta
+import shutil
 from pathlib import Path
 from typing import Optional, List, Dict
+
 from db_manager import db
 import json
 from dotenv import load_dotenv
@@ -70,59 +73,60 @@ def parse_price(price_str):
 def parse_konum_to_semt_mahalle(konum_text):
     """
     Konum metnini semt ve mahalle olarak ayır - CamelCase pattern
-    
+
     Strateji:
     1. CamelCase pattern kullan: İlk büyük harf grubu = semt, ikinci büyük harf grubu = mahalle
     2. Örnek: "TığcılarYahyalar Mah." -> "Tığcılar" + "Yahyalar Mah."
     3. Örnek: "MerkezYeni Mah." -> "Merkez" + "Yeni Mah."
     4. Örnek: "KöylerDağdibi Mh." -> "Köyler" + "Dağdibi Mh."
-    
+
     Returns:
         tuple: (semt, mahalle) veya (None, mahalle) veya (semt, None)
     """
     if not konum_text:
         return None, None
-    
+
     # Boşluk varsa zaten ayrılmış demektir
-    if ' ' in konum_text and not konum_text[0].isupper():
+    if " " in konum_text and not konum_text[0].isupper():
         return None, konum_text
-    
+
     # CamelCase pattern'i bul: Büyük harfle başlayan kelime grupları
     import re
-    pattern = r'[A-ZÇĞİÖŞÜ][a-zçğıöşü]*'
+
+    pattern = r"[A-ZÇĞİÖŞÜ][a-zçğıöşü]*"
     matches = re.findall(pattern, konum_text)
-    
+
     if len(matches) == 0:
         # Hiç büyük harf yok, tüm metin mahalle
         return None, konum_text
-    
+
     elif len(matches) == 1:
         # Tek kelime var
         # Eğer yaygın semt isimlerinden biriyse semt, değilse mahalle
         common_semts = ["Merkez", "Köyler", "İstiklal", "Tepekum", "Semerciler"]
         if matches[0] in common_semts:
             # Kalan kısmı al
-            remaining = konum_text[len(matches[0]):].strip()
+            remaining = konum_text[len(matches[0]) :].strip()
             if remaining:
                 return matches[0], remaining
             else:
                 return matches[0], None
         else:
             return None, konum_text
-    
+
     else:
         # İki veya daha fazla kelime var
         # İlk kelime = semt, geri kalanı = mahalle
         semt = matches[0]
-        
+
         # Semt'ten sonraki kısmı al
         semt_end_index = konum_text.find(semt) + len(semt)
         mahalle = konum_text[semt_end_index:].strip()
-        
+
         if not mahalle:
             # Sadece semt var
             return semt, None
-        
+
         return semt, mahalle
 
 
@@ -133,18 +137,18 @@ def normalize_district(district_str):
     """
     if not district_str:
         return None
-    
+
     district_lower = district_str.lower().strip()
-    
+
     # İlçe mapping
     district_map = {
-        'adapazari': 'Adapazarı',
-        'adapazarı': 'Adapazarı',
-        'akyazi': 'Akyazı',
-        'akyazı': 'Akyazı',
-        'hendek': 'Hendek'
+        "adapazari": "Adapazarı",
+        "adapazarı": "Adapazarı",
+        "akyazi": "Akyazı",
+        "akyazı": "Akyazı",
+        "hendek": "Hendek",
     }
-    
+
     return district_map.get(district_lower, district_str.title())
 
 
@@ -208,7 +212,7 @@ def parse_listing_date(date_str: str) -> Optional[datetime]:
         if len(parts) >= 2:
             day = int(parts[0])
             month_name = parts[1]
-            
+
             # Yıl belirtilmişse kullan, yoksa akıllı tahmin yap
             if len(parts) >= 3:
                 year = int(parts[2])
@@ -256,7 +260,6 @@ def is_new_listing(listing_date: Optional[datetime]) -> bool:
         return True
 
     return False
-
 
 
 # Sakarya İlçeleri
@@ -318,23 +321,24 @@ CATEGORY_TEMPLATES = {
     },
 }
 
+
 def get_category_url(category_key: str, district: str = "hendek") -> dict:
     """
     Kategori ve ilçeye göre URL oluştur
-    
+
     Args:
         category_key: Kategori anahtarı (örn: "konut_satilik")
         district: İlçe adı (örn: "hendek", "adapazari")
-    
+
     Returns:
         dict: URL ve kategori bilgileri
     """
     if category_key not in CATEGORY_TEMPLATES:
         raise ValueError(f"Geçersiz kategori: {category_key}")
-    
+
     template = CATEGORY_TEMPLATES[category_key]
     url = template["url_template"].format(district=district)
-    
+
     return {
         "url": url,
         "category": template["category"],
@@ -342,10 +346,10 @@ def get_category_url(category_key: str, district: str = "hendek") -> dict:
         "district": district,
     }
 
+
 # Geriye uyumluluk için Hendek kategorileri (deprecated)
 HENDEK_CATEGORIES = {
-    key: get_category_url(key, "hendek") 
-    for key in CATEGORY_TEMPLATES.keys()
+    key: get_category_url(key, "hendek") for key in CATEGORY_TEMPLATES.keys()
 }
 
 # Ayarlar - MAKSIMUM HIZ MODU + SMART STOPPING
@@ -437,13 +441,13 @@ class SahibindenCrawler:
             }
             if message:
                 progress_data["message"] = message
-            
+
             stats_to_save = {**self.stats, **(extra_data or {})}
-            
+
             db.execute_query(
                 "UPDATE mining_jobs SET progress = %s, stats = %s, updated_at = NOW() WHERE id = %s",
                 (json.dumps(progress_data), json.dumps(stats_to_save), self.job_id),
-                fetch=False
+                fetch=False,
             )
         except Exception as e:
             logger.warning(f"Progress güncellenemedi: {e}")
@@ -457,7 +461,7 @@ class SahibindenCrawler:
             db.execute_query(
                 "UPDATE mining_jobs SET stats = %s, updated_at = NOW() WHERE id = %s",
                 (json.dumps(stats_to_save), self.job_id),
-                fetch=False
+                fetch=False,
             )
             logger.debug(f"Job stats güncellendi: {extra_data}")
         except Exception as e:
@@ -468,27 +472,34 @@ class SahibindenCrawler:
         # Job ID yoksa log yazma (mining_logs tablosu job_id gerektirir)
         if not self.job_id:
             return
-            
+
         try:
             db.execute_query(
                 "INSERT INTO mining_logs (job_id, level, message, data, created_at) VALUES (%s, %s, %s, %s, NOW())",
                 (self.job_id, level, message, json.dumps(data) if data else None),
-                fetch=False
+                fetch=False,
             )
         except Exception as e:
             logger.debug(f"Log yazılamadı: {e}")
 
     def _save_category_stats(
-        self, category: str, transaction: str, sahibinden_count: int
+        self,
+        category: str,
+        transaction: str,
+        sahibinden_count: int,
+        district: str = None,
     ):
-        """Kategori istatistiklerini category_stats tablosuna kaydet"""
-
         try:
-            # Database'den mevcut sayıyı al
-            db_result = db.execute_one(
-                "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s",
-                (category, transaction)
-            )
+            district_norm = normalize_district(district)
+
+            sql = "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s"
+            params = [category, transaction]
+
+            if district_norm:
+                sql += " AND ilce = %s"
+                params.append(district_norm)
+
+            db_result = db.execute_one(sql, tuple(params))
             database_count = db_result["count"] if db_result else 0
 
             # Farkı hesapla
@@ -516,7 +527,7 @@ class SahibindenCrawler:
                     last_checked_at = NOW()
                 """,
                 (category, transaction, sahibinden_count, database_count, diff, status),
-                fetch=False
+                fetch=False,
             )
             logger.info(
                 f"📊 Category stats kaydedildi: {category}/{transaction} - Sahibinden: {sahibinden_count}, DB: {database_count}, Fark: {diff}"
@@ -525,35 +536,32 @@ class SahibindenCrawler:
         except Exception as e:
             logger.warning(f"⚠️ Category stats kayıt hatası: {e}")
 
-    def _save_listings_batch(self, listings: List[dict]) -> tuple[int, int]:
-        """İlanları toplu olarak kaydet - BATCH INSERT"""
+    def _save_listings_batch(
+        self, listings: List[dict], district: str = None
+    ) -> tuple[int, int]:
         if not listings:
             return 0, 0
 
         try:
-            # Tüm ilanları hazırla
             db_data_list = []
             for listing in listings:
                 listing_id = listing.get("id")
                 if not listing_id:
                     continue
 
-                # Fiyatı sayıya çevir
                 fiyat = parse_price(listing.get("fiyat", ""))
-                
-                # Tarihi parse et
+
                 tarih_str = listing.get("tarih", "")
                 parsed_date = parse_listing_date(tarih_str)
                 crawled_at = parsed_date if parsed_date else datetime.now()
-                
-                # İlçeyi normalize et
-                district_normalized = normalize_district(category_config.get("district"))
-                
+
+                district_normalized = normalize_district(district)
+
                 # Konum ayrıştırması: "Hendek, Merkez" -> "Merkez"
                 # İlçe adını konum'dan çıkar, sadece mahalle kalsın
                 raw_konum = listing.get("konum", "")
                 mahalle_only = raw_konum
-                
+
                 if district_normalized and raw_konum:
                     # "Hendek, Merkez" -> "Merkez"
                     # "Akyazı, Yunus Emre Mah." -> "Yunus Emre Mah."
@@ -561,19 +569,19 @@ class SahibindenCrawler:
                     if len(parts) == 2:
                         ilce_part = parts[0].strip()
                         mahalle_part = parts[1].strip()
-                        
+
                         # İlçe adı eşleşiyorsa, sadece mahalle kısmını al
                         if ilce_part.lower() == district_normalized.lower():
                             mahalle_only = mahalle_part
-                
+
                 # Semt ve mahalle parse et (CamelCase pattern)
                 semt, mahalle = parse_konum_to_semt_mahalle(mahalle_only)
-                
+
                 # FALLBACK LOGIC: Boş alanları doldur
                 # 1. Semt boşsa → İlçe adını kopyala
                 if not semt:
                     semt = district_normalized
-                
+
                 # 2. Mahalle boşsa → Semt adını kopyala
                 if not mahalle:
                     mahalle = semt
@@ -603,18 +611,30 @@ class SahibindenCrawler:
                 # VALUES kısmını hazırla
                 values_list = []
                 params_list = []
-                
+
                 for data in db_data_list:
-                    values_list.append("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())")
-                    params_list.extend([
-                        data['id'], data['baslik'], data['link'], data['fiyat'], 
-                        data['konum'], data['tarih'], data['resim'], 
-                        data['category'], data['transaction'], data.get('ilce'),
-                        data.get('semt'), data.get('mahalle')
-                    ])
-                
+                    values_list.append(
+                        "(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())"
+                    )
+                    params_list.extend(
+                        [
+                            data["id"],
+                            data["baslik"],
+                            data["link"],
+                            data["fiyat"],
+                            data["konum"],
+                            data["tarih"],
+                            data["resim"],
+                            data["category"],
+                            data["transaction"],
+                            data.get("ilce"),
+                            data.get("semt"),
+                            data.get("mahalle"),
+                        ]
+                    )
+
                 values_str = ", ".join(values_list)
-                
+
                 batch_query = f"""
                     INSERT INTO sahibinden_liste (id, baslik, link, fiyat, konum, tarih, resim, category, transaction, ilce, semt, mahalle, crawled_at)
                     VALUES {values_str}
@@ -633,9 +653,9 @@ class SahibindenCrawler:
                         mahalle = EXCLUDED.mahalle,
                         crawled_at = NOW()
                 """
-                
+
                 db.execute_query(batch_query, tuple(params_list), fetch=False)
-                
+
             except Exception as e:
                 logger.error(f"❌ Batch upsert hatası: {e}")
                 return 0, 0
@@ -689,12 +709,20 @@ class SahibindenCrawler:
                     # Batch insert için values_list hazırla
                     values_list = []
                     for nld in new_listings_data:
-                        values_list.append((
-                            nld['listing_id'], nld['baslik'], nld['link'], nld['fiyat'],
-                            nld['konum'], nld['category'], nld['transaction'], 
-                            nld['resim'], nld['first_seen_at']
-                        ))
-                    
+                        values_list.append(
+                            (
+                                nld["listing_id"],
+                                nld["baslik"],
+                                nld["link"],
+                                nld["fiyat"],
+                                nld["konum"],
+                                nld["category"],
+                                nld["transaction"],
+                                nld["resim"],
+                                nld["first_seen_at"],
+                            )
+                        )
+
                     # execute_batch kullan (tek query, çok satır)
                     # NOT: id field'ı otomatik oluşturulur (SERIAL), manuel insert etmiyoruz
                     db.execute_batch(
@@ -711,9 +739,9 @@ class SahibindenCrawler:
                             resim = EXCLUDED.resim,
                             first_seen_at = EXCLUDED.first_seen_at
                         """,
-                        values_list
+                        values_list,
                     )
-                    
+
                     logger.info(
                         f"   ✅ {len(new_listings_data)} yeni ilan (bugün/dün) new_listings tablosuna kaydedildi"
                     )
@@ -744,36 +772,36 @@ class SahibindenCrawler:
 
             # Fiyatı sayıya çevir
             fiyat = parse_price(listing.get("fiyat", ""))
-            
+
             # Tarihi parse et
             tarih_str = listing.get("tarih", "")
             parsed_date = parse_listing_date(tarih_str)
             crawled_at = parsed_date if parsed_date else datetime.now()
-            
+
             # İlçeyi normalize et
             district_normalized = normalize_district(listing.get("district", ""))
-            
+
             # Konum ayrıştırması: "Hendek, Merkez" -> "Merkez"
             raw_konum = listing.get("konum", "")
             mahalle_only = raw_konum
-            
+
             if district_normalized and raw_konum:
                 parts = raw_konum.split(",", 1)
                 if len(parts) == 2:
                     ilce_part = parts[0].strip()
                     mahalle_part = parts[1].strip()
-                    
+
                     if ilce_part.lower() == district_normalized.lower():
                         mahalle_only = mahalle_part
-            
+
             # Semt ve mahalle parse et (CamelCase pattern)
             semt, mahalle = parse_konum_to_semt_mahalle(mahalle_only)
-            
+
             # FALLBACK LOGIC: Boş alanları doldur
             # 1. Semt boşsa → İlçe adını kopyala
             if not semt:
                 semt = district_normalized
-            
+
             # 2. Mahalle boşsa → Semt adını kopyala
             if not mahalle:
                 mahalle = semt
@@ -814,8 +842,21 @@ class SahibindenCrawler:
                     mahalle = EXCLUDED.mahalle,
                     crawled_at = NOW()
                 """,
-                (db_data['id'], db_data['baslik'], db_data['link'], db_data['fiyat'], db_data['konum'], db_data['tarih'], db_data['resim'], db_data['category'], db_data['transaction'], db_data.get('ilce'), db_data.get('semt'), db_data.get('mahalle')),
-                fetch=False
+                (
+                    db_data["id"],
+                    db_data["baslik"],
+                    db_data["link"],
+                    db_data["fiyat"],
+                    db_data["konum"],
+                    db_data["tarih"],
+                    db_data["resim"],
+                    db_data["category"],
+                    db_data["transaction"],
+                    db_data.get("ilce"),
+                    db_data.get("semt"),
+                    db_data.get("mahalle"),
+                ),
+                fetch=False,
             )
 
             if listing_id in self.seen_ids:
@@ -834,7 +875,7 @@ class SahibindenCrawler:
         """Chrome ayarları - Normal WebDriver için optimize edilmiş"""
 
         CHROME_PROFILE.mkdir(exist_ok=True)
-        
+
         # Gerçek kullanıcı gibi görünmek için güncel User-Agent
         user_agent = (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -842,34 +883,63 @@ class SahibindenCrawler:
         )
 
         options = uc.ChromeOptions()
-        
-        options.add_argument(f'user-agent={user_agent}')
+
+        options.add_argument(f"user-agent={user_agent}")
         options.add_argument(f"--window-size=1920,1080")
-        options.add_argument(f'--user-data-dir={CHROME_PROFILE}')
+        options.add_argument(f"--user-data-dir={CHROME_PROFILE}")
         options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--lang=tr-TR')
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--lang=tr-TR")
 
         return options
 
+    def _clean_profile_dir(self):
+        if CHROME_PROFILE.exists():
+            try:
+                logger.info(f"🧹 Temizlik başlatılıyor: {CHROME_PROFILE}")
+                for i in range(3):
+                    try:
+                        shutil.rmtree(CHROME_PROFILE, ignore_errors=True)
+                        if not CHROME_PROFILE.exists():
+                            logger.info("✅ Profil dizini başarıyla temizlendi.")
+                            break
+                        time.sleep(1)
+                    except Exception as e:
+                        logger.warning(f"⚠️ Temizlik denemesi {i + 1} başarısız: {e}")
+                
+                CHROME_PROFILE.mkdir(parents=True, exist_ok=True)
+            except Exception as e:
+                logger.error(f"❌ Profil temizleme kritik hatası: {e}")
+
     def start_browser(self):
-        """Browser'ı başlat - Normal WebDriver ile"""
-        logger.info("🚀 Chrome başlatılıyor...")
+        self._clean_profile_dir()
+        
+        logger.info("🚀 Chrome başlatılıyor (Temiz Oturum)...")
 
         options = self._get_chrome_options()
-        self.driver = uc.Chrome(options=options)
         
-        # WebDriver özelliğini gizle
+        try:
+            self.driver = uc.Chrome(options=options)
+        except Exception as e:
+            logger.error(f"❌ Chrome başlatılamadı: {e}")
+            shutil.rmtree(CHROME_PROFILE, ignore_errors=True)
+            self.driver = uc.Chrome(options=options)
+
+        try:
+            self.driver.execute_cdp_cmd("Network.clearBrowserCache", {})
+            self.driver.execute_cdp_cmd("Network.clearBrowserCookies", {})
+            logger.info("🛡️ Browser cache ve cookies temizlendi.")
+        except:
+            pass
+
         self.driver.execute_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
         )
-        
+
         logger.info("✅ Chrome hazır!")
 
-      
 
-        
     def close_browser(self):
         """Browser'ı kapat"""
         if self.driver:
@@ -903,25 +973,25 @@ class SahibindenCrawler:
     def _wait_for_cloudflare(self, timeout: int = 10) -> bool:
         """Cloudflare bekle - ULTRA HIZ (timeout: 30 -> 10)"""
         start = time.time()
-        
+
         while time.time() - start < timeout:
             try:
                 ps = self.driver.page_source.lower()
-                
+
                 # İçerik kontrolü - hemen dön
                 if "searchresultstable" in ps or "classifieddetailtitle" in ps:
                     return True
-                
+
                 # 403 kontrolü
                 if "access denied" in ps or "403 forbidden" in ps:
                     return False
-                
+
                 # Çok kısa bekleme
                 time.sleep(0.3)  # 0.5s -> 0.3s
-                
+
             except:
                 time.sleep(0.3)
-        
+
         return False  # Timeout - yine de devam et
 
     def _handle_devam_et(self) -> bool:
@@ -939,7 +1009,7 @@ class SahibindenCrawler:
             pass
         return False
 
-    def navigate(self, url: str, timeout: int =5) -> Optional[str]:
+    def navigate(self, url: str, timeout: int = 5) -> Optional[str]:
         """Sayfaya git - Rate limiter ile + Cloudflare bypass"""
         logger.info(f"🌐 {url[:5]}...")
         self._add_log("info", f"🌐 {url[:8]}...")
@@ -968,37 +1038,52 @@ class SahibindenCrawler:
 
             # Cloudflare challenge kontrolü - MANUEL GEÇİŞ İÇİN BEKLEME
             page_source = self.driver.page_source.lower()
-            
-            if "checking your browser" in page_source or "just a moment" in page_source or "olağan dışı" in page_source:
+
+            if (
+                "checking your browser" in page_source
+                or "just a moment" in page_source
+                or "olağan dışı" in page_source
+            ):
                 logger.warning("⚠️ Cloudflare/Bot challenge tespit edildi!")
-                logger.warning("👤 MANUEL DOĞRULAMA GEREKLİ - Lütfen tarayıcıda doğrulamayı geçin...")
-                
+                logger.warning(
+                    "👤 MANUEL DOĞRULAMA GEREKLİ - Lütfen tarayıcıda doğrulamayı geçin..."
+                )
+
                 # Manuel geçiş için bekle (max 5 dakika)
                 challenge_start = time.time()
                 while time.time() - challenge_start < 300:  # 5 dakika
                     time.sleep(2)
                     page_source = self.driver.page_source.lower()
-                    
-                    if "searchresultstable" in page_source or "classifieddetailtitle" in page_source:
+
+                    if (
+                        "searchresultstable" in page_source
+                        or "classifieddetailtitle" in page_source
+                    ):
                         logger.info("✅ Manuel doğrulama geçildi, devam ediliyor!")
                         break
-                    
+
                     if "access denied" in page_source or "403" in page_source:
                         logger.error("❌ 403 - Erişim engellendi")
                         self.rate_limiter.report_blocked()
                         self.stats["blocks_detected"] += 1
                         # 403 durumunda bile devam et (sen manuel geçebilirsin)
-                        logger.warning("⏳ 30 saniye bekleniyor, sonra devam edilecek...")
+                        logger.warning(
+                            "⏳ 30 saniye bekleniyor, sonra devam edilecek..."
+                        )
                         time.sleep(30)
                         break
-                    
+
                     # Her 10 saniyede bir hatırlat
                     if int(time.time() - challenge_start) % 10 == 0:
                         elapsed = int(time.time() - challenge_start)
-                        logger.info(f"⏳ Manuel doğrulama bekleniyor... ({elapsed}s / 300s)")
+                        logger.info(
+                            f"⏳ Manuel doğrulama bekleniyor... ({elapsed}s / 300s)"
+                        )
                 else:
                     # Timeout olsa bile devam et
-                    logger.warning("⚠️ Manuel doğrulama timeout - yine de devam ediliyor")
+                    logger.warning(
+                        "⚠️ Manuel doğrulama timeout - yine de devam ediliyor"
+                    )
                     pass
 
             # Normal sayfa yükleme kontrolü
@@ -1021,7 +1106,7 @@ class SahibindenCrawler:
                 self.rate_limiter.report_slow_response(response_time)
 
             self._handle_devam_et()
-            
+
             # Tek scroll yeterli
             self._human_like_scroll()
 
@@ -1228,26 +1313,25 @@ class SahibindenCrawler:
             logger.error(f"❌ Kategori sayıları okunamadı: {e}")
             return {}
 
-    def compare_with_database(self, sahibinden_counts: Dict[str, int]) -> Dict:
-        """
-        Sahibinden'deki ilan sayılarını veritabanımızdakilerle karşılaştır
-
-        Returns:
-            {
-                "konut": {"sahibinden": 838, "database": 606, "diff": 232, "status": "new"},
-                "arsa": {"sahibinden": 1286, "database": 1257, "diff": 29, "status": "new"},
-                ...
-            }
-        """
+    def compare_with_database(
+        self, sahibinden_counts: Dict[str, int], district: str = None
+    ) -> Dict:
         try:
             comparison = {}
+            district_norm = normalize_district(district)
 
             for category, sahibinden_count in sahibinden_counts.items():
-                # Veritabanından kategori sayısını al
-                result = db.execute_one(
-                    "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s",
-                    (category,)
+                sql = (
+                    "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s"
                 )
+                params = [category]
+
+                if district_norm:
+                    sql += " AND ilce = %s"
+                    params.append(district_norm)
+
+                result = db.execute_one(sql, tuple(params))
+
                 db_count = result["count"] if result else 0
                 diff = sahibinden_count - db_count
 
@@ -1379,7 +1463,12 @@ class SahibindenCrawler:
                         )
 
                     # Category stats'a kaydet
-                    self._save_category_stats(category, transaction, total_count)
+                    self._save_category_stats(
+                        category,
+                        transaction,
+                        total_count,
+                        district=config.get("district"),
+                    )
 
                     # Job progress'i güncelle
                     self._update_job_progress(
@@ -1422,7 +1511,9 @@ class SahibindenCrawler:
                     if listing.get("id"):
                         category_crawled_ids.add(listing["id"])
 
-                new_count, updated_count = self._save_listings_batch(listings)
+                new_count, updated_count = self._save_listings_batch(
+                    listings, district=config.get("district")
+                )
                 saved_count += new_count + updated_count
 
                 self.stats["total_pages"] += 1
@@ -1455,7 +1546,9 @@ class SahibindenCrawler:
                     category_crawled_ids.add(listing["id"])
 
             # BATCH INSERT - Tek seferde tüm ilanları kaydet
-            new_count, updated_count = self._save_listings_batch(listings)
+            new_count, updated_count = self._save_listings_batch(
+                listings, district=config.get("district")
+            )
             saved_count += new_count + updated_count
 
             self.stats["total_pages"] += 1
@@ -1494,7 +1587,11 @@ class SahibindenCrawler:
                 )
 
                 # 3 sayfa üst üste eski ilan varsa DUR (sync modunda hariç - sync için tüm sayfalar gerekli)
-                if not force and not sync and consecutive_old_pages >= SMART_STOP_THRESHOLD:
+                if (
+                    not force
+                    and not sync
+                    and consecutive_old_pages >= SMART_STOP_THRESHOLD
+                ):
                     pages_saved = actual_max_pages - (page + 1)
                     logger.info(
                         f"\n🎯 SMART STOP: {SMART_STOP_THRESHOLD} sayfa üst üste eski ilan tespit edildi!"
@@ -1563,6 +1660,7 @@ class SahibindenCrawler:
                     category=category,
                     transaction=transaction,
                     current_ids=category_crawled_ids,
+                    district=config.get("district"),
                 )
                 if removed_count > 0:
                     logger.info(
@@ -1588,52 +1686,22 @@ class SahibindenCrawler:
         return saved_count
 
     def detect_and_save_removed_listings(
-        self, category: str, transaction: str, current_ids: set
+        self, category: str, transaction: str, current_ids: set, district: str = None
     ) -> int:
-        """
-        Kaldırılan ilanları tespit et ve removed_listings tablosuna kaydet
-
-        ⚠️ BU METOD DEVRE DIŞI - PERFORMANS VE MANTIK SORUNLARI VAR
-
-        SORUNLAR:
-        1. Sadece 5 sayfa tarayıp tüm DB'yi kontrol ediyor (yanlış sonuç)
-        2. Her ilan için tek tek price_history sorgusu yapıyor (çok yavaş)
-
-        ÇÖZÜM ÖNERİLERİ:
-        1. Sadece taranan sayfalardaki ilanları kontrol et
-        2. Batch sorgu yap (tüm price_history'leri tek sorguda çek)
-        3. Veya ayrı bir job olarak çalıştır (tüm sayfaları tara)
-
-        Args:
-            category: Kategori (konut, arsa, isyeri, bina)
-            transaction: İşlem tipi (satilik, kiralik)
-            current_ids: Şu anda crawl edilen ID'ler (sadece taranan sayfalar!)
-
-        Returns:
-            Kaldırılan ilan sayısı
-        """
-        pass
-
         try:
-            # ❌ SORUN: Bu tüm DB'yi çekiyor, ama current_ids sadece 5 sayfa!
-            # Örnek: 620 ilan var, 5 sayfa = 250 ilan taradık
-            # Geri kalan 370 ilan "kaldırılmış" olarak işaretleniyor (YANLIŞ!)
+            district_norm = normalize_district(district)
 
-            # ÇÖZÜM 1: Sadece taranan sayfalardaki ilanları kontrol et
-            # Ama bu da yeterli değil çünkü sayfa sıralaması değişebilir
+            sql = "SELECT id, baslik, link, fiyat, konum, category, transaction, resim, tarih, ilce, semt, mahalle FROM sahibinden_liste WHERE category = %s AND transaction = %s"
 
-            # ÇÖZÜM 2: TÜM sayfaları tara (max_pages=None)
-            # Ama bu çok uzun sürer
+            params = [category, transaction]
 
-            # ÇÖZÜM 3: Ayrı bir "removed listing detector" job'ı oluştur
-            # Bu job tüm sayfaları tarar ve gerçekten kaldırılan ilanları bulur
+            if district_norm:
+                sql += " AND ilce = %s"
+                params.append(district_norm)
 
-            # Veritabanındaki bu kategoriye ait tüm ilanları çek
-            results = db.execute_query(
-                "SELECT id, baslik, link, fiyat, konum, category, transaction, resim, tarih FROM sahibinden_liste WHERE category = %s AND transaction = %s",
-                (category, transaction)
-            )
+            results = db.execute_query(sql, tuple(params))
             db_listings = {str(r["id"]): r for r in results}
+
             db_ids = set(db_listings.keys())
 
             # Kaldırılan ilanları bul (DB'de var ama crawl'da yok)
@@ -1681,7 +1749,9 @@ class SahibindenCrawler:
                 # last_seen_at için tarih string'ini parse et veya now() kullan
                 parsed_date = parse_listing_date(listing.get("tarih", ""))
                 last_seen_iso = (
-                    parsed_date.isoformat() if parsed_date else datetime.now().isoformat()
+                    parsed_date.isoformat()
+                    if parsed_date
+                    else datetime.now().isoformat()
                 )
 
                 removed_data = {
@@ -1699,6 +1769,9 @@ class SahibindenCrawler:
                     "days_active": days_active,
                     "price_changes": price_changes,
                     "last_price": listing.get("fiyat"),
+                    "ilce": listing.get("ilce"),
+                    "semt": listing.get("semt"),
+                    "mahalle": listing.get("mahalle"),
                 }
 
                 removed_listings_batch.append(removed_data)
@@ -1709,35 +1782,43 @@ class SahibindenCrawler:
                 try:
                     values_list = []
                     for data in removed_listings_batch:
-                        values_list.append((
-                            data['listing_id'],
-                            data['baslik'],
-                            data['link'],
-                            data['fiyat'],
-                            data['konum'],
-                            data['category'],
-                            data['transaction'],
-                            data['resim'],
-                            data['last_seen_at'],
-                            data['removal_reason'],
-                            data['days_active'],
-                            data['price_changes'],
-                            data['last_price']
-                        ))
-                    
+                        values_list.append(
+                            (
+                                data["listing_id"],
+                                data["baslik"],
+                                data["link"],
+                                data["fiyat"],
+                                data["konum"],
+                                data["category"],
+                                data["transaction"],
+                                data["resim"],
+                                data["last_seen_at"],
+                                data["removal_reason"],
+                                data["days_active"],
+                                data["price_changes"],
+                                data["last_price"],
+                                data.get("ilce"),
+                                data.get("semt"),
+                                data.get("mahalle"),
+                            )
+                        )
+
                     db.execute_batch(
                         """
                         INSERT INTO removed_listings 
                         (listing_id, baslik, link, fiyat, konum, category, transaction, resim, 
-                         last_seen_at, removed_at, removal_reason, days_active, price_changes, last_price) 
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s) 
+                         last_seen_at, removed_at, removal_reason, days_active, price_changes, last_price, ilce, semt, mahalle) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), %s, %s, %s, %s, %s, %s, %s) 
                         ON CONFLICT (listing_id) DO UPDATE SET
                             removed_at = NOW(),
                             removal_reason = EXCLUDED.removal_reason
                         """,
-                        values_list
+                        values_list,
                     )
-                    logger.info(f"   ✅ {len(removed_listings_batch)} kaldırılan ilan removed_listings tablosuna kaydedildi")
+
+                    logger.info(
+                        f"   ✅ {len(removed_listings_batch)} kaldırılan ilan removed_listings tablosuna kaydedildi"
+                    )
                 except Exception as e:
                     logger.error(f"❌ Batch insert hatası (removed_listings): {e}")
 
@@ -1749,10 +1830,12 @@ class SahibindenCrawler:
                     db.execute_query(
                         "DELETE FROM sahibinden_liste WHERE id = ANY(%s)",
                         (int_ids,),
-                        fetch=False
+                        fetch=False,
                     )
                     removed_count = len(removed_ids_list)
-                    logger.info(f"   ✅ {removed_count} ilan yayından kaldırıldı (Arşive taşındı)")
+                    logger.info(
+                        f"   ✅ {removed_count} ilan yayından kaldırıldı (Arşive taşındı)"
+                    )
                     self._add_log(
                         "info",
                         f"{category}/{transaction}: {removed_count} ilan arşivlendi ve silindi",
@@ -1770,8 +1853,8 @@ class SahibindenCrawler:
         self,
         categories: Optional[List[str]] = None,
         max_pages: int = MAX_PAGES_PER_CATEGORY,
+        district: str = "hendek",
     ):
-        """Toplu taramayı başlat"""
         logger.info("=" * 60)
         logger.info("🚀 SAHİBİNDEN CRAWLER")
         logger.info("=" * 60)
@@ -1782,17 +1865,18 @@ class SahibindenCrawler:
         self.start_browser()
 
         try:
-            # İLK ÖNCE: Ana emlak sayfasından kategori sayılarını al ve karşılaştır
-            logger.info("\n📊 Kategori analizi yapılıyor...")
-            self._add_log("info", "Kategori analizi başlatıldı")
+            logger.info(f"\n📊 Kategori analizi yapılıyor... ({district.upper()})")
+            self._add_log("info", f"Kategori analizi başlatıldı: {district}")
 
-            main_page_url = "https://www.sahibinden.com/emlak/sakarya-hendek"
+            main_page_url = f"https://www.sahibinden.com/emlak/sakarya-{district}"
             main_html = self.navigate(main_page_url)
 
             if main_html:
                 sahibinden_counts = self.extract_category_counts(main_html)
                 if sahibinden_counts:
-                    comparison = self.compare_with_database(sahibinden_counts)
+                    comparison = self.compare_with_database(
+                        sahibinden_counts, district=district
+                    )
 
                     # Sahibinden sayılarını category_stats tablosuna kaydet
                     try:
@@ -1811,9 +1895,9 @@ class SahibindenCrawler:
                             INSERT INTO category_stats (category, transaction, sahibinden_count, database_count, diff, status, last_checked_at)
                             VALUES ('all', 'all', 0, 0, 0, 'legacy', NOW())
                             """,
-                            fetch=False
+                            fetch=False,
                         )
-                        # Actually wait, this table has different columns in this specific call? 
+                        # Actually wait, this table has different columns in this specific call?
                         # Let's adjust to match the likely schema or just use execute_query for what it wants.
                         # The code above was using: konut_satilik, arsa_satilik etc.
                         # I'll just skip this specific legacy logging or adapt it.

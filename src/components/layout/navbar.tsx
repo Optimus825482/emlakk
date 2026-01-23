@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
+import { cn } from "@/lib/utils";
 import { MarketTicker } from "./market-ticker";
 
 interface SiteSettings {
@@ -12,10 +13,23 @@ interface SiteSettings {
 }
 
 export function Navbar() {
+  const [isOpen, setIsOpen] = useState(false);
   const [settings, setSettings] = useState<SiteSettings>({
     siteName: "DEMİR",
     siteTagline: "Gayrimenkul",
   });
+
+  const closeMenu = () => setIsOpen(false);
+
+  useEffect(() => {
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = originalStyle;
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -150,9 +164,91 @@ export function Navbar() {
             </div>
 
             {/* Mobile Menu Button */}
-            <button className="lg:hidden p-2 text-[var(--demir-slate)] hover:text-[var(--terracotta)] transition-colors">
-              <Icon name="menu" className="text-2xl" />
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="lg:hidden p-2 text-[var(--demir-slate)] hover:text-[var(--terracotta)] transition-colors z-[60]"
+              aria-label="Toggle Menu"
+            >
+              <Icon name={isOpen ? "close" : "menu"} className="text-2xl" />
             </button>
+          </div>
+        </div>
+
+        <div
+          className={cn(
+            "fixed inset-0 bg-white z-[55] lg:hidden transition-all duration-300 ease-in-out",
+            isOpen
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 pointer-events-none"
+          )}
+        >
+          <div className="flex flex-col h-full p-6 pt-24 gap-4 overflow-y-auto">
+            <Link
+              href="/"
+              onClick={closeMenu}
+              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
+            >
+              Anasayfa
+            </Link>
+            <Link
+              href="/hakkimizda"
+              onClick={closeMenu}
+              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
+            >
+              Hakkımızda
+            </Link>
+            <Link
+              href="/ilanlar"
+              onClick={closeMenu}
+              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
+            >
+              İlanlar
+            </Link>
+            <Link
+              href="/degerleme"
+              onClick={closeMenu}
+              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100 flex items-center gap-2"
+            >
+              <Icon
+                name="auto_awesome"
+                className="text-[var(--terracotta)]"
+                filled
+              />
+              Mülk Değerleme Platformu
+            </Link>
+            <Link
+              href="/rehber"
+              onClick={closeMenu}
+              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
+            >
+              Yatırım Rehberi
+            </Link>
+            <Link
+              href="/iletisim"
+              onClick={closeMenu}
+              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
+            >
+              Bize Ulaşın
+            </Link>
+
+            <div className="mt-4 flex flex-col gap-3">
+              <Link
+                href="/randevu"
+                onClick={closeMenu}
+                className="flex items-center justify-center gap-2 px-6 py-4 font-semibold text-[var(--demir-slate)] border-2 border-[var(--demir-slate)]/20 rounded-xl"
+              >
+                <Icon name="coffee" />
+                Kahve İçelim
+              </Link>
+              <Link
+                href="/iletisim"
+                onClick={closeMenu}
+                className="flex items-center justify-center gap-2 px-6 py-4 font-bold text-white bg-[var(--demir-slate)] rounded-xl shadow-lg"
+              >
+                <Icon name="call" />
+                İletişim
+              </Link>
+            </div>
           </div>
         </div>
       </nav>

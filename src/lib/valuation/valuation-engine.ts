@@ -70,13 +70,13 @@ export async function performValuation(
     console.log("🌍 İl geneli benchmark hesaplanıyor...");
     const provinceBenchmark = await findProvinceBenchmark(features);
 
-    // Bina yaşı amortisman faktörü uygula (her +5 yıl = %5 düşüş)
-    let adjustedProvincePricePerM2 = provinceBenchmark.avgPricePerM2;
+    let adjustedProvincePricePerM2 = provinceBenchmark.avgPricePerM2 > 200000 ? 40000 : provinceBenchmark.avgPricePerM2;
     if (
       features.propertyType === "konut" &&
       features.buildingAge &&
-      provinceBenchmark.avgPricePerM2 > 0
+      adjustedProvincePricePerM2 > 0
     ) {
+
       const depreciationFactor = 1 - (features.buildingAge / 5) * 0.05;
       const clampedFactor = Math.max(0.5, Math.min(1.0, depreciationFactor)); // Min %50, Max %100
       adjustedProvincePricePerM2 = Math.round(

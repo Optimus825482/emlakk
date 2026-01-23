@@ -1,853 +1,471 @@
-{% extends "base.html" %} {% block title %}Dashboard{% endblock %} {% block
-breadcrumb %}Dashboard{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}Panel{% endblock %} {% block breadcrumb %}Yüksek Performanslı Analitik{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+  .tech-card {
+    @apply bg-[#0D0D0D] border border-white/5 relative overflow-hidden;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  }
+  .tech-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 2px;
+    height: 100%;
+    @apply bg-brand-accent opacity-50;
+  }
+  .stat-label {
+    @apply text-[10px] font-black uppercase tracking-[0.2em] text-slate-500;
+  }
+  .stat-value {
+    @apply text-3xl font-display font-bold text-white tracking-tighter;
+  }
+  .glow-text {
+    text-shadow: 0 0 15px rgba(217, 255, 0, 0.3);
+  }
+  .tech-grid {
+    background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.02) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
 <div
   x-data="dashboard()"
   x-init="init()"
   x-cloak
-  class="space-y-6 animate-fade-in"
+  class="space-y-8 tech-grid pb-20"
 >
-  <div
-    class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-  >
-    <div class="animate-slide-up">
-      <h1
-        class="text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white font-outfit"
-      >
-        Dashboard
+  <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+    <div>
+      <div class="flex items-center gap-2 mb-2">
+        <span class="w-2 h-2 bg-brand-accent animate-pulse"></span>
+        <span class="text-[10px] font-black text-brand-accent uppercase tracking-[0.3em]">Sistem İzleme</span>
+      </div>
+      <h1 class="text-4xl lg:text-5xl font-extrabold text-white font-display tracking-tighter leading-none">
+        PAZAR<br/><span class="text-slate-500">DİNAMİKLERİ</span>
       </h1>
-      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Pazar verilerinin anlık özeti ve crawler kontrolü
-      </p>
     </div>
 
-    <div
-      class="flex items-center gap-3 animate-slide-up"
-      style="animation-delay: 100ms"
-    >
-      <!-- İLÇE FİLTRESİ - YENİ EKLENEN -->
-      <div
-        class="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-slate-200/60 dark:border-slate-700/60 shadow-sm transition-premium hover:border-violet-400"
-      >
-        <svg
-          class="w-4 h-4 text-violet-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-          ></path>
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-          ></path>
-        </svg>
+    <div class="flex flex-wrap items-center gap-4 bg-white/5 p-2 border border-white/5">
+      <div class="flex items-center gap-2 px-3 border-r border-white/10">
+        <i data-lucide="map-pin" class="w-4 h-4 text-brand-accent"></i>
         <select
           x-model="districtFilter"
-          @change="loadData()"
-          class="bg-transparent text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+          @change="loadAllData()"
+          class="bg-transparent text-xs font-bold text-slate-300 focus:outline-none cursor-pointer py-2 uppercase tracking-widest"
         >
-          <option value="all">Tüm İlçeler</option>
+          <option value="all">Genel (Tüm İlçeler)</option>
           {% for district in districts %}
-          <option value="{{ district.value }}">
-            {{ district.label }} ({{ district.count }})
-          </option>
+          <option value="{{ district.value }}">{{ district.label }}</option>
           {% endfor %}
         </select>
       </div>
 
-      <div
-        class="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-2xl px-4 py-2.5 border border-slate-200/60 dark:border-slate-700/60 shadow-sm transition-premium hover:border-primary-400"
-      >
-        <svg
-          class="w-4 h-4 text-primary-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-          ></path>
-        </svg>
+      <div class="flex items-center gap-2 px-3">
+        <i data-lucide="clock" class="w-4 h-4 text-slate-500"></i>
         <select
           x-model="timeFilter"
-          @change="loadData()"
-          class="bg-transparent text-sm font-semibold text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer"
+          @change="loadAllData()"
+          class="bg-transparent text-xs font-bold text-slate-300 focus:outline-none cursor-pointer py-2 uppercase tracking-widest"
         >
-          <option value="1">Son 24 Saat</option>
-          <option value="2">Son 2 Gün</option>
-          <option value="3">Son 3 Gün</option>
-          <option value="7">Son 1 Hafta</option>
+          <option value="7">7 Günlük Analiz</option>
+          <option value="14">14 Günlük Analiz</option>
+          <option value="30">30 Günlük Analiz</option>
+          <option value="90">Çeyrek Görünüm</option>
         </select>
       </div>
 
       <button
-        @click="loadData()"
-        class="p-2.5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-primary-50 dark:hover:bg-primary-900/20 text-slate-500 hover:text-primary-600 transition-premium glow-primary"
-        :class="loading ? 'animate-spin' : ''"
+        @click="loadAllData()"
+        class="p-2.5 bg-brand-accent text-brand-black hover:bg-white transition-colors"
+        :class="$store.app.globalLoading ? 'animate-spin' : ''"
       >
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          ></path>
-        </svg>
+        <i data-lucide="refresh-ccw" class="w-4 h-4"></i>
       </button>
     </div>
   </div>
 
-  <template x-if="loading">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <template x-for="i in 4" :key="i">
-        <div class="h-40 rounded-3xl skeleton"></div>
-      </template>
-    </div>
-  </template>
-
-  <template x-if="!loading">
-    <div class="space-y-8">
-      <!-- Top Stats Bento Grid -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div
-          class="bg-gradient-to-br from-primary-500 to-blue-600 rounded-3xl p-6 text-white shadow-xl shadow-primary-500/20 premium-card group animate-slide-up"
-          style="animation-delay: 200ms"
-        >
-          <div class="flex items-center justify-between">
-            <div
-              class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition-premium"
-            >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                ></path>
-              </svg>
-            </div>
-            <span
-              class="text-xs font-bold bg-white/20 px-3 py-1 rounded-full uppercase tracking-wider"
-              >Aktif</span
-            >
-          </div>
-          <div class="mt-6">
-            <p
-              class="text-4xl font-bold font-outfit"
-              x-text="data.total_listings.toLocaleString('tr-TR')"
-            >
-              0
-            </p>
-            <p class="text-primary-100 font-medium mt-1">Toplam İlan</p>
-          </div>
-        </div>
-
-        <div
-          class="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white shadow-xl shadow-emerald-500/20 premium-card group animate-slide-up"
-          style="animation-delay: 300ms"
-        >
-          <div class="flex items-center justify-between">
-            <div
-              class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition-premium"
-            >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
-              </svg>
-            </div>
-            <span
-              class="text-xs font-bold bg-white/20 px-3 py-1 rounded-full uppercase tracking-wider animate-pulse"
-              >Yeni</span
-            >
-          </div>
-          <div class="mt-6">
-            <p
-              class="text-4xl font-bold font-outfit"
-              x-text="data.new_listings.toLocaleString('tr-TR')"
-            >
-              0
-            </p>
-            <p class="text-emerald-500-100 font-medium mt-1">
-              Yeni İlan
-              <span
-                class="bg-emerald-400/30 px-1.5 py-0.5 rounded text-[10px]"
-                x-text="getTimeLabel()"
-              ></span>
-            </p>
-          </div>
-        </div>
-
-        <div
-          class="bg-gradient-to-br from-rose-500 to-orange-600 rounded-3xl p-6 text-white shadow-xl shadow-rose-500/20 premium-card group animate-slide-up"
-          style="animation-delay: 400ms"
-        >
-          <div class="flex items-center justify-between">
-            <div
-              class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition-premium"
-            >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                ></path>
-              </svg>
-            </div>
-            <span
-              class="text-xs font-bold bg-white/20 px-3 py-1 rounded-full uppercase tracking-wider"
-              >Silinen</span
-            >
-          </div>
-          <div class="mt-6">
-            <p
-              class="text-4xl font-bold font-outfit"
-              x-text="data.removed_listings.toLocaleString('tr-TR')"
-            >
-              0
-            </p>
-            <p class="text-rose-100 font-medium mt-1">Kaldırılan İlan</p>
-          </div>
-        </div>
-
-        <div
-          class="bg-gradient-to-br from-slate-800 to-slate-950 rounded-3xl p-6 text-white shadow-xl shadow-slate-900/20 premium-card group animate-slide-up border border-slate-700/50"
-          style="animation-delay: 500ms"
-        >
-          <div class="flex items-center justify-between">
-            <div
-              class="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition-premium"
-            >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                ></path>
-              </svg>
-            </div>
-            <div
-              :class="{
-                'bg-emerald-500/20 text-emerald-400': data.last_job?.status === 'completed',
-                'bg-amber-500/20 text-amber-400': data.last_job?.status === 'running',
-                'bg-rose-500/20 text-rose-400': data.last_job?.status === 'failed',
-                'bg-white/10 text-white/60': !data.last_job
-              }"
-              class="text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest"
-              x-text="data.last_job?.status || 'Belirsiz'"
-            ></div>
-          </div>
-          <div class="mt-6">
-            <p
-              class="text-xl font-bold font-outfit truncate"
-              x-text="data.last_job?.created_at || 'Bilgi Yok'"
-            >
-              -
-            </p>
-            <p class="text-slate-400 font-medium mt-1">Son Güncelleme</p>
-          </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="tech-card p-6 group transition-all hover:bg-white/[0.02]">
+      <div class="flex justify-between items-start mb-8">
+        <span class="stat-label">Toplam Portföy</span>
+        <div class="w-8 h-8 flex items-center justify-center border border-white/10 text-slate-500 group-hover:text-brand-accent transition-colors">
+          <i data-lucide="database" class="w-4 h-4"></i>
         </div>
       </div>
+      <div class="stat-value glow-text" x-text="stats.total_listings?.toLocaleString()">0</div>
+      <div class="flex items-center gap-2 mt-2">
+        <span class="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5">+1.2%</span>
+        <span class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">önceki döneme göre</span>
+      </div>
+    </div>
 
-      <div
-        class="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-[2rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm overflow-hidden animate-slide-up"
-        style="animation-delay: 600ms"
-      >
-        <div
-          class="px-8 py-6 border-b border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between"
-        >
-          <div>
-            <h2
-              class="text-xl font-bold text-slate-900 dark:text-white font-outfit"
-            >
-              Kategori Dağılımı
-            </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Sektörel bazda aktif ve kiralık portföy yoğunluğu
-            </p>
-          </div>
-          <div
-            class="px-3 py-1 bg-primary-50 dark:bg-primary-900/20 rounded-full text-[10px] font-bold text-primary-600 uppercase tracking-tighter"
-          >
-            Canlı Veri
-          </div>
+    <div class="tech-card p-6 group transition-all hover:bg-white/[0.02]">
+      <div class="flex justify-between items-start mb-8">
+        <span class="stat-label">7 Günlük Giriş</span>
+        <div class="w-8 h-8 flex items-center justify-center border border-white/10 text-slate-500 group-hover:text-emerald-500 transition-colors">
+          <i data-lucide="trending-up" class="w-4 h-4"></i>
         </div>
-        <div class="p-8">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <template
-              x-for="(counts, category) in data.categories"
-              :key="category"
-            >
-              <div
-                class="premium-card bg-slate-50/50 dark:bg-slate-900/30 rounded-3xl p-5 border border-slate-200/50 dark:border-slate-700/50"
-              >
-                <div
-                  x-show="counts.new_satilik > 0 || counts.new_kiralik > 0"
-                  class="absolute top-3 right-3 flex gap-1"
-                >
-                  <span
-                    class="flex h-2 w-2 rounded-full bg-rose-500 animate-ping"
-                  ></span>
-                </div>
+      </div>
+      <div class="stat-value text-emerald-500" x-text="stats.new_listings?.toLocaleString()">0</div>
+      <div class="flex items-center gap-2 mt-2">
+        <div class="flex -space-x-1">
+          <template x-for="i in 5">
+            <div class="w-1.5 h-3 bg-emerald-500/20" :class="i <= 3 ? 'bg-emerald-500' : ''"></div>
+          </template>
+        </div>
+        <span class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Yüksek Hız</span>
+      </div>
+    </div>
 
-                <div class="flex items-center gap-4 mb-5">
-                  <div
-                    :class="{
-                    'bg-amber-100/50 text-amber-600': category === 'konut',
-                    'bg-emerald-100/50 text-emerald-600': category === 'arsa',
-                    'bg-blue-100/50 text-blue-600': category === 'isyeri',
-                    'bg-violet-100/50 text-violet-600': category === 'bina'
-                  }"
-                    class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-inner"
-                  >
-                    <span x-show="category === 'konut'"
-                      ><svg
-                        class="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                        ></path></svg
-                    ></span>
-                    <span x-show="category === 'arsa'"
-                      ><svg
-                        class="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                        ></path></svg
-                    ></span>
-                    <span x-show="category === 'isyeri'"
-                      ><svg
-                        class="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                        ></path></svg
-                    ></span>
-                    <span x-show="category === 'bina'"
-                      ><svg
-                        class="w-6 h-6"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2"
-                          d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-7v.01M9 21h3m-3 0V13m3 8V10M6 21l6-10 6 10H6z"
-                        ></path></svg
-                    ></span>
-                  </div>
-                  <span
-                    class="font-bold text-slate-800 dark:text-slate-200 capitalize font-outfit"
-                    x-text="getCategoryName(category)"
-                  ></span>
-                </div>
+    <div class="tech-card p-6 group transition-all hover:bg-white/[0.02]">
+      <div class="flex justify-between items-start mb-8">
+        <span class="stat-label">7 Günlük Çıkış</span>
+        <div class="w-8 h-8 flex items-center justify-center border border-white/10 text-slate-500 group-hover:text-rose-500 transition-colors">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+        </div>
+      </div>
+      <div class="stat-value text-rose-500" x-text="stats.removed_listings?.toLocaleString()">0</div>
+      <div class="flex items-center gap-2 mt-2">
+        <span class="text-[10px] text-slate-600 font-bold uppercase tracking-wider">Satışlar ve Süre Sonu</span>
+      </div>
+    </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                  <div
-                    class="bg-white dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-100 dark:border-slate-700/50 transition-premium hover:border-primary-400/50 group/item"
-                  >
-                    <p
-                      class="text-[10px] font-bold text-slate-400 uppercase mb-1"
-                    >
-                      Satılık
-                    </p>
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="text-lg font-black text-primary-600 dark:text-primary-400"
-                        x-text="counts.satilik"
-                      ></span>
-                      <span
-                        x-show="counts.new_satilik > 0"
-                        class="text-[10px] font-bold text-rose-500"
-                        x-text="'+' + counts.new_satilik"
-                      ></span>
-                    </div>
-                  </div>
-                  <div
-                    class="bg-white dark:bg-slate-800/50 rounded-2xl p-3 border border-slate-100 dark:border-slate-700/50 transition-premium hover:border-emerald-400/50 group/item"
-                  >
-                    <p
-                      class="text-[10px] font-bold text-slate-400 uppercase mb-1"
-                    >
-                      Kiralık
-                    </p>
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="text-lg font-black text-emerald-600 dark:text-emerald-400"
-                        x-text="counts.kiralik"
-                      ></span>
-                      <span
-                        x-show="counts.new_kiralik > 0"
-                        class="text-[10px] font-bold text-rose-500"
-                        x-text="'+' + counts.new_kiralik"
-                      ></span>
-                    </div>
-                  </div>
-                </div>
+    <div class="tech-card p-6 bg-brand-accent/[0.03] border-brand-accent/20">
+      <div class="flex justify-between items-start mb-8">
+        <span class="stat-label text-brand-accent">Motor Durumu</span>
+        <div class="flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-accent"></span>
+        </div>
+      </div>
+      <div class="text-xl font-display font-bold text-white uppercase tracking-tight" x-text="stats.last_job?.status || 'BOŞTA'">BEKLEMEDE</div>
+      <div class="mt-4 flex flex-col gap-1">
+        <div class="flex justify-between text-[8px] font-black text-slate-500 uppercase">
+          <span>Son Senkronizasyon</span>
+          <span class="text-slate-300" x-text="stats.last_job?.created_at || 'Hiçbir zaman'">--:--</span>
+        </div>
+        <div class="w-full h-1 bg-white/5 mt-1 overflow-hidden">
+           <div class="h-full bg-brand-accent" :style="`width: ${stats.last_job?.status === 'running' ? '65%' : '100%'}`"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-                <div
-                  class="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50 flex justify-between items-center"
-                >
-                  <span class="text-[10px] font-bold text-slate-400 uppercase"
-                    >Toplam</span
-                  >
-                  <span
-                    class="text-sm font-black text-slate-600 dark:text-slate-300"
-                    x-text="(counts.satilik + counts.kiralik).toLocaleString('tr-TR')"
-                  ></span>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" x-show="stats.categories">
+    <template x-for="(cat_stats, cat_name) in stats.categories" :key="cat_name">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 contents">
+        <template x-if="cat_stats.satilik > 0 || cat_stats.new_satilik > 0">
+          <div class="tech-card p-5 group hover:bg-white/[0.02] transition-all">
+            <div class="flex justify-between items-start mb-4">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 flex items-center justify-center bg-brand-accent/10 border border-brand-accent/20 rounded-lg">
+                  <i :data-lucide="cat_name === 'konut' ? 'home' : (cat_name === 'arsa' ? 'map' : 'building')" class="w-4 h-4 text-brand-accent"></i>
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-white uppercase tracking-wider" x-text="cat_name.toUpperCase() + ' SATILIK'"></h4>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <i data-lucide="clock" class="w-2.5 h-2.5 text-slate-600"></i>
+                    <span class="text-[8px] font-bold text-slate-500 uppercase" x-text="cat_stats.last_updated_satilik || 'GÜNCELLEME YOK'"></span>
+                  </div>
                 </div>
               </div>
-            </template>
+              <div class="text-right">
+                <div class="stat-value text-2xl" x-text="cat_stats.satilik.toLocaleString()">0</div>
+                <div x-show="cat_stats.new_satilik > 0" class="text-[9px] font-black text-emerald-500 mt-1">
+                  +<span x-text="cat_stats.new_satilik"></span> YENİ
+                </div>
+              </div>
+            </div>
+            <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+              <div class="h-full bg-brand-accent/30" :style="`width: ${Math.min((cat_stats.satilik / stats.total_listings) * 100 * 2, 100)}%`"></div>
+            </div>
+          </div>
+        </template>
+
+        <template x-if="cat_stats.kiralik > 0 || cat_stats.new_kiralik > 0">
+          <div class="tech-card p-5 group hover:bg-white/[0.02] transition-all">
+            <div class="flex justify-between items-start mb-4">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 flex items-center justify-center bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <i :data-lucide="cat_name === 'konut' ? 'key' : 'building-2'" class="w-4 h-4 text-blue-500"></i>
+                </div>
+                <div>
+                  <h4 class="text-xs font-black text-white uppercase tracking-wider" x-text="cat_name.toUpperCase() + ' KİRALIK'"></h4>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <i data-lucide="clock" class="w-2.5 h-2.5 text-slate-600"></i>
+                    <span class="text-[8px] font-bold text-slate-500 uppercase" x-text="cat_stats.last_updated_kiralik || 'GÜNCELLEME YOK'"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="stat-value text-2xl text-blue-400" x-text="cat_stats.kiralik.toLocaleString()">0</div>
+                <div x-show="cat_stats.new_kiralik > 0" class="text-[9px] font-black text-blue-500 mt-1">
+                  +<span x-text="cat_stats.new_kiralik"></span> YENİ
+                </div>
+              </div>
+            </div>
+            <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+              <div class="h-full bg-blue-500/30" :style="`width: ${Math.min((cat_stats.kiralik / stats.total_listings) * 100 * 2, 100)}%`"></div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h3 class="text-sm font-black uppercase tracking-widest text-white mb-1">Fiyat Oynaklık Endeksi</h3>
+          <p class="text-[10px] text-slate-500 font-bold uppercase">Tüm kategorilerdeki ortalama fiyat dalgalanmaları</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 bg-brand-accent"></span>
+            <span class="text-[8px] font-black text-slate-400 uppercase">Ort. Fiyat</span>
           </div>
         </div>
       </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <a
-          href="/listings"
-          class="premium-card group bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-[2rem] border border-slate-200/60 dark:border-slate-700/60 p-8 shadow-sm animate-slide-up"
-          style="animation-delay: 750ms"
-        >
-          <div class="flex items-center gap-6">
-            <div
-              class="w-16 h-16 rounded-2xl bg-primary-500 flex items-center justify-center text-white shadow-lg shadow-primary-500/30 group-hover:rotate-6 transition-premium"
-            >
-              <svg
-                class="w-8 h-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                ></path>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <h3
-                class="text-xl font-bold text-slate-900 dark:text-white font-outfit"
-              >
-                İlan Arşivi
-              </h3>
-              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                Gelişmiş filtreleme ve detaylı arama paneli
-              </p>
-            </div>
-            <div
-              class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-primary-500 group-hover:text-white transition-premium"
-            >
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                ></path>
-              </svg>
-            </div>
-          </div>
-        </a>
-
-        <a
-          href="/new-listings"
-          class="premium-card group bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-[2rem] border border-slate-200/60 dark:border-slate-700/60 p-8 shadow-sm animate-slide-up"
-          style="animation-delay: 850ms"
-        >
-          <div class="flex items-center gap-6">
-            <div
-              class="w-16 h-16 rounded-2xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30 group-hover:rotate-6 transition-premium"
-            >
-              <svg
-                class="w-8 h-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="3"
-                  d="M12 4v16m8-8H4"
-                ></path>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <h3
-                class="text-xl font-bold text-slate-900 dark:text-white font-outfit"
-              >
-                Radar
-              </h3>
-              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                Pazara yeni düşen fırsatları anlık takip et
-              </p>
-            </div>
-            <div
-              class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-premium"
-            >
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                ></path>
-              </svg>
-            </div>
-          </div>
-        </a>
-
-        <a
-          href="/crawler"
-          class="premium-card group bg-white/50 dark:bg-slate-800/50 backdrop-blur-md rounded-[2rem] border border-slate-200/60 dark:border-slate-700/60 p-8 shadow-sm animate-slide-up"
-          style="animation-delay: 950ms"
-        >
-          <div class="flex items-center gap-6">
-            <div
-              class="w-16 h-16 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/30 group-hover:rotate-6 transition-premium"
-            >
-              <svg
-                class="w-8 h-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                ></path>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <h3
-                class="text-xl font-bold text-slate-900 dark:text-white font-outfit"
-              >
-                Kontrol Merkezi
-              </h3>
-              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                Crawler manuel başlatma ve durum takibi
-              </p>
-            </div>
-            <div
-              class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-premium"
-            >
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                ></path>
-              </svg>
-            </div>
-          </div>
-        </a>
-      </div>
-
-      <div
-        class="bg-white/40 dark:bg-slate-800/40 backdrop-blur-md rounded-[2.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm p-8 animate-slide-up"
-        style="animation-delay: 1100ms"
-      >
-        <h3
-          class="text-xl font-bold text-slate-900 dark:text-white mb-8 font-outfit"
-        >
-          Portföy Trendleri
-        </h3>
-        <div class="h-80 w-full">
-          <canvas id="categoryChart"></canvas>
-        </div>
-      </div>
+      <div id="priceTrendsChart" class="h-80 w-full"></div>
     </div>
-  </template>
+
+    <div class="tech-card p-8">
+      <div class="mb-8">
+        <h3 class="text-sm font-black uppercase tracking-widest text-white mb-1">Mahalle Dağılımı</h3>
+        <p class="text-[10px] text-slate-500 font-bold uppercase">Konuma göre portföy yoğunluğu</p>
+      </div>
+      <div id="neighborhoodTreemap" class="h-80 w-full"></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div class="lg:col-span-3 tech-card p-8">
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <h3 class="text-sm font-black uppercase tracking-widest text-white mb-1">Kategori Yoğunluk Matrisi</h3>
+          <p class="text-[10px] text-slate-500 font-bold uppercase">İlan durumuna göre portföy türü dağılımı</p>
+        </div>
+      </div>
+      <div id="categoryHeatmap" class="h-64 w-full"></div>
+    </div>
+
+    <div class="flex flex-col gap-4">
+      <a href="/listings" class="flex-1 tech-card group p-6 flex flex-col justify-between hover:bg-brand-accent transition-all duration-300">
+        <div class="stat-label group-hover:text-brand-black transition-colors">Gezgin</div>
+        <div class="flex items-end justify-between">
+          <span class="text-xl font-bold text-white group-hover:text-brand-black transition-colors">Arşiv</span>
+          <i data-lucide="arrow-right" class="w-6 h-6 text-slate-700 group-hover:text-brand-black"></i>
+        </div>
+      </a>
+      <a href="/crawler" class="flex-1 tech-card group p-6 flex flex-col justify-between hover:bg-white transition-all duration-300">
+        <div class="stat-label group-hover:text-brand-black transition-colors">Operasyonel</div>
+        <div class="flex items-end justify-between">
+          <span class="text-xl font-bold text-white group-hover:text-brand-black transition-colors">Terminal</span>
+          <i data-lucide="cpu" class="w-6 h-6 text-slate-700 group-hover:text-brand-black"></i>
+        </div>
+      </a>
+    </div>
+  </div>
 </div>
-{% endblock %} {% block scripts %}
+{% endblock %}
+
+{% block scripts %}
 <script>
   function dashboard() {
     return {
-      loading: true,
       timeFilter: "7",
-      districtFilter: "{{ selected_district }}" || "all", // YENİ: İlçe filtresi
-      chart: null,
-      data: {
-        total_listings: 0,
-        new_listings: 0,
-        removed_listings: 0,
-        categories: {},
-        last_job: null,
+      districtFilter: "all",
+      stats: {},
+      priceTrends: [],
+      neighborhoods: [],
+      
+      charts: {
+        price: null,
+        treemap: null,
+        heatmap: null
       },
 
       async init() {
-        await this.loadData();
+        await this.loadAllData();
       },
 
-      async loadData() {
-        this.loading = true;
+      async loadAllData() {
+        this.$store.app.setLoading(true);
         try {
-          const response = await fetch(
-            `/api/dashboard?days=${this.timeFilter}&district=${this.districtFilter}`, // YENİ: İlçe parametresi eklendi
-          );
-          const result = await response.json();
+          const [dashboardRes, trendsRes, neighborsRes] = await Promise.all([
+            fetch(`/api/dashboard?days=${this.timeFilter}&district=${this.districtFilter}`),
+            fetch(`/api/stats/price-trends?days=${this.timeFilter}&district=${this.districtFilter}`),
+            fetch(`/api/stats/neighborhoods?district=${this.districtFilter}`)
+          ]);
 
-          if (result.success) {
-            this.data = result.data;
-            this.$nextTick(() => this.updateChart());
-            if (window.showToast) {
-              window.showToast("Veriler güncellendi", "success", 2000);
-            }
-          }
+          const [dData, tData, nData] = await Promise.all([
+            dashboardRes.json(),
+            trendsRes.json(),
+            neighborsRes.json()
+          ]);
+
+          if (dData.success) this.stats = dData.data;
+          if (tData.success) this.priceTrends = tData.data;
+          if (nData.success) this.neighborhoods = nData.data;
+
+          this.renderCharts();
+          
+          this.$store.app.toast("İstihbarat Verileri Senkronize Edildi", "success");
         } catch (error) {
-          console.error("Dashboard yüklenemedi:", error);
-          if (window.showToast) {
-            window.showToast("Veriler yüklenemedi", "error");
-          }
+          console.error("Panel Senkronizasyonu Başarısız:", error);
+          this.$store.app.toast("Veri Senkronizasyon Hatası", "error");
         } finally {
-          this.loading = false;
+          this.$store.app.setLoading(false);
+          lucide.createIcons();
         }
       },
 
-      getCategoryName(category) {
-        const names = {
-          konut: "Konut",
-          arsa: "Arsa",
-          isyeri: "İşyeri",
-          bina: "Bina",
-        };
-        return names[category] || category;
+      renderCharts() {
+        this.renderPriceTrends();
+        this.renderNeighborhoodTreemap();
+        this.renderCategoryHeatmap();
       },
 
-      getTimeLabel() {
-        const labels = {
-          1: "24 saat",
-          2: "2 gün",
-          3: "3 gün",
-          7: "1 hafta",
-        };
-        return labels[this.timeFilter] || this.timeFilter + " gün";
-      },
-
-      updateChart() {
-        const ctx = document.getElementById("categoryChart");
-        if (!ctx) return;
-
-        const categories = Object.keys(this.data.categories || {});
-        const satilikData = categories.map(
-          (c) => this.data.categories[c]?.satilik || 0,
-        );
-        const kiralikData = categories.map(
-          (c) => this.data.categories[c]?.kiralik || 0,
-        );
-        const labels = categories.map((c) => this.getCategoryName(c));
-
-        if (this.chart) {
-          this.chart.destroy();
-        }
-
-        this.chart = new Chart(ctx, {
-          type: "bar",
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: "Satılık",
-                data: satilikData,
-                backgroundColor: "rgba(14, 120, 241, 0.8)",
-                hoverBackgroundColor: "rgba(14, 120, 241, 1)",
-                borderRadius: 12,
-                borderSkipped: false,
-                barThickness: 32,
-              },
-              {
-                label: "Kiralık",
-                data: kiralikData,
-                backgroundColor: "rgba(16, 185, 129, 0.8)",
-                hoverBackgroundColor: "rgba(16, 185, 129, 1)",
-                borderRadius: 12,
-                borderSkipped: false,
-                barThickness: 32,
-              },
-            ],
+      renderPriceTrends() {
+        const options = {
+          series: [{
+            name: 'Ort. Fiyat',
+            data: this.priceTrends.map(item => item.avg_price)
+          }],
+          chart: {
+            height: 320,
+            type: 'area',
+            toolbar: { show: false },
+            animations: { enabled: true, easing: 'easeinout', speed: 800 },
+            background: 'transparent'
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-              intersect: false,
-              mode: "index",
-            },
-            plugins: {
-              legend: {
-                position: "top",
-                align: "end",
-                labels: {
-                  usePointStyle: true,
-                  pointStyle: "circle",
-                  padding: 25,
-                  font: {
-                    family: "'Inter', sans-serif",
-                    size: 12,
-                    weight: "500",
-                  },
-                  color: document.documentElement.classList.contains("dark")
-                    ? "#94a3b8"
-                    : "#64748b",
-                },
-              },
-              tooltip: {
-                backgroundColor: document.documentElement.classList.contains(
-                  "dark",
-                )
-                  ? "#1e293b"
-                  : "#fff",
-                titleColor: document.documentElement.classList.contains("dark")
-                  ? "#fff"
-                  : "#1e293b",
-                bodyColor: document.documentElement.classList.contains("dark")
-                  ? "#94a3b8"
-                  : "#64748b",
-                borderColor: "rgba(14, 120, 241, 0.1)",
-                borderWidth: 1,
-                cornerRadius: 16,
-                padding: 16,
-                bodyFont: {
-                  family: "'Inter', sans-serif",
-                },
-                titleFont: {
-                  family: "'Outfit', sans-serif",
-                  size: 14,
-                  weight: "600",
-                },
-                boxPadding: 6,
-                usePointStyle: true,
-                callbacks: {
-                  label: function (context) {
-                    return `  ${context.dataset.label}: ${context.parsed.y.toLocaleString("tr-TR")} ilan`;
-                  },
-                },
-              },
-            },
-            scales: {
-              x: {
-                grid: {
-                  display: false,
-                },
-                ticks: {
-                  font: {
-                    family: "'Inter', sans-serif",
-                    size: 11,
-                  },
-                  color: document.documentElement.classList.contains("dark")
-                    ? "#64748b"
-                    : "#94a3b8",
-                },
-              },
-              y: {
-                border: {
-                  dash: [4, 4],
-                  display: false,
-                },
-                grid: {
-                  color: document.documentElement.classList.contains("dark")
-                    ? "rgba(255, 255, 255, 0.05)"
-                    : "rgba(0, 0, 0, 0.05)",
-                },
-                ticks: {
-                  font: {
-                    family: "'Inter', sans-serif",
-                    size: 11,
-                  },
-                  color: document.documentElement.classList.contains("dark")
-                    ? "#64748b"
-                    : "#94a3b8",
-                  padding: 10,
-                  callback: function (value) {
-                    return value.toLocaleString("tr-TR");
-                  },
-                },
-              },
-            },
+          colors: ['#d9ff00'],
+          dataLabels: { enabled: false },
+          stroke: { curve: 'smooth', width: 2 },
+          fill: {
+            type: 'gradient',
+            gradient: {
+              shadeIntensity: 1,
+              opacityFrom: 0.4,
+              opacityTo: 0,
+              stops: [0, 100]
+            }
           },
-        });
+          grid: {
+            borderColor: 'rgba(255,255,255,0.05)',
+            strokeDashArray: 4,
+            xaxis: { lines: { show: true } }
+          },
+          xaxis: {
+            categories: this.priceTrends.map(item => item.date),
+            labels: { style: { colors: '#475569', fontSize: '10px', fontWeight: 700 } },
+            axisBorder: { show: false },
+            axisTicks: { show: false }
+          },
+          yaxis: {
+            labels: { 
+              style: { colors: '#475569', fontSize: '10px', fontWeight: 700 },
+              formatter: (val) => val ? (val/1000000).toFixed(1) + 'M' : ''
+            }
+          },
+          theme: { mode: 'dark' },
+          tooltip: {
+            theme: 'dark',
+            x: { show: true },
+            y: { formatter: (val) => val.toLocaleString() + ' ₺' }
+          }
+        };
+
+        if (this.charts.price) this.charts.price.destroy();
+        this.charts.price = new ApexCharts(document.querySelector("#priceTrendsChart"), options);
+        this.charts.price.render();
       },
+
+      renderNeighborhoodTreemap() {
+        const options = {
+          series: [{
+            data: this.neighborhoods.slice(0, 15).map(item => ({
+              x: item.neighborhood,
+              y: item.count
+            }))
+          }],
+          legend: { show: false },
+          chart: {
+            height: 320,
+            type: 'treemap',
+            toolbar: { show: false },
+            background: 'transparent'
+          },
+          colors: ['#334155'],
+          plotOptions: {
+            treemap: {
+              distributed: true,
+              enableShades: false
+            }
+          },
+          theme: { mode: 'dark' },
+          dataLabels: {
+            enabled: true,
+            style: { fontSize: '10px', fontWeight: 'bold' },
+            offsetY: -4
+          }
+        };
+
+        if (this.charts.treemap) this.charts.treemap.destroy();
+        this.charts.treemap = new ApexCharts(document.querySelector("#neighborhoodTreemap"), options);
+        this.charts.treemap.render();
+      },
+
+      renderCategoryHeatmap() {
+        const cats = Object.keys(this.stats.categories || {});
+        const series = [
+          {
+            name: 'Satılık',
+            data: cats.map(c => ({ x: c.toUpperCase(), y: this.stats.categories[c].satilik }))
+          },
+          {
+            name: 'Kiralık',
+            data: cats.map(c => ({ x: c.toUpperCase(), y: this.stats.categories[c].kiralik }))
+          }
+        ];
+
+        const options = {
+          series: series,
+          chart: {
+            height: 250,
+            type: 'heatmap',
+            toolbar: { show: false },
+            background: 'transparent'
+          },
+          dataLabels: { enabled: true, style: { fontSize: '10px', colors: ['#000'] } },
+          colors: ['#d9ff00'],
+          theme: { mode: 'dark' },
+          plotOptions: {
+            heatmap: {
+              shadeIntensity: 0.5,
+              radius: 0,
+              useFillColorAsStroke: true,
+              colorScale: {
+                ranges: [
+                  { from: 0, to: 100, color: '#1a1a1a', name: 'Düşük' },
+                  { from: 101, to: 500, color: '#334155', name: 'Orta' },
+                  { from: 501, to: 10000, color: '#d9ff00', name: 'Yüksek' }
+                ]
+              }
+            }
+          },
+          grid: { show: false }
+        };
+
+        if (this.charts.heatmap) this.charts.heatmap.destroy();
+        this.charts.heatmap = new ApexCharts(document.querySelector("#categoryHeatmap"), options);
+        this.charts.heatmap.render();
+      }
     };
   }
 </script>
 {% endblock %}
+

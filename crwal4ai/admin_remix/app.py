@@ -38,7 +38,9 @@ app.config["SECRET_KEY"] = "dev-secret-key-change-in-production"
 # DATABASE_URL is expected in .env or provided by environment
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    DATABASE_URL = "postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db"
+    DATABASE_URL = (
+        "postgres://postgres:518518Erkan@wgkosgwkg8o4wg4k8cgcw4og:5432/demir_db"
+    )
 os.environ["DATABASE_URL"] = DATABASE_URL
 
 # Crawler state
@@ -52,14 +54,18 @@ current_job_id = None
 
 
 def format_price(price: int) -> str:
-    """Fiyatı formatla: 9300000 -> 9.300.000 TL"""
+    """Fiyatı Türkçe formatta yazdır: 9300000 -> 9.300.000 TL"""
     if not price:
         return "Belirtilmemiş"
-    return f"{price:,.0f} TL".replace(",", ".")
+    try:
+        # Binlik ayıracı olarak nokta kullan
+        return f"{int(price):,}".replace(",", ".") + " TL"
+    except (ValueError, TypeError):
+        return str(price) + " TL"
 
 
 def format_date(date_str: str) -> str:
-    """Tarihi formatla"""
+    """Tarihi Türkçe formatla"""
     if not date_str:
         return "-"
     try:
@@ -70,15 +76,29 @@ def format_date(date_str: str) -> str:
 
 
 def get_category_display(category: str) -> str:
-    """Kategori display adı"""
-    mapping = {"konut": "Konut", "arsa": "Arsa", "isyeri": "İşyeri", "bina": "Bina"}
-    return mapping.get(category, category.title())
+    """Kategori adını Türkçe'ye çevir"""
+    mapping = {
+        "konut": "Konut",
+        "arsa": "Arsa",
+        "isyeri": "İşyeri",
+        "bina": "Bina",
+        "devren": "Devren",
+        "turistik": "Turistik Tesis",
+        "tarla": "Tarla",
+        "bahce": "Bahçe",
+    }
+    return mapping.get(category.lower(), category.title())
 
 
 def get_transaction_display(transaction: str) -> str:
-    """İşlem tipi display adı"""
-    mapping = {"satilik": "Satılık", "kiralik": "Kiralık"}
-    return mapping.get(transaction, transaction.title())
+    """İşlem tipini Türkçe'ye çevir"""
+    mapping = {
+        "satilik": "Satılık",
+        "kiralik": "Kiralık",
+        "devren": "Devren",
+        "gunluk_kiralik": "Günlük Kiralık",
+    }
+    return mapping.get(transaction.lower(), transaction.title())
 
 
 # ============================================================================
@@ -89,14 +109,14 @@ def get_transaction_display(transaction: str) -> str:
 @app.route("/")
 def index():
     """Ana dashboard - ilçe parametresi ile"""
-    district = request.args.get('district', 'all')
-    
+    district = request.args.get("district", "all")
+
     # İlçe listesi
     districts = db.get_district_list()
-    
-    return render_template('index.html', 
-                         districts=districts,
-                         selected_district=district)
+
+    return render_template(
+        "index.html", districts=districts, selected_district=district
+    )
 
 
 @app.route("/listings")
@@ -126,14 +146,14 @@ def jobs():
 @app.route("/crawler")
 def crawler():
     """Crawler yönetim sayfası - ilçe parametresi ile"""
-    district = request.args.get('district', 'hendek')
-    
+    district = request.args.get("district", "hendek")
+
     # İlçe listesi
     districts = db.get_district_list()
-    
-    return render_template("crawler.html",
-                         districts=districts,
-                         selected_district=district)
+
+    return render_template(
+        "crawler.html", districts=districts, selected_district=district
+    )
 
 
 @app.route("/map")
@@ -159,15 +179,18 @@ def api_crawler_status():
         if current_job_id:
             try:
                 job_data = db.execute_one(
-                    "SELECT * FROM mining_jobs WHERE id = %s",
-                    (current_job_id,)
+                    "SELECT * FROM mining_jobs WHERE id = %s", (current_job_id,)
                 )
 
                 if job_data:
                     status["job"] = {
                         "id": job_data["id"],
                         "status": job_data["status"],
-                        "created_at": format_date(job_data["created_at"].isoformat() if hasattr(job_data["created_at"], 'isoformat') else str(job_data["created_at"])),
+                        "created_at": format_date(
+                            job_data["created_at"].isoformat()
+                            if hasattr(job_data["created_at"], "isoformat")
+                            else str(job_data["created_at"])
+                        ),
                         "stats": job_data.get("stats", {}),
                         "progress": job_data.get("progress", {}),
                     }
@@ -177,7 +200,9 @@ def api_crawler_status():
         return jsonify({"success": True, "data": status})
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Durum alınırken hata oluştu: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/crawler/start", methods=["POST"])
@@ -208,24 +233,26 @@ def api_crawler_start():
             VALUES (%s, %s, %s, %s, %s, %s)
         """
         db.execute_query(
-            job_sql, 
+            job_sql,
             (
-                job_id, 
-                "manual_crawler", 
-                "running", 
-                json.dumps({
-                    "categories": categories,
-                    "district": district,  # YENİ: İlçe config'e eklendi
-                    "max_pages": max_pages,
-                    "force": force,
-                    "reverse_sort": reverse_sort,
-                    "sync": sync,
-                    "turbo": turbo,
-                }),
+                job_id,
+                "manual_crawler",
+                "running",
+                json.dumps(
+                    {
+                        "categories": categories,
+                        "district": district,  # YENİ: İlçe config'e eklendi
+                        "max_pages": max_pages,
+                        "force": force,
+                        "reverse_sort": reverse_sort,
+                        "sync": sync,
+                        "turbo": turbo,
+                    }
+                ),
                 json.dumps({}),
-                json.dumps({"current": 0, "total": 0, "percentage": 0})
+                json.dumps({"current": 0, "total": 0, "percentage": 0}),
             ),
-            fetch=False
+            fetch=False,
         )
 
         # Crawler'ı background thread'de başlat
@@ -235,7 +262,9 @@ def api_crawler_start():
 
             try:
                 # Python script yolu (Sahibinden Crawler)
-                script_path = os.path.join(os.path.dirname(__file__), "sahibinden_crawler.py")
+                script_path = os.path.join(
+                    os.path.dirname(__file__), "sahibinden_crawler.py"
+                )
 
                 # Komut hazırla
                 cmd = [
@@ -272,19 +301,20 @@ def api_crawler_start():
                 script_dir = os.path.dirname(script_path)
                 log_file = os.path.join(script_dir, "crawler_debug.log")
                 error_log_file = os.path.join(script_dir, "crawler_error.log")
-                
+
                 # Windows'ta detached process (penceresiz)
                 creationflags = 0
                 if sys.platform == "win32":
                     creationflags = 0x00000008  # DETACHED_PROCESS
 
                 # STDOUT ve STDERR'i ayrı dosyalara yaz
-                with open(log_file, "w", encoding="utf-8") as stdout_f, \
-                     open(error_log_file, "w", encoding="utf-8") as stderr_f:
-                    
+                with (
+                    open(log_file, "w", encoding="utf-8") as stdout_f,
+                    open(error_log_file, "w", encoding="utf-8") as stderr_f,
+                ):
                     print(f"📝 Logs: {log_file}")
                     print(f"📝 Errors: {error_log_file}")
-                    
+
                     result = subprocess.run(
                         cmd,
                         stdout=stdout_f,
@@ -300,18 +330,18 @@ def api_crawler_start():
                     with open(log_file, "r", encoding="utf-8") as f:
                         debug_log = f.read()
                 except Exception as e:
-                    debug_log = f"Log file read error: {str(e)}"
+                    debug_log = f"Log dosyası okuma hatası: {str(e)}"
 
                 # Error logu oku
                 try:
                     with open(error_log_file, "r", encoding="utf-8") as f:
                         error_log = f.read()
                 except Exception as e:
-                    error_log = f"Error log read error: {str(e)}"
+                    error_log = f"Hata logu okuma hatası: {str(e)}"
 
                 # Logları birleştir
-                full_log = f"=== STDOUT ===\n{debug_log}\n\n=== STDERR ===\n{error_log}"
-                
+                full_log = f"=== STANDART ÇIKTI (STDOUT) ===\n{debug_log}\n\n=== HATA ÇIKTISI (STDERR) ===\n{error_log}"
+
                 print(f"✅ Crawler finished with return code: {result.returncode}")
                 print(f"📊 Log preview: {full_log[:500]}")
 
@@ -319,34 +349,36 @@ def api_crawler_start():
                 if result.returncode == 0:
                     db.execute_query(
                         "UPDATE mining_jobs SET status = 'completed', error = %s WHERE id = %s",
-                        (full_log[-5000:] if full_log else "No output", job_id),
-                        fetch=False
+                        (full_log[-5000:] if full_log else "Çıktı yok", job_id),
+                        fetch=False,
                     )
                 else:
                     db.execute_query(
                         "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
                         (full_log[-5000:], job_id),
-                        fetch=False
+                        fetch=False,
                     )
 
             except subprocess.TimeoutExpired as e:
-                error_msg = f"Timeout (1 saat): {str(e)}"
+                error_msg = f"Zaman aşımı (1 saat): {str(e)}"
                 print(f"❌ {error_msg}")
                 db.execute_query(
                     "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
                     (error_msg, job_id),
-                    fetch=False
+                    fetch=False,
                 )
 
             except Exception as e:
-                error_msg = f"Crawler exception: {str(e)}"
+                error_msg = f"Crawler istisnası: {str(e)}"
+
                 print(f"❌ {error_msg}")
                 import traceback
+
                 traceback.print_exc()
                 db.execute_query(
                     "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
                     (error_msg[:500], job_id),
-                    fetch=False
+                    fetch=False,
                 )
 
             finally:
@@ -363,7 +395,9 @@ def api_crawler_start():
 
     except Exception as e:
         crawler_running = False
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Crawler başlatılamadı: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/crawler/stop", methods=["POST"])
@@ -405,18 +439,20 @@ def api_crawler_start_parallel():
                 job_id,
                 "parallel_crawler",
                 "running",
-                json.dumps({
-                    "categories": categories,
-                    "district": district,  # YENİ: İlçe config'e eklendi
-                    "max_pages": max_pages,
-                    "workers": 2,
-                    "turbo": turbo,
-                    "sync": sync,
-                }),
+                json.dumps(
+                    {
+                        "categories": categories,
+                        "district": district,  # YENİ: İlçe config'e eklendi
+                        "max_pages": max_pages,
+                        "workers": 2,
+                        "turbo": turbo,
+                        "sync": sync,
+                    }
+                ),
                 json.dumps({}),
-                json.dumps({"current": 0, "total": len(categories), "percentage": 0})
+                json.dumps({"current": 0, "total": len(categories), "percentage": 0}),
             ),
-            fetch=False
+            fetch=False,
         )
 
         # Paralel Crawler'ı background thread'de başlat
@@ -426,7 +462,9 @@ def api_crawler_start_parallel():
 
             try:
                 # Paralel crawler script yolu
-                script_path = os.path.join(os.path.dirname(__file__), "parallel_crawler.py")
+                script_path = os.path.join(
+                    os.path.dirname(__file__), "parallel_crawler.py"
+                )
 
                 # Komut hazırla
                 cmd = [
@@ -452,12 +490,12 @@ def api_crawler_start_parallel():
                 print(f"Executing Parallel Crawler: {' '.join(cmd)}")
                 script_dir = os.path.dirname(script_path)
                 log_file = os.path.join(script_dir, "parallel_crawler_debug.log")
-                
+
                 # Windows'ta detached process (penceresiz)
                 creationflags = 0
                 if sys.platform == "win32":
                     creationflags = 0x00000008  # DETACHED_PROCESS
-                
+
                 with open(log_file, "w", encoding="utf-8") as f:
                     result = subprocess.run(
                         cmd,
@@ -474,34 +512,34 @@ def api_crawler_start_parallel():
                     with open(log_file, "r", encoding="utf-8") as f:
                         debug_log = f.read()
                 except:
-                    debug_log = "Log read error"
+                    debug_log = "Log okuma hatası"
 
                 # Job'u güncelle
                 if result.returncode == 0:
                     db.execute_query(
                         "UPDATE mining_jobs SET status = 'completed', error = %s WHERE id = %s",
-                        (debug_log[-5000:] if debug_log else "No output", job_id),
-                        fetch=False
+                        (debug_log[-5000:] if debug_log else "Çıktı yok", job_id),
+                        fetch=False,
                     )
                 else:
                     db.execute_query(
                         "UPDATE mining_jobs SET status = 'failed', error = %s WHERE id = %s",
                         (debug_log[-5000:], job_id),
-                        fetch=False
+                        fetch=False,
                     )
 
             except subprocess.TimeoutExpired:
                 db.execute_query(
                     "UPDATE mining_jobs SET status = %s, error = %s WHERE id = %s",
-                    ("failed", "Timeout (1 saat)", job_id),
-                    fetch=False
+                    ("failed", "Zaman aşımı (1 saat)", job_id),
+                    fetch=False,
                 )
 
             except Exception as e:
                 db.execute_query(
                     "UPDATE mining_jobs SET status = %s, error = %s WHERE id = %s",
                     ("failed", str(e)[:500], job_id),
-                    fetch=False
+                    fetch=False,
                 )
 
             finally:
@@ -521,7 +559,9 @@ def api_crawler_start_parallel():
 
     except Exception as e:
         crawler_running = False
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Paralel crawler başlatılamadı: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/category-counts")
@@ -544,14 +584,16 @@ def api_category_counts():
         for category, transaction, key in categories:
             res = db.execute_one(
                 "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s",
-                (category, transaction)
+                (category, transaction),
             )
             counts[key] = res["count"] if res else 0
 
         return jsonify({"success": True, "data": counts})
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Kategori sayıları alınamadı: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/dashboard")
@@ -561,21 +603,23 @@ def api_dashboard():
         # Parametreler
         days = int(request.args.get("days", 1))
         district = request.args.get("district", "all")  # YENİ: İlçe parametresi
-        
+
         # ISO formatında tarih sınırı
         days_ago = (datetime.now() - timedelta(days=days)).isoformat()
 
         # İlçe filtresi için SQL condition
         district_condition = ""
         district_params = []
-        
-        if district and district != 'all':
+
+        if district and district != "all":
             district_condition = " AND LOWER(konum) LIKE %s"
-            district_params = [f'%{district.lower()}%']
+            district_params = [f"%{district.lower()}%"]
 
         # 1. Toplam İlan Sayısı
         total_sql = f"SELECT COUNT(*) as count FROM sahibinden_liste WHERE 1=1{district_condition}"
-        total_res = db.execute_one(total_sql, district_params if district_params else None)
+        total_res = db.execute_one(
+            total_sql, district_params if district_params else None
+        )
         total_count = total_res["count"] if total_res else 0
 
         # 2. Yeni İlanlar
@@ -604,7 +648,11 @@ def api_dashboard():
             last_job = {
                 "id": job.get("id"),
                 "status": job.get("status"),
-                "created_at": format_date(job.get("created_at").isoformat() if hasattr(job.get("created_at"), 'isoformat') else str(job.get("created_at"))),
+                "created_at": format_date(
+                    job.get("created_at").isoformat()
+                    if hasattr(job.get("created_at"), "isoformat")
+                    else str(job.get("created_at"))
+                ),
                 "stats": job.get("stats") or {},
                 "config": job.get("config") or {},
             }
@@ -626,7 +674,9 @@ def api_dashboard():
 
     except Exception as e:
         app.logger.error(f"Dashboard API Error: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Dashboard verileri alınamadı: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/listings")
@@ -639,10 +689,16 @@ def api_listings():
         category = request.args.get("category")
         transaction = request.args.get("transaction")
         search = request.args.get("search")
-        district = request.args.get("district")  # İlçe filtresi
+        district = request.args.get("district")
 
-        # Build SQL query with filters and pagination
+        min_price = request.args.get("min_price", type=int)
+        max_price = request.args.get("max_price", type=int)
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
+        sort_by = request.args.get("sort_by", "date_desc")
+
         sql = "SELECT *, COUNT(*) OVER() as full_count FROM sahibinden_liste WHERE 1=1"
+
         params = []
 
         if category:
@@ -652,13 +708,34 @@ def api_listings():
             sql += " AND transaction = %s"
             params.append(transaction)
         if district:
-            sql += " AND ilce = %s"  # İlçe filtresi
-            params.append(district)
+            sql += " AND (ilce = %s OR LOWER(konum) LIKE %s)"
+            params.extend([district, f"%{district.lower()}%"])
         if search:
             sql += " AND baslik ILIKE %s"
             params.append(f"%{search}%")
 
-        sql += " ORDER BY crawled_at DESC LIMIT %s OFFSET %s"
+        if min_price is not None:
+            sql += " AND fiyat >= %s"
+            params.append(min_price)
+        if max_price is not None:
+            sql += " AND fiyat <= %s"
+            params.append(max_price)
+        if start_date:
+            sql += " AND crawled_at >= %s"
+            params.append(start_date)
+        if end_date:
+            sql += " AND crawled_at <= %s"
+            params.append(end_date)
+
+        if sort_by == "price_asc":
+            sql += " ORDER BY fiyat ASC"
+        elif sort_by == "price_desc":
+            sql += " ORDER BY fiyat DESC"
+        else:
+            sql += " ORDER BY crawled_at DESC"
+
+        sql += " LIMIT %s OFFSET %s"
+
         params.extend([per_page, (page - 1) * per_page])
 
         # Execute
@@ -667,7 +744,7 @@ def api_listings():
 
         # Format
         listings = []
-        for item in (results or []):
+        for item in results or []:
             listings.append(
                 {
                     "id": item["id"],
@@ -678,7 +755,11 @@ def api_listings():
                     "category": get_category_display(item["category"]),
                     "transaction": get_transaction_display(item["transaction"]),
                     "tarih": item["tarih"],
-                    "crawled_at": format_date(item["crawled_at"].isoformat() if hasattr(item["crawled_at"], 'isoformat') else str(item["crawled_at"])),
+                    "crawled_at": format_date(
+                        item["crawled_at"].isoformat()
+                        if hasattr(item["crawled_at"], "isoformat")
+                        else str(item["crawled_at"])
+                    ),
                     "link": item["link"],
                     "resim": item["resim"],
                 }
@@ -698,7 +779,7 @@ def api_listings():
         )
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": f"İlanlar alınamadı: {str(e)}"}), 500
 
 
 @app.route("/api/new-listings")
@@ -721,7 +802,7 @@ def api_new_listings():
 
         # Format
         listings = []
-        for item in (results or []):
+        for item in results or []:
             listings.append(
                 {
                     "listing_id": item["listing_id"],
@@ -730,7 +811,11 @@ def api_new_listings():
                     "konum": item["konum"],
                     "category": get_category_display(item["category"]),
                     "transaction": get_transaction_display(item["transaction"]),
-                    "first_seen_at": format_date(item["first_seen_at"].isoformat() if hasattr(item["first_seen_at"], 'isoformat') else str(item["first_seen_at"])),
+                    "first_seen_at": format_date(
+                        item["first_seen_at"].isoformat()
+                        if hasattr(item["first_seen_at"], "isoformat")
+                        else str(item["first_seen_at"])
+                    ),
                     "link": item["link"],
                     "resim": item["resim"],
                 }
@@ -750,7 +835,9 @@ def api_new_listings():
         )
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Yeni ilanlar alınamadı: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/removed-listings")
@@ -773,16 +860,24 @@ def api_removed_listings():
 
         # Format
         listings = []
-        for item in (results or []):
+        for item in results or []:
             listings.append(
                 {
                     "listing_id": item["listing_id"],
                     "baslik": item["baslik"],
-                    "fiyat": format_price(item["last_price"]),
+                    "last_price": format_price(item["last_price"]),
+                    "ilce": item.get("ilce", "-"),
+                    "semt": item.get("semt", "-"),
+                    "mahalle": item.get("mahalle", "-"),
                     "konum": item["konum"],
+
                     "category": get_category_display(item["category"]),
                     "transaction": get_transaction_display(item["transaction"]),
-                    "removed_at": format_date(item["removed_at"].isoformat() if hasattr(item["removed_at"], 'isoformat') else str(item["removed_at"])),
+                    "removed_at": format_date(
+                        item["removed_at"].isoformat()
+                        if hasattr(item["removed_at"], "isoformat")
+                        else str(item["removed_at"])
+                    ),
                     "days_active": item.get("days_active"),
                     "price_changes": item.get("price_changes", 0),
                     "link": item["link"],
@@ -804,7 +899,9 @@ def api_removed_listings():
         )
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Kaldırılan ilanlar alınamadı: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/crawler/logs")
@@ -813,66 +910,61 @@ def api_crawler_logs():
     try:
         log_type = request.args.get("type", "debug")  # debug veya error
         lines = int(request.args.get("lines", 100))
-        
+
         script_dir = os.path.dirname(__file__)
-        
+
         if log_type == "error":
             log_file = os.path.join(script_dir, "crawler_error.log")
         else:
             log_file = os.path.join(script_dir, "crawler_debug.log")
-        
+
         if not os.path.exists(log_file):
-            return jsonify({
-                "success": True,
-                "data": {
-                    "logs": "Log dosyası henüz oluşturulmadı.",
-                    "file": log_file
+            return jsonify(
+                {
+                    "success": True,
+                    "data": {
+                        "logs": "Log dosyası henüz oluşturulmadı.",
+                        "file": log_file,
+                    },
                 }
-            })
-        
+            )
+
         # Son N satırı oku
         with open(log_file, "r", encoding="utf-8") as f:
             all_lines = f.readlines()
             last_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
             logs = "".join(last_lines)
-        
-        return jsonify({
-            "success": True,
-            "data": {
-                "logs": logs,
-                "file": log_file,
-                "total_lines": len(all_lines)
+
+        return jsonify(
+            {
+                "success": True,
+                "data": {"logs": logs, "file": log_file, "total_lines": len(all_lines)},
             }
-        })
-        
+        )
+
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": f"Loglar alınamadı: {str(e)}"}), 500
 
 
 @app.route("/api/maintenance/run", methods=["POST"])
 def run_maintenance():
     """Veritabanı bakım ve temizlik işlemini tetikler"""
     try:
-        # Postgres için basit bakım görevleri
-        # 1. Mükerrer ilanları temizle (link bazlı)
-        db.execute_query("""
-            DELETE FROM sahibinden_liste 
-            WHERE id NOT IN (
-                SELECT MIN(id) 
-                FROM sahibinden_liste 
-                GROUP BY link
-            )
-        """, fetch=False)
-        
+        db.clean_duplicates()
+
         # 2. Geçersiz (fiyatı 0 olan) ilanları temizle
         db.execute_query("DELETE FROM sahibinden_liste WHERE fiyat <= 0", fetch=False)
-        
-        return jsonify({
-            "success": True,
-            "message": "Bakım işlemi başarıyla tamamlandı (Postgres)",
-            "duplicates_removed": "Unknown",
-            "nulls_removed": "Unknown"
-        })
+
+
+        return jsonify(
+            {
+                "success": True,
+                "message": "Bakım işlemi başarıyla tamamlandı (Postgres)",
+                "duplicates_removed": "Bilinmiyor",
+                "nulls_removed": "Bilinmiyor",
+            }
+        )
+
     except Exception as e:
         print(f"Maintenance Error: {e}")
         return jsonify(
@@ -901,14 +993,14 @@ def api_category_stats():
         )
 
         stats = []
-        for item in (result or []):
+        for item in result or []:
             cat = item["category"]
             trans = item["transaction"]
 
             # Veritabanındaki GERÇEK sayıyı anlık olarak say (Tutarsızlığı önle)
             real_db_res = db.execute_one(
                 "SELECT COUNT(*) as count FROM sahibinden_liste WHERE category = %s AND transaction = %s",
-                (cat, trans)
+                (cat, trans),
             )
 
             real_db_count = real_db_res["count"] if real_db_res else 0
@@ -931,7 +1023,11 @@ def api_category_stats():
                     "database_count": real_db_count,
                     "diff": diff,
                     "status": status,
-                    "last_checked_at": format_date(item["last_checked_at"].isoformat() if hasattr(item["last_checked_at"], 'isoformat') else str(item["last_checked_at"])),
+                    "last_checked_at": format_date(
+                        item["last_checked_at"].isoformat()
+                        if hasattr(item["last_checked_at"], "isoformat")
+                        else str(item["last_checked_at"])
+                    ),
                 }
             )
 
@@ -939,7 +1035,9 @@ def api_category_stats():
 
     except Exception as e:
         app.logger.error(f"Category Stats API Error: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Kategori istatistikleri alınamadı: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/jobs")
@@ -959,18 +1057,27 @@ def api_jobs():
         # Sayfalı listeyi al
         result = db.execute_query(
             "SELECT * FROM mining_jobs ORDER BY created_at DESC LIMIT %s OFFSET %s",
-            (per_page, start)
+            (per_page, start),
         )
 
         jobs = []
-        for item in (result or []):
+        for item in result or []:
             stats = item.get("stats") or {}
             jobs.append(
                 {
                     "id": item["id"],
                     "status": item["status"],
-                    "created_at": format_date(item["created_at"].isoformat() if hasattr(item["created_at"], 'isoformat') else str(item["created_at"])),
-                    "updated_at": format_date(item.get("updated_at").isoformat() if item.get("updated_at") and hasattr(item.get("updated_at"), 'isoformat') else str(item.get("updated_at"))),
+                    "created_at": format_date(
+                        item["created_at"].isoformat()
+                        if hasattr(item["created_at"], "isoformat")
+                        else str(item["created_at"])
+                    ),
+                    "updated_at": format_date(
+                        item.get("updated_at").isoformat()
+                        if item.get("updated_at")
+                        and hasattr(item.get("updated_at"), "isoformat")
+                        else str(item.get("updated_at"))
+                    ),
                     "total_listings": stats.get("total_listings", 0) if stats else 0,
                     "new_listings": stats.get("new_listings", 0) if stats else 0,
                     "updated_listings": stats.get("updated_listings", 0)
@@ -999,7 +1106,9 @@ def api_jobs():
         )
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"İş geçmişi alınamadı: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/map/neighborhoods")
@@ -1014,18 +1123,24 @@ def api_map_neighborhoods():
 
         # Mahalle bazlı gruplama
         neighborhoods = {}
-        
-        for item in (result or []):
+
+        for item in result or []:
             konum = item.get("konum", "")
             if not konum:
                 continue
-                
+
             # Mahalle adını parse et (örn: "MerkezYeni Mah." -> "Yeni")
-            mahalle = konum.replace("Merkez", "").replace("Köyler", "").replace(" Mah.", "").replace(" Mh.", "").strip()
-            
+            mahalle = (
+                konum.replace("Merkez", "")
+                .replace("Köyler", "")
+                .replace(" Mah.", "")
+                .replace(" Mh.", "")
+                .strip()
+            )
+
             if not mahalle:
                 continue
-                
+
             if mahalle not in neighborhoods:
                 neighborhoods[mahalle] = {
                     "name": mahalle,
@@ -1037,56 +1152,68 @@ def api_map_neighborhoods():
                     "isyeri": 0,
                     "bina": 0,
                     "avg_price": 0,
-                    "min_price": float('inf'),
+                    "min_price": float("inf"),
                     "max_price": 0,
-                    "prices": []
+                    "prices": [],
                 }
-            
+
             neighborhoods[mahalle]["total"] += 1
-            
+
             # Transaction type
             if item.get("transaction") == "satilik":
                 neighborhoods[mahalle]["satilik"] += 1
             elif item.get("transaction") == "kiralik":
                 neighborhoods[mahalle]["kiralik"] += 1
-            
+
             # Category
             category = item.get("category", "")
             if category in neighborhoods[mahalle]:
                 neighborhoods[mahalle][category] += 1
-            
+
             # Price
             fiyat = item.get("fiyat", 0)
             if fiyat and fiyat > 0:
                 neighborhoods[mahalle]["prices"].append(fiyat)
-                neighborhoods[mahalle]["min_price"] = min(neighborhoods[mahalle]["min_price"], fiyat)
-                neighborhoods[mahalle]["max_price"] = max(neighborhoods[mahalle]["max_price"], fiyat)
-        
+                neighborhoods[mahalle]["min_price"] = min(
+                    neighborhoods[mahalle]["min_price"], fiyat
+                )
+                neighborhoods[mahalle]["max_price"] = max(
+                    neighborhoods[mahalle]["max_price"], fiyat
+                )
+
         # Ortalama fiyat hesapla
         for mahalle in neighborhoods.values():
             if mahalle["prices"]:
-                mahalle["avg_price"] = int(sum(mahalle["prices"]) / len(mahalle["prices"]))
+                mahalle["avg_price"] = int(
+                    sum(mahalle["prices"]) / len(mahalle["prices"])
+                )
             else:
                 mahalle["avg_price"] = 0
-            
-            if mahalle["min_price"] == float('inf'):
+
+            if mahalle["min_price"] == float("inf"):
                 mahalle["min_price"] = 0
-            
+
             # prices listesini kaldır (gereksiz)
             del mahalle["prices"]
-        
+
         # Liste olarak döndür
-        neighborhood_list = sorted(neighborhoods.values(), key=lambda x: x["total"], reverse=True)
-        
-        return jsonify({
-            "success": True,
-            "data": neighborhood_list,
-            "total_neighborhoods": len(neighborhood_list)
-        })
-        
+        neighborhood_list = sorted(
+            neighborhoods.values(), key=lambda x: x["total"], reverse=True
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "data": neighborhood_list,
+                "total_neighborhoods": len(neighborhood_list),
+            }
+        )
+
     except Exception as e:
         app.logger.error(f"Map Neighborhoods API Error: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Harita mahalle verileri alınamadı: {str(e)}"}
+        ), 500
 
 
 @app.route("/api/map/listings")
@@ -1096,64 +1223,122 @@ def api_map_listings():
         neighborhood = request.args.get("neighborhood")
         category = request.args.get("category")
         transaction = request.args.get("transaction")
-        
+
         # Base query
         # Base query
         sql = "SELECT * FROM sahibinden_liste WHERE 1=1"
         params = []
-        
+
         # Filters
         if neighborhood:
             sql += " AND konum ILIKE %s"
             params.append(f"%{neighborhood}%")
-        
+
         if category:
             sql += " AND category = %s"
             params.append(category)
-        
+
         if transaction:
             sql += " AND transaction = %s"
             params.append(transaction)
-        
+
         sql += " ORDER BY crawled_at DESC LIMIT 100"
-        
+
         # Execute
         result = db.execute_query(sql, params)
-        
+
         # Format
         listings = []
-        for item in (result or []):
+        for item in result or []:
             konum = item.get("konum", "")
-            mahalle = konum.replace("Merkez", "").replace("Köyler", "").replace(" Mah.", "").replace(" Mh.", "").strip()
-            
-            listings.append({
-                "id": item["id"],
-                "baslik": item["baslik"],
-                "fiyat": item["fiyat"],
-                "fiyat_formatted": format_price(item["fiyat"]),
-                "konum": konum,
-                "mahalle": mahalle,
-                "category": item["category"],
-                "category_display": get_category_display(item["category"]),
-                "transaction": item["transaction"],
-                "transaction_display": get_transaction_display(item["transaction"]),
-                "link": item["link"],
-                "resim": item["resim"],
-                "crawled_at": format_date(item["crawled_at"].isoformat() if hasattr(item["crawled_at"], 'isoformat') else str(item["crawled_at"]))
-            })
-        
-        return jsonify({
-            "success": True,
-            "data": listings,
-            "total": len(listings)
-        })
-        
+            mahalle = (
+                konum.replace("Merkez", "")
+                .replace("Köyler", "")
+                .replace(" Mah.", "")
+                .replace(" Mh.", "")
+                .strip()
+            )
+
+            listings.append(
+                {
+                    "id": item["id"],
+                    "baslik": item["baslik"],
+                    "fiyat": item["fiyat"],
+                    "fiyat_formatted": format_price(item["fiyat"]),
+                    "konum": konum,
+                    "mahalle": mahalle,
+                    "category": item["category"],
+                    "category_display": get_category_display(item["category"]),
+                    "transaction": item["transaction"],
+                    "transaction_display": get_transaction_display(item["transaction"]),
+                    "link": item["link"],
+                    "resim": item["resim"],
+                    "crawled_at": format_date(
+                        item["crawled_at"].isoformat()
+                        if hasattr(item["crawled_at"], "isoformat")
+                        else str(item["crawled_at"])
+                    ),
+                }
+            )
+
+        return jsonify({"success": True, "data": listings, "total": len(listings)})
+
     except Exception as e:
         app.logger.error(f"Map Listings API Error: {str(e)}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify(
+            {"success": False, "error": f"Harita ilan verileri alınamadı: {str(e)}"}
+        ), 500
+
+
+@app.route("/api/stats/price-trends")
+def api_price_trends():
+    try:
+        days = request.args.get("days", default=30, type=int)
+        district = request.args.get("district", default="all")
+
+        trends = db.get_price_trends(days=days, district=district)
+
+        formatted_trends = []
+        for row in trends:
+            formatted_trends.append(
+                {
+                    "date": row["date"].isoformat()
+                    if hasattr(row["date"], "isoformat")
+                    else str(row["date"]),
+                    "avg_price": row["avg_price"],
+                    "count": row["count"],
+                }
+            )
+
+        return jsonify(
+            {
+                "success": True,
+                "data": formatted_trends,
+                "days": days,
+                "district": district,
+            }
+        )
+    except Exception as e:
+        return jsonify(
+            {"success": False, "error": f"Fiyat trendleri alınamadı: {str(e)}"}
+        ), 500
+
+
+@app.route("/api/stats/neighborhoods")
+def api_neighborhood_stats():
+    try:
+        district = request.args.get("district", default="all")
+        stats = db.get_neighborhood_stats(district=district)
+
+        return jsonify({"success": True, "data": stats, "district": district})
+    except Exception as e:
+        return jsonify(
+            {"success": False, "error": f"Mahalle istatistikleri alınamadı: {str(e)}"}
+        ), 500
 
 
 # ============================================================================
+
 # RUN
 # ============================================================================
 

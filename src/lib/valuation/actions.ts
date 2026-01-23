@@ -30,10 +30,11 @@ export async function saveValuationRequest(
         lng: location.lng,
         mahalle: location.mahalle,
       },
-      estimatedValue: result.estimatedValue.toString(),
-      minValue: result.priceRange.min.toString(),
-      maxValue: result.priceRange.max.toString(),
-      pricePerSqm: result.pricePerM2.toString(),
+      estimatedValue: Math.min(result.estimatedValue, 999999999).toString(),
+      minValue: Math.min(result.priceRange.min, 999999999).toString(),
+      maxValue: Math.min(result.priceRange.max, 999999999).toString(),
+      pricePerSqm: Math.min(result.pricePerM2, 999999).toString(),
+
       confidenceScore: Math.round(result.confidenceScore).toString(), // 0-100 arası tam sayı olarak saklayalım (Schema decimal beklediği için string)
       marketAnalysis: result.aiInsights,
       comparables: result.comparableProperties,

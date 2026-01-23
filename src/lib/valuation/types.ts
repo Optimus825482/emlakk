@@ -47,7 +47,9 @@ export interface ComparableProperty {
   distance: number; // km cinsinden
   pricePerM2: number;
   similarity: number; // 0-100 arası benzerlik skoru
+  status?: "active" | "archived";
 }
+
 
 export interface POIDetail {
   name: string;

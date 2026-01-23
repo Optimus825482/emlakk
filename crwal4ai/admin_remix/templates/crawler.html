@@ -1,813 +1,449 @@
-{% extends "base.html" %} {% block title %}Kontrol Merkezi{% endblock %} {%
-block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}Görev Kontrol Merkezi{% endblock %} {%
+block breadcrumb %}Taktiksel Motor{% endblock %} {% block content %}
 <div
   x-data="crawler()"
   x-init="init()"
   x-cloak
-  class="space-y-8 animate-fade-in pb-12"
+  class="space-y-6 pb-12 font-sans"
 >
-  <!-- Premium Header & Status Hub -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Title Section -->
-    <div
-      class="lg:col-span-2 flex flex-col justify-end p-8 bg-slate-900 dark:bg-slate-950 rounded-[3rem] text-white shadow-2xl relative overflow-hidden group"
-    >
-      <!-- Background Glow -->
-      <div
-        class="absolute -top-24 -right-24 w-64 h-64 bg-primary-500/20 blur-[100px] rounded-full group-hover:bg-primary-500/30 transition-premium"
-      ></div>
-
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+    <div class="lg:col-span-1 bg-brand-black border border-white/10 p-6 flex flex-col justify-between relative overflow-hidden group">
+      <div class="absolute inset-0 opacity-[0.03] pointer-events-none" 
+           style="background-image: radial-gradient(circle at 2px 2px, white 1px, transparent 0); background-size: 24px 24px;"></div>
+      
       <div class="relative z-10">
-        <div class="flex items-center gap-3 mb-4">
-          <span
-            class="px-3 py-1.5 bg-primary-500/20 border border-primary-500/30 rounded-xl text-[10px] font-black uppercase tracking-[0.2em]"
-            >Sistem Durumu</span
-          >
+        <div class="flex items-center justify-between mb-8">
+          <span class="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">Engine.v4</span>
           <div class="flex items-center gap-2">
-            <div
-              class="w-2 h-2 rounded-full shadow-[0_0_12px_rgba(34,197,94,0.6)]"
-              :class="status.running ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'"
-            ></div>
-            <span
-              class="text-[10px] font-bold uppercase tracking-widest text-slate-400"
-              x-text="status.running ? 'Aktif İşlem' : 'Beklemede'"
-            ></span>
+            <span class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest" x-show="status.running">Aktif</span>
+            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest" x-show="!status.running">Hazırda</span>
           </div>
         </div>
-        <h1 class="text-4xl lg:text-5xl font-black font-outfit mb-2">
-          Kontrol Merkezi
-        </h1>
-        <p class="text-slate-400 text-sm max-w-md font-medium leading-relaxed">
-          Veri madenciliği robotlarını yönetin, tarama frekansını ayarlayın ve
-          canlı akışı izleyin.
-        </p>
-      </div>
 
-      <!-- Quick Info Widgets -->
-      <div class="grid grid-cols-2 gap-4 mt-8 relative z-10">
-        <div
-          class="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-3xl"
-        >
-          <span
-            class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1"
-            >Aktif Robotlar</span
-          >
-          <span
-            class="text-2xl font-black font-outfit"
-            x-text="status.running ? '1' : '0'"
-          ></span>
-        </div>
-        <div
-          class="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-3xl"
-        >
-          <span
-            class="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1"
-            >Sistem Yükü</span
-          >
-          <span class="text-2xl font-black font-outfit">2.4%</span>
+        <div class="flex flex-col items-center justify-center py-4">
+          <div class="relative w-24 h-24 flex items-center justify-center">
+            <div 
+              class="absolute inset-0 border-2 rounded-none transition-all duration-500"
+              :class="status.running ? 'border-brand-accent animate-[ping_2s_infinite] opacity-20' : 'border-slate-800'"
+            ></div>
+            <div 
+              class="absolute inset-4 border border-white/20 rounded-none rotate-45"
+            ></div>
+            <div 
+              class="relative z-20 transition-transform duration-300"
+              :class="status.running ? 'scale-110' : 'scale-100'"
+            >
+              <i data-lucide="zap" 
+                 class="w-10 h-10 transition-colors duration-500"
+                 :class="status.running ? 'text-brand-accent fill-brand-accent/20' : 'text-slate-700'"></i>
+            </div>
+          </div>
+          
+          <div class="mt-6 text-center">
+            <div class="text-2xl font-display font-black tracking-tighter text-white" 
+                 x-text="status.running ? 'MOTOR AKTİF' : 'SİSTEM BOŞTA'"></div>
+            <div class="text-[10px] font-mono text-white/30 mt-1 uppercase tracking-widest"
+                 x-text="status.running ? 'Veri akışları besleniyor...' : 'Görev parametreleri bekleniyor...'"></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Live Status Card -->
-    <div
-      class="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl p-8 rounded-[3rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm flex flex-col justify-between"
-    >
-      <div>
-        <div class="flex items-center justify-between mb-8">
-          <h3
-            class="text-xl font-black font-outfit text-slate-900 dark:text-white uppercase tracking-tighter"
-          >
-            İşlem Takibi
-          </h3>
-          <button
-            @click="refreshStatus()"
-            class="p-2.5 bg-slate-100 dark:bg-slate-900 rounded-2xl hover:bg-primary-500 hover:text-white transition-premium shadow-inner"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              ></path>
-            </svg>
-          </button>
+    <div class="lg:col-span-2 bg-white dark:bg-brand-gray border border-slate-200 dark:border-white/5 p-6 flex flex-col justify-between">
+      <div class="flex items-start justify-between">
+        <div>
+          <span class="text-[10px] font-black text-slate-400 dark:text-white/30 uppercase tracking-[0.2em] block mb-2">Görev Kimliği</span>
+          <h2 class="text-xl font-display font-black tracking-tight" x-text="status.job_id ? 'MISSION-' + status.job_id.substring(0,8).toUpperCase() : 'AKTİF GÖREV YOK'"></h2>
         </div>
-
-        <template x-if="status.running && status.job">
-          <div class="space-y-6">
-            <div class="flex items-end justify-between">
-              <div>
-                <span
-                  class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1"
-                  >Batch İlerlemesi</span
-                >
-                <span
-                  class="text-4xl font-black font-outfit text-primary-600 dark:text-primary-400"
-                  x-text="status.job?.progress?.percentage + '%'"
-                ></span>
-              </div>
-              <div class="text-right">
-                <span
-                  class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1"
-                  >Sayfa</span
-                >
-                <span
-                  class="text-xl font-bold font-outfit text-slate-900 dark:text-white"
-                  x-text="status.job?.stats?.total_pages || 0"
-                ></span>
-              </div>
-            </div>
-
-            <!-- Styled Progress Bar -->
-            <div
-              class="relative h-4 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden p-1 shadow-inner"
-            >
-              <div
-                class="h-full bg-gradient-to-r from-primary-500 to-violet-500 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(14,165,233,0.3)]"
-                :style="'width: ' + (status.job?.progress?.percentage || 0) + '%'"
-              ></div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div
-                class="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-3xl border border-emerald-100/50 dark:border-emerald-900/20"
-              >
-                <span
-                  class="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest block mb-1"
-                  >Yeni</span
-                >
-                <span
-                  class="text-xl font-black text-emerald-600"
-                  x-text="status.job?.stats?.new_listings || 0"
-                ></span>
-              </div>
-              <div
-                class="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-3xl border border-blue-100/50 dark:border-blue-900/20"
-              >
-                <span
-                  class="text-[10px] font-bold text-blue-600/70 uppercase tracking-widest block mb-1"
-                  >Güncel</span
-                >
-                <span
-                  class="text-xl font-black text-blue-600"
-                  x-text="status.job?.stats?.updated_listings || 0"
-                ></span>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <template x-if="!status.running">
-          <div
-            class="flex flex-col items-center justify-center py-12 text-center"
-          >
-            <div
-              class="w-20 h-20 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mb-4 shadow-inner"
-            >
-              <svg
-                class="w-10 h-10 text-slate-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                ></path>
-              </svg>
-            </div>
-            <p
-              class="text-sm font-bold text-slate-400 uppercase tracking-widest"
-            >
-              Sistem Beklemede
-            </p>
-            <p class="text-[10px] text-slate-500 mt-2 px-6">
-              Yeni bir görev başlatmak için aşağıdan parametreleri seçin.
-            </p>
-          </div>
-        </template>
+        <div class="text-right">
+          <span class="text-[10px] font-black text-slate-400 dark:text-white/30 uppercase tracking-[0.2em] block mb-2">Çalışma Süresi</span>
+          <span class="text-xl font-mono font-bold text-brand-accent" x-text="status.running ? runtime : '00:00:00'"></span>
+        </div>
       </div>
 
-      <div
-        x-show="status.job_id"
-        class="mt-8 pt-6 border-t border-slate-200/50 dark:border-slate-700/50 flex items-center justify-between"
-      >
-        <span
-          class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
-          >Görev Kimliği</span
-        >
-        <span
-          class="text-[10px] font-mono text-primary-500 font-bold"
-          x-text="status.job_id"
-        ></span>
+      <div class="grid grid-cols-3 gap-4 mt-8">
+        <div class="border-l-2 border-brand-accent pl-4 py-1">
+          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Bulunan</span>
+          <span class="text-lg font-display font-bold" x-text="status.job?.stats?.total_listings || 0"></span>
+        </div>
+        <div class="border-l-2 border-emerald-500 pl-4 py-1">
+          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Yeni</span>
+          <span class="text-lg font-display font-bold text-emerald-500" x-text="status.job?.stats?.new_listings || 0"></span>
+        </div>
+        <div class="border-l-2 border-blue-500 pl-4 py-1">
+          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Güncellenen</span>
+          <span class="text-lg font-display font-bold text-blue-500" x-text="status.job?.stats?.updated_listings || 0"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-brand-gray border border-slate-200 dark:border-white/5 p-6 flex flex-col justify-between">
+      <div>
+        <span class="text-[10px] font-black text-slate-400 dark:text-white/30 uppercase tracking-[0.2em] block mb-4">DİS (Dakikadaki İlan)</span>
+        <div class="flex items-baseline gap-2">
+          <span class="text-4xl font-display font-black text-brand-accent" x-text="listingsPerMinute"></span>
+          <span class="text-[10px] font-bold text-slate-400 uppercase">Hız</span>
+        </div>
+      </div>
+      
+      <div class="pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
+        <div class="flex flex-col">
+          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Tahmini Bitiş</span>
+          <span class="text-sm font-mono font-bold" x-text="eta"></span>
+        </div>
+        <div class="flex flex-col text-right">
+          <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Yük</span>
+          <span class="text-sm font-mono font-bold">2.4%</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Command Center: Configuration Form -->
-  <div
-    class="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl p-8 lg:p-12 rounded-[3.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm animate-slide-up"
-    style="animation-delay: 200ms"
-  >
-    <div class="flex flex-col gap-6 mb-12">
-      <div
-        class="flex flex-col md:flex-row md:items-center justify-between gap-4"
-      >
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1 bg-white dark:bg-brand-gray border border-slate-200 dark:border-white/5 p-8">
+      <div class="flex items-center gap-3 mb-8">
+        <div class="p-2 bg-brand-accent/10 border border-brand-accent/20">
+          <i data-lucide="settings-2" class="w-5 h-5 text-brand-accent"></i>
+        </div>
+        <h3 class="text-lg font-display font-black uppercase tracking-tighter">Parametreler</h3>
+      </div>
+
+      <div class="space-y-6">
         <div>
-          <h3
-            class="text-2xl font-black font-outfit text-slate-900 dark:text-white uppercase tracking-tighter"
-          >
-            Parametre Yapılandırması
-          </h3>
-          <p class="text-sm text-slate-500 font-medium">
-            Hedef kategorileri belirleyin ve tarama derinliğini ayarlayın.
-          </p>
-        </div>
-
-        <div
-          class="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner"
-        >
-          <span
-            class="px-4 py-2 text-[10px] font-black text-slate-500 uppercase tracking-widest"
-            >Derinlik:</span
-          >
-          <select
-            x-model="form.max_pages"
-            class="bg-white dark:bg-slate-800 px-4 py-1.5 rounded-xl text-xs font-bold text-primary-500 border-none focus:ring-2 focus:ring-primary-500 transition-premium cursor-pointer shadow-sm"
-          >
-            <option value="5">Test (5 Sayfa)</option>
-            <option value="10">Standart (10 Sayfa)</option>
-            <option value="50">Kapsamlı (50 Sayfa)</option>
-            <option value="100">Tam Tarama (100 Sayfa)</option>
-            <option value="999">Sınırsız Deep-Crawl</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div
-          class="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/10 px-4 py-3 rounded-2xl border border-amber-200 dark:border-amber-800/30"
-        >
-          <input
-            type="checkbox"
-            id="force-mode"
-            x-model="form.force"
-            class="w-4 h-4 text-primary-600 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded focus:ring-primary-500 focus:ring-2 cursor-pointer"
-          />
-          <label
-            for="force-mode"
-            class="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-widest cursor-pointer select-none"
-          >
-            ⚡ Zorla Tara
-          </label>
-        </div>
-
-        <div
-          class="flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/10 px-4 py-3 rounded-2xl border border-indigo-200 dark:border-indigo-800/30"
-        >
-          <input
-            type="checkbox"
-            id="reverse-sort"
-            x-model="form.reverse_sort"
-            class="w-4 h-4 text-primary-600 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded focus:ring-primary-500 focus:ring-2 cursor-pointer"
-          />
-          <label
-            for="reverse-sort"
-            class="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-widest cursor-pointer select-none"
-          >
-            🔄 Ters Sıra
-          </label>
-        </div>
-
-        <div
-          class="flex items-center gap-3 bg-rose-50 dark:bg-rose-900/10 px-4 py-3 rounded-2xl border border-rose-200 dark:border-rose-900/30"
-        >
-          <input
-            type="checkbox"
-            id="sync-mode"
-            x-model="form.sync"
-            class="w-4 h-4 text-rose-600 bg-white dark:bg-slate-800 border-rose-300 dark:border-rose-600 rounded focus:ring-rose-500 focus:ring-2 cursor-pointer"
-          />
-          <label
-            for="sync-mode"
-            class="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-widest cursor-pointer select-none"
-          >
-            🗑️ Eşitle & Sil
-          </label>
-        </div>
-
-        <div
-          class="flex items-center gap-3 bg-violet-50 dark:bg-violet-900/10 px-4 py-3 rounded-2xl border border-violet-200 dark:border-violet-800/30"
-        >
-          <input
-            type="checkbox"
-            id="parallel-mode"
-            x-model="form.parallel"
-            class="w-4 h-4 text-violet-600 bg-white dark:bg-slate-800 border-violet-300 dark:border-violet-600 rounded focus:ring-violet-500 focus:ring-2 cursor-pointer"
-          />
-          <label
-            for="parallel-mode"
-            class="text-[10px] font-bold text-violet-700 dark:text-violet-400 uppercase tracking-widest cursor-pointer select-none"
-          >
-            🚀 Paralel
-          </label>
-        </div>
-
-        <div
-          class="flex items-center gap-3 bg-cyan-50 dark:bg-cyan-900/10 px-4 py-3 rounded-2xl border border-cyan-200 dark:border-cyan-800/30"
-        >
-          <input
-            type="checkbox"
-            id="turbo-mode"
-            x-model="form.turbo"
-            class="w-4 h-4 text-cyan-600 bg-white dark:bg-slate-800 border-cyan-300 dark:border-cyan-600 rounded focus:ring-cyan-500 focus:ring-2 cursor-pointer"
-          />
-          <label
-            for="turbo-mode"
-            class="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-widest cursor-pointer select-none"
-          >
-            ⚡ Turbo
-          </label>
-        </div>
-      </div>
-    </div>
-
-    <form @submit.prevent="startCrawler()">
-      <!-- Unified Category Grid -->
-      <div class="mb-12">
-        <div class="flex items-center justify-between mb-6 px-1">
-          <span
-            class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]"
-            >Hedef Klasörler</span
-          >
-          <span
-            class="text-[10px] font-bold text-primary-500 uppercase tracking-widest"
-            x-text="form.categories.length + ' Seçili'"
-          ></span>
-        </div>
-
-        <!-- İLÇE SEÇİMİ - YENİ EKLENEN BÖLÜM -->
-        <div
-          class="mb-8 bg-gradient-to-br from-primary-50 to-violet-50 dark:from-primary-900/10 dark:to-violet-900/10 p-6 rounded-3xl border border-primary-200 dark:border-primary-800/30"
-        >
-          <div class="flex items-center gap-4">
-            <div
-              class="w-12 h-12 bg-primary-500/10 border border-primary-500/20 rounded-2xl flex items-center justify-center shrink-0"
+          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Stratejik Sektör (İlçe)</label>
+          <div class="relative group">
+            <select
+              x-model="form.district"
+              class="w-full bg-slate-50 dark:bg-brand-black px-4 py-3 border border-slate-200 dark:border-white/10 text-sm font-bold focus:ring-1 focus:ring-brand-accent focus:border-brand-accent outline-none appearance-none cursor-pointer"
             >
-              <svg
-                class="w-6 h-6 text-primary-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                ></path>
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                ></path>
-              </svg>
-            </div>
-            <div class="flex-1">
-              <label
-                class="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest block mb-2"
-              >
-                📍 Hedef İlçe Seçin
-              </label>
-              <select
-                x-model="form.district"
-                class="w-full bg-white dark:bg-slate-800 px-6 py-3 rounded-2xl text-sm font-bold text-slate-900 dark:text-white border-2 border-primary-200 dark:border-primary-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-premium cursor-pointer shadow-sm"
-              >
-                <option value="hendek">Hendek</option>
-                <option value="adapazari">Adapazarı</option>
-                <option value="akyazi">Akyazı</option>
-                <option value="arifiye">Arifiye</option>
-                <option value="erenler">Erenler</option>
-                <option value="ferizli">Ferizli</option>
-                <option value="geyve">Geyve</option>
-                <option value="karapurcek">Karapürçek</option>
-                <option value="karasu">Karasu</option>
-                <option value="kaynarca">Kaynarca</option>
-                <option value="kocaali">Kocaali</option>
-                <option value="pamukova">Pamukova</option>
-                <option value="sapanca">Sapanca</option>
-                <option value="serdivan">Serdivan</option>
-                <option value="sogutlu">Söğütlü</option>
-                <option value="tarakli">Taraklı</option>
-              </select>
+              <template x-for="d in districts" :key="d">
+                <option :value="d" x-text="d.charAt(0).toUpperCase() + d.slice(1)"></option>
+              </template>
+            </select>
+            <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+              <i data-lucide="chevron-down" class="w-4 h-4"></i>
             </div>
           </div>
-          <p
-            class="text-[10px] text-primary-600/70 dark:text-primary-400/70 font-medium mt-3 ml-16"
-          >
-            Seçilen ilçedeki tüm kategoriler taranacaktır. İlçe değişikliği
-            kategori seçimini etkilemez.
-          </p>
         </div>
 
-        <template x-if="loadingCounts">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <template x-for="i in 8" :key="i">
-              <div class="h-32 skeleton rounded-[2rem]"></div>
+        <div>
+          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Tarama Derinliği (Sayfa)</label>
+          <div class="grid grid-cols-2 gap-2">
+            <template x-for="depth in [5, 10, 50, 100, 999]" :key="depth">
+              <button 
+                @click="form.max_pages = depth"
+                class="px-3 py-2 border text-[10px] font-black uppercase tracking-widest transition-all"
+                :class="form.max_pages == depth ? 'bg-brand-accent text-brand-black border-brand-accent' : 'bg-transparent text-slate-500 border-slate-200 dark:border-white/10 hover:border-slate-400'"
+                x-text="depth === 999 ? 'SINIRSIZ' : depth + ' SAYFA'"
+              ></button>
             </template>
           </div>
-        </template>
+        </div>
 
-        <div
-          x-show="!loadingCounts"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-        >
-          <template
-            x-for="(label, key) in {'konut_satilik': 'Konut Satılık', 'konut_kiralik': 'Konut Kiralık', 'arsa_satilik': 'Arsa Satılık', 'isyeri_satilik': 'İşyeri Satılık', 'isyeri_kiralik': 'İşyeri Kiralık', 'bina_satilik': 'Bina Satılık', 'bina_kiralik': 'Bina Kiralık'}"
-            :key="key"
-          >
-            <div
-              @click="toggleCategory(key)"
-              :class="form.categories.includes(key) ? 'bg-primary-500 border-primary-600 shadow-xl shadow-primary-500/20' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-primary-500'"
-              class="group relative p-6 rounded-[2rem] border-2 cursor-pointer transition-premium overflow-hidden"
+        <div class="pt-4 border-t border-slate-100 dark:border-white/5">
+          <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4">Operasyonel Protokoller</label>
+          <div class="grid grid-cols-2 gap-3">
+            <button 
+              @click="form.sync = !form.sync"
+              class="flex flex-col items-start p-3 border transition-all relative overflow-hidden group"
+              :class="form.sync ? 'border-blue-500 bg-blue-500/5' : 'border-slate-200 dark:border-white/5'"
             >
-              <!-- Abstract Visuals -->
-              <div
-                class="absolute -right-4 -top-4 w-16 h-16 opacity-10 group-hover:scale-125 transition-premium"
-                :class="form.categories.includes(key) ? 'text-white' : 'text-primary-500'"
-              >
-                <svg
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  class="w-full h-full"
-                >
-                  <path
-                    d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2m-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
-                  />
-                </svg>
+              <div class="flex items-center gap-2 mb-1">
+                <i data-lucide="refresh-cw" class="w-3 h-3" :class="form.sync ? 'text-blue-500' : 'text-slate-400'"></i>
+                <span class="text-[9px] font-black uppercase tracking-widest">Eşitleme</span>
               </div>
+              <span class="text-[8px] font-bold text-slate-500" x-text="form.sync ? 'Arşiv Kontrolü Aktif' : 'Pasif'"></span>
+              <div x-show="form.sync" class="absolute bottom-0 left-0 h-0.5 bg-blue-500 w-full"></div>
+            </button>
 
-              <div
-                class="relative z-10 flex flex-col justify-between h-full min-h-[5rem]"
-              >
-                <div>
-                  <span
-                    class="text-[10px] font-black uppercase tracking-widest block mb-1"
-                    :class="form.categories.includes(key) ? 'text-white/60' : 'text-slate-400'"
-                    >Kategori</span
-                  >
-                  <span
-                    class="text-sm font-black font-outfit leading-tight"
-                    :class="form.categories.includes(key) ? 'text-white' : 'text-slate-900 dark:text-white'"
-                    x-text="label"
-                  ></span>
-                </div>
-
-                <div class="mt-4 flex items-end justify-between">
-                  <span
-                    class="text-lg font-black font-outfit"
-                    :class="form.categories.includes(key) ? 'text-white' : 'text-primary-500'"
-                    x-text="categoryCounts[key]?.toLocaleString('tr-TR') || '0'"
-                  ></span>
-                  <span
-                    class="text-[9px] font-bold uppercase tracking-widest"
-                    :class="form.categories.includes(key) ? 'text-white/40' : 'text-slate-500'"
-                    >Hacim</span
-                  >
-                </div>
+            <button 
+              @click="form.force = !form.force"
+              class="flex flex-col items-start p-3 border transition-all relative overflow-hidden group"
+              :class="form.force ? 'border-rose-500 bg-rose-500/5' : 'border-slate-200 dark:border-white/5'"
+            >
+              <div class="flex items-center gap-2 mb-1">
+                <i data-lucide="shield-alert" class="w-3 h-3" :class="form.force ? 'text-rose-500' : 'text-slate-400'"></i>
+                <span class="text-[9px] font-black uppercase tracking-widest">Zorla Tara</span>
               </div>
+              <span class="text-[8px] font-bold text-slate-500" x-text="form.force ? 'Önbellek Baypas' : 'Standart'"></span>
+              <div x-show="form.force" class="absolute bottom-0 left-0 h-0.5 bg-rose-500 w-full"></div>
+            </button>
+
+            <button 
+              @click="form.parallel = !form.parallel"
+              class="flex flex-col items-start p-3 border transition-all relative overflow-hidden group"
+              :class="form.parallel ? 'border-brand-accent bg-brand-accent/5' : 'border-slate-200 dark:border-white/5'"
+            >
+              <div class="flex items-center gap-2 mb-1">
+                <i data-lucide="cpu" class="w-3 h-3" :class="form.parallel ? 'text-brand-accent' : 'text-slate-400'"></i>
+                <span class="text-[9px] font-black uppercase tracking-widest">Çoklu İşlem</span>
+              </div>
+              <span class="text-[8px] font-bold text-slate-500" x-text="form.parallel ? 'Çift Çekirdek Aktif' : 'Yalnızca Sıralı'"></span>
+              <div x-show="form.parallel" class="absolute bottom-0 left-0 h-0.5 bg-brand-accent w-full"></div>
+            </button>
+
+            <button 
+              @click="form.turbo = !form.turbo"
+              class="flex flex-col items-start p-3 border transition-all relative overflow-hidden group"
+              :class="form.turbo ? 'border-amber-500 bg-amber-500/5' : 'border-slate-200 dark:border-white/5'"
+            >
+              <div class="flex items-center gap-2 mb-1">
+                <i data-lucide="zap" class="w-3 h-3" :class="form.turbo ? 'text-amber-500' : 'text-slate-400'"></i>
+                <span class="text-[9px] font-black uppercase tracking-widest">Turbo Mod</span>
+              </div>
+              <span class="text-[8px] font-bold text-slate-500" x-text="form.turbo ? 'Güvenliği Atla' : 'Güvenli Hız'"></span>
+              <div x-show="form.turbo" class="absolute bottom-0 left-0 h-0.5 bg-amber-500 w-full"></div>
+            </button>
+
+            <button 
+              @click="form.reverse_sort = !form.reverse_sort"
+              class="flex flex-col items-start p-3 border transition-all relative overflow-hidden group"
+              :class="form.reverse_sort ? 'border-indigo-500 bg-indigo-500/5' : 'border-slate-200 dark:border-white/5'"
+            >
+              <div class="flex items-center gap-2 mb-1">
+                <i data-lucide="arrow-up-down" class="w-3 h-3" :class="form.reverse_sort ? 'text-indigo-500' : 'text-slate-400'"></i>
+                <span class="text-[9px] font-black uppercase tracking-widest">Ters Sıra</span>
+              </div>
+              <span class="text-[8px] font-bold text-slate-500" x-text="form.reverse_sort ? 'Eskiden Yeniye' : 'Yeniden Eskiye'"></span>
+              <div x-show="form.reverse_sort" class="absolute bottom-0 left-0 h-0.5 bg-indigo-500 w-full"></div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:col-span-2 bg-white dark:bg-brand-gray border border-slate-200 dark:border-white/5 p-8 flex flex-col">
+      <div class="flex items-center justify-between mb-10">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-emerald-500/10 border border-emerald-500/20">
+            <i data-lucide="activity" class="w-5 h-5 text-emerald-500"></i>
+          </div>
+          <h3 class="text-lg font-display font-black uppercase tracking-tighter">Yürütme Hattı</h3>
+        </div>
+        <div class="text-right">
+          <span class="text-3xl font-display font-black text-emerald-500" x-text="(status.job?.progress?.percentage || 0) + '%'"></span>
+        </div>
+      </div>
+
+      <div class="flex-1 flex flex-col justify-center relative px-4">
+        <div class="absolute left-10 top-0 bottom-0 w-px bg-slate-100 dark:bg-white/5"></div>
+        <div class="absolute left-10 top-0 w-px bg-emerald-500 transition-all duration-1000" 
+             :style="'height: ' + (status.job?.progress?.percentage || 0) + '%'"></div>
+
+        <div class="space-y-12 relative z-10">
+          <div class="flex items-start gap-8">
+            <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center border-2 transition-colors duration-500"
+                 :class="currentStep >= 1 ? 'bg-emerald-500 border-emerald-500 text-brand-black' : 'bg-brand-gray border-white/10 text-white/20'">
+              <i data-lucide="search" class="w-6 h-6"></i>
             </div>
-          </template>
+            <div class="pt-1">
+              <h4 class="text-sm font-black uppercase tracking-widest" :class="currentStep >= 1 ? 'text-white' : 'text-white/20'">01. Keşif Aşaması</h4>
+              <p class="text-[10px] font-medium text-slate-500 mt-1 uppercase" x-show="currentStep == 1">Hedef URL'ler haritalanıyor ve sayfalama sınırları belirleniyor...</p>
+              <p class="text-[10px] font-medium text-emerald-500 mt-1 uppercase" x-show="currentStep > 1">Yüzey haritalama tamamlandı. Hedefler belirlendi.</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-8">
+            <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center border-2 transition-colors duration-500"
+                 :class="currentStep >= 2 ? 'bg-emerald-500 border-emerald-500 text-brand-black' : 'bg-brand-gray border-white/10 text-white/20'">
+              <i data-lucide="pickaxe" class="w-6 h-6"></i>
+            </div>
+            <div class="pt-1">
+              <h4 class="text-sm font-black uppercase tracking-widest" :class="currentStep >= 2 ? 'text-white' : 'text-white/20'">02. Veri Çekme</h4>
+              <div class="mt-2 w-48 h-1 bg-white/5 relative overflow-hidden" x-show="currentStep == 2">
+                <div class="absolute top-0 bottom-0 bg-brand-accent transition-all duration-300" :style="'width: ' + (status.job?.progress?.percentage || 0) + '%'"></div>
+              </div>
+              <p class="text-[10px] font-medium text-slate-500 mt-1 uppercase" x-show="currentStep == 2">Hedeflenen düğümlerden ham nitelikler çıkarılıyor...</p>
+              <p class="text-[10px] font-medium text-emerald-500 mt-1 uppercase" x-show="currentStep > 2">Çıkarma işlemi doğrulandı. Veriler hazır.</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-8">
+            <div class="w-12 h-12 flex-shrink-0 flex items-center justify-center border-2 transition-colors duration-500"
+                 :class="currentStep >= 3 ? 'bg-emerald-500 border-emerald-500 text-brand-black' : 'bg-brand-gray border-white/10 text-white/20'">
+              <i data-lucide="database" class="w-6 h-6"></i>
+            </div>
+            <div class="pt-1">
+              <h4 class="text-sm font-black uppercase tracking-widest" :class="currentStep >= 3 ? 'text-white' : 'text-white/20'">03. Veri İşleme ve Eşitleme</h4>
+              <p class="text-[10px] font-medium text-slate-500 mt-1 uppercase" x-show="currentStep == 3">Doğrulanmış veriler merkezi depoya aktarılıyor...</p>
+              <p class="text-[10px] font-medium text-emerald-500 mt-1 uppercase" x-show="currentStep > 3">Görev Başarılı. Bütünlük kontrolü geçildi.</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Action & Warning -->
-      <div
-        class="flex flex-col lg:flex-row items-center gap-8 bg-slate-100 dark:bg-slate-900/50 p-8 rounded-[3rem] border border-slate-200 dark:border-slate-700 shadow-inner"
-      >
-        <div class="flex-1 flex gap-4">
-          <div
-            class="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center shrink-0"
-          >
-            <svg
-              class="w-6 h-6 text-amber-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              ></path>
-            </svg>
-          </div>
-          <div>
-            <span
-              class="text-[10px] font-black text-amber-600 uppercase tracking-widest block mb-1"
-              >Maliyet & Güvenlik</span
-            >
-            <p class="text-[11px] text-slate-500 font-medium leading-relaxed">
-              Crawler bir kez başlatıldığında durdurulamaz. Yoğun tarama
-              işlemleri IP engellenmesine yol açabilir. Lütfen makul
-              derinliklerde tarama yapın.
-            </p>
-          </div>
-        </div>
+      <div class="mt-12 flex flex-col md:flex-row gap-4 pt-8 border-t border-slate-100 dark:border-white/5">
+        <button 
+          @click="startCrawler()"
+          :disabled="status.running || form.categories.length === 0 || submitting"
+          class="flex-1 py-4 flex items-center justify-center gap-3 font-display font-black uppercase tracking-[0.2em] transition-all relative overflow-hidden group"
+          :class="status.running || form.categories.length === 0 || submitting ? 'bg-slate-800 text-white/20 cursor-not-allowed' : 'bg-brand-accent text-brand-black hover:scale-[1.02] active:scale-95 shadow-lg shadow-brand-accent/20'"
+        >
+          <span x-show="!submitting">Sistemi Ateşle</span>
+          <i data-lucide="rocket" class="w-5 h-5 group-hover:-translate-y-1 transition-transform" x-show="!submitting"></i>
+          <span x-show="submitting" class="animate-pulse">Başlatılıyor...</span>
+        </button>
 
-        <div class="flex items-center gap-4 shrink-0">
-          <button
-            type="button"
-            @click="resetForm()"
-            class="px-8 py-4 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700 transition-premium hover:bg-rose-500 hover:text-white hover:border-rose-600"
-          >
-            Sıfırla
-          </button>
-
-          <!-- Maintenance Button -->
-          <button
-            type="button"
-            @click="runMaintenance()"
-            :disabled="maintenanceLoading"
-            class="px-8 py-4 bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-400 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest border border-emerald-100 dark:border-emerald-800 transition-premium hover:bg-emerald-500 hover:text-white flex items-center gap-2"
-          >
-            <span x-show="!maintenanceLoading">🛡️ Veri Bakımı</span>
-            <span x-show="maintenanceLoading" class="animate-spin">⚙️</span>
-          </button>
-          <button
-            type="submit"
-            :disabled="status.running || form.categories.length === 0 || submitting"
-            :class="status.running || form.categories.length === 0 || submitting ? 'opacity-30 cursor-not-allowed scale-95' : 'bg-primary-600 hover:bg-primary-500 hover:scale-105 shadow-xl shadow-primary-500/30'"
-            class="px-10 py-5 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] transition-premium flex items-center gap-3"
-          >
-            <span x-show="!submitting">Sistemi Ateşle</span>
-            <span x-show="submitting" class="flex items-center gap-2">
-              <svg
-                class="animate-spin h-4 w-4 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              İşleniyor...
-            </span>
-            <svg
-              x-show="!submitting"
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              ></path>
-            </svg>
-          </button>
-        </div>
+        <button 
+          @click="runMaintenance()"
+          :disabled="maintenanceLoading || status.running"
+          class="px-8 py-4 flex items-center justify-center gap-3 font-display font-black uppercase tracking-widest border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500 hover:text-brand-black transition-all"
+        >
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+          <span>Bakım</span>
+        </button>
       </div>
-    </form>
+    </div>
   </div>
 
-  <!-- Command History: Activity Log -->
-  <div
-    class="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl p-8 lg:p-12 rounded-[3.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm animate-slide-up"
-    style="animation-delay: 400ms"
-  >
-    <div class="flex items-center justify-between mb-10 px-2">
-      <div>
-        <h3
-          class="text-xl font-black font-outfit text-slate-900 dark:text-white uppercase tracking-tighter"
-        >
-          Canlı Loglar
-        </h3>
-        <p class="text-xs text-slate-500 font-medium">
-          Crawler işlem logları ve hata mesajları
-        </p>
+  <div class="bg-brand-black border border-white/10 overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
+      <div class="flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full bg-brand-accent animate-pulse"></div>
+        <h3 class="text-xs font-black uppercase tracking-[0.3em] text-white">Taktiksel Konsol</h3>
       </div>
-      <div class="flex gap-2">
-        <button
-          @click="logType = 'debug'; loadLogs()"
-          :class="logType === 'debug' ? 'bg-primary-500 text-white' : 'bg-slate-100 dark:bg-slate-900 text-slate-500'"
-          class="px-4 py-2 rounded-xl text-xs font-bold uppercase transition-premium"
-        >
-          Debug
+      
+      <div class="flex items-center gap-4">
+        <div class="flex bg-brand-black border border-white/10 p-0.5">
+          <button @click="logType = 'debug'; loadLogs()" 
+                  class="px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all"
+                  :class="logType === 'debug' ? 'bg-brand-accent text-brand-black' : 'text-white/40 hover:text-white'">HATA AYIKLAMA</button>
+          <button @click="logType = 'error'; loadLogs()" 
+                  class="px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all"
+                  :class="logType === 'error' ? 'bg-rose-500 text-white' : 'text-white/40 hover:text-white'">HATA</button>
+        </div>
+        
+        <button @click="autoScroll = !autoScroll" 
+                class="text-[9px] font-black uppercase tracking-widest flex items-center gap-2 px-3 py-1 border transition-all"
+                :class="autoScroll ? 'border-brand-accent text-brand-accent' : 'border-white/10 text-white/40'">
+          <i data-lucide="arrow-down" class="w-3 h-3"></i>
+          Otomatik Kaydır
         </button>
-        <button
-          @click="logType = 'error'; loadLogs()"
-          :class="logType === 'error' ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-slate-900 text-slate-500'"
-          class="px-4 py-2 rounded-xl text-xs font-bold uppercase transition-premium"
-        >
-          Errors
-        </button>
-        <button
-          @click="loadLogs()"
-          class="p-2 bg-slate-100 dark:bg-slate-900 rounded-xl hover:bg-primary-500 hover:text-white transition-premium"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            ></path>
-          </svg>
+        
+        <button @click="loadLogs()" class="p-2 text-white/40 hover:text-brand-accent transition-colors">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
         </button>
       </div>
     </div>
 
-    <div
-      class="bg-slate-900 dark:bg-slate-950 rounded-3xl p-6 border border-slate-700"
-    >
-      <pre
-        class="text-xs text-slate-300 font-mono overflow-x-auto max-h-96 overflow-y-auto"
-        x-text="logs || 'Log yükleniyor...'"
-      ></pre>
+    <div class="p-6 h-[400px] overflow-y-auto font-mono text-[11px] leading-relaxed relative" id="log-terminal" @scroll="checkScroll($event)">
+      <template x-for="(log, index) in processedLogs" :key="index">
+        <div class="flex gap-4 group hover:bg-white/[0.02] py-0.5">
+          <span class="text-white/20 select-none w-10 shrink-0" x-text="(index + 1).toString().padStart(4, '0')"></span>
+          <div class="flex-1 break-all">
+            <span :class="{
+              'text-rose-500 font-bold': log.level === 'ERROR',
+              'text-amber-500': log.level === 'WARNING',
+              'text-emerald-400': log.level === 'SUCCESS',
+              'text-blue-400': log.level === 'INFO',
+              'text-slate-500 italic': log.level === 'DEBUG'
+            }" x-text="'[' + log.level + ']'"></span>
+            <span class="text-white/80 ml-2" x-text="log.text"></span>
+          </div>
+          <span class="text-white/10 text-[9px] opacity-0 group-hover:opacity-100 transition-opacity" x-text="new Date().toLocaleTimeString()"></span>
+        </div>
+      </template>
+      
+      <div x-show="!logs" class="flex flex-col items-center justify-center h-full text-white/20">
+        <i data-lucide="terminal" class="w-12 h-12 mb-4 opacity-10"></i>
+        <span class="uppercase tracking-[0.3em] text-[10px] font-black">Konsol çıktısı bekleniyor...</span>
+      </div>
+    </div>
+    
+    <div class="px-6 py-2 border-t border-white/5 bg-white/[0.01] flex items-center justify-between">
+      <div class="text-[9px] font-mono text-white/20">
+        OTURUM_ID: <span class="text-brand-accent" x-text="status.job_id || 'HAZIRDA'"></span>
+      </div>
+      <div class="text-[9px] font-mono text-white/20">
+        DÜĞÜMLER: 127.0.0.1:5001 <span class="ml-4 text-emerald-500">BAĞLI</span>
+      </div>
     </div>
   </div>
 
-  <!-- Command History: Activity Log -->
-  <div
-    class="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl p-8 lg:p-12 rounded-[3.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-sm animate-slide-up"
-    style="animation-delay: 400ms"
-  >
-    <div class="flex items-center justify-between mb-10 px-2">
-      <div>
-        <h3
-          class="text-xl font-black font-outfit text-slate-900 dark:text-white uppercase tracking-tighter"
-        >
-          İşlem Günlüğü
-        </h3>
-        <p class="text-xs text-slate-500 font-medium">
-          Sistem tarafından gerçekleştirilen son 5 tarama operasyonu.
-        </p>
+  <div class="bg-white dark:bg-brand-gray border border-slate-200 dark:border-white/5 p-8">
+    <div class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-blue-500/10 border border-blue-500/20">
+          <i data-lucide="layers" class="w-5 h-5 text-blue-500"></i>
+        </div>
+        <h3 class="text-lg font-display font-black uppercase tracking-tighter">Hedef Veriler</h3>
       </div>
-      <a
-        href="/jobs"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-500 rounded-xl hover:bg-primary-500 hover:text-white transition-premium"
-      >
-        Tüm Arşiv
-        <svg
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aktif Seçimler:</span>
+        <span class="text-sm font-black text-brand-accent" x-text="form.categories.length"></span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+      <template x-for="(label, key) in categories" :key="key">
+        <button 
+          @click="toggleCategory(key)"
+          class="relative p-4 border transition-all flex flex-col items-center justify-center gap-3 group"
+          :class="form.categories.includes(key) ? 'bg-brand-accent border-brand-accent' : 'bg-transparent border-slate-200 dark:border-white/10 hover:border-slate-400'"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M14 5l7 7m0 0l-7 7m7-7H3"
-          ></path>
-        </svg>
+          <div class="transition-transform group-hover:scale-110" :class="form.categories.includes(key) ? 'text-brand-black' : 'text-slate-500'">
+            <i :data-lucide="getCategoryIcon(key)" class="w-6 h-6"></i>
+          </div>
+          <div class="text-center">
+            <span class="text-[9px] font-black uppercase tracking-tight block leading-tight" 
+                  :class="form.categories.includes(key) ? 'text-brand-black' : 'text-white/60'"
+                  x-text="label"></span>
+            <span class="text-[10px] font-mono font-bold mt-1 block"
+                  :class="form.categories.includes(key) ? 'text-brand-black/60' : 'text-brand-accent'"
+                  x-text="categoryCounts[key]?.toLocaleString('tr-TR') || '0'"></span>
+          </div>
+          
+          <div x-show="form.categories.includes(key)" class="absolute top-1 right-1">
+            <i data-lucide="check" class="w-3 h-3 text-brand-black"></i>
+          </div>
+        </button>
+      </template>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-brand-gray border border-slate-200 dark:border-white/5 p-8">
+    <div class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-slate-500/10 border border-slate-500/20">
+          <i data-lucide="history" class="w-5 h-5 text-slate-500"></i>
+        </div>
+        <h3 class="text-lg font-display font-black uppercase tracking-tighter">Görev Geçmişi</h3>
+      </div>
+      <a href="/jobs" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-brand-accent transition-colors flex items-center gap-2">
+        Arşiv Getirme <i data-lucide="arrow-right" class="w-3 h-3"></i>
       </a>
     </div>
 
-    <div class="space-y-4">
-      <template x-for="job in recentJobs" :key="job.id">
-        <div
-          class="group bg-white/50 dark:bg-slate-900/50 p-6 rounded-[2rem] border border-slate-200/50 dark:border-slate-700/50 hover:border-primary-500/50 transition-premium flex flex-col md:flex-row md:items-center gap-6"
-        >
-          <div class="flex items-center gap-4 shrink-0">
-            <div
-              class="w-12 h-12 rounded-2xl flex items-center justify-center"
-              :class="{
-                    'bg-emerald-500/10 text-emerald-500': job.status === 'completed',
-                    'bg-amber-500/10 text-amber-500': job.status === 'running',
-                    'bg-rose-500/10 text-rose-500': job.status === 'failed'
-                  }"
-            >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  x-show="job.status === 'completed'"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
-                <path
-                  x-show="job.status === 'running'"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                ></path>
-                <path
-                  x-show="job.status === 'failed'"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                ></path>
-              </svg>
-            </div>
-            <div>
-              <span
-                class="text-[9px] font-black text-slate-400 uppercase tracking-widest block"
-                x-text="'JOB-' + job.id.substring(0,8)"
-              ></span>
-              <span
-                class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tighter"
-                x-text="job.status"
-              ></span>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-6 flex-1 px-4">
-            <div class="flex flex-col">
-              <span
-                class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
-                >Başlangıç</span
-              >
-              <span
-                class="text-[11px] font-bold text-slate-700 dark:text-slate-300"
-                x-text="job.created_at"
-              ></span>
-            </div>
-            <div class="flex flex-col text-center md:text-left">
-              <span
-                class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
-                >Bulunan</span
-              >
-              <span
-                class="text-[11px] font-black text-primary-500"
-                x-text="job.total_listings?.toLocaleString('tr-TR') || '0'"
-              ></span>
-            </div>
-            <div class="flex flex-col text-center md:text-left">
-              <span
-                class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
-                >Yeni İlan</span
-              >
-              <span
-                class="text-[11px] font-black text-emerald-500"
-                x-text="job.new_listings?.toLocaleString('tr-TR') || '0'"
-              ></span>
-            </div>
-            <div class="flex flex-col text-right md:text-left">
-              <span
-                class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1"
-                >Kapsam</span
-              >
-              <span
-                class="text-[11px] font-bold text-slate-900 dark:text-white"
-                x-text="(job.categories_completed?.length || 0) + ' Kategori'"
-              ></span>
-            </div>
-          </div>
-
-          <div class="shrink-0 flex justify-end">
-            <template x-if="job.status === 'completed'">
-              <div
-                class="w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-500"
-              >
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fill-rule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clip-rule="evenodd"
-                  ></path>
-                </svg>
-              </div>
-            </template>
-          </div>
-        </div>
-      </template>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="border-b border-slate-100 dark:border-white/5">
+            <th class="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">KIMLIK</th>
+            <th class="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">DURUM</th>
+            <th class="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ZAMAN DAMGASI</th>
+            <th class="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">VERİ</th>
+            <th class="py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">KEŞİF</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-white/5">
+          <template x-for="job in recentJobs" :key="job.id">
+            <tr class="group hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
+              <td class="py-4 font-mono text-[10px] text-brand-accent" x-text="'#' + job.id.substring(0,8).toUpperCase()"></td>
+              <td class="py-4">
+                <span class="px-2 py-1 text-[8px] font-black uppercase tracking-widest"
+                      :class="{
+                        'bg-emerald-500/10 text-emerald-500': job.status === 'completed',
+                        'bg-amber-500/10 text-amber-500': job.status === 'running',
+                        'bg-rose-500/10 text-rose-500': job.status === 'failed'
+                      }" x-text="job.status === 'completed' ? 'TAMAMLANDI' : (job.status === 'running' ? 'ÇALIŞIYOR' : 'HATA')"></span>
+              </td>
+              <td class="py-4 text-[11px] font-medium text-slate-500" x-text="job.created_at"></td>
+              <td class="py-4 text-[11px] font-bold text-right text-emerald-500" x-text="'+' + (job.new_listings || 0)"></td>
+              <td class="py-4 text-[11px] font-bold text-right" x-text="(job.categories_completed?.length || 0) + ' DÜĞÜM'"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -818,7 +454,7 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
       status: { running: false, job_id: null, job: null },
       form: {
         categories: ["konut_satilik"],
-        district: "hendek", // YENİ: İlçe seçimi
+        district: "hendek",
         max_pages: 50,
         force: false,
         reverse_sort: false,
@@ -826,6 +462,16 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
         parallel: false,
         turbo: false,
       },
+      categories: {
+        'konut_satilik': 'Satılık Konut',
+        'konut_kiralik': 'Kiralık Konut',
+        'arsa_satilik': 'Satılık Arsa',
+        'isyeri_satilik': 'Satılık İşyeri',
+        'isyeri_kiralik': 'Kiralık İşyeri',
+        'bina_satilik': 'Satılık Bina',
+        'bina_kiralik': 'Kiralık Bina'
+      },
+      districts: ['hendek', 'adapazari', 'akyazi', 'arifiye', 'erenler', 'ferizli', 'geyve', 'karapurcek', 'karasu', 'kaynarca', 'kocaali', 'pamukova', 'sapanca', 'serdivan', 'sogutlu', 'tarakli'],
       categoryCounts: {},
       loadingCounts: true,
       submitting: false,
@@ -834,19 +480,71 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
       statusInterval: null,
       logs: "",
       logType: "debug",
+      autoScroll: true,
+      
+      // Metrics
+      listingsPerMinute: 0,
+      startTime: null,
+      runtime: "00:00:00",
+      eta: "--:--",
 
       async init() {
         await this.loadCategoryCounts();
         await this.refreshStatus();
         await this.loadRecentJobs();
         await this.loadLogs();
+        
         this.statusInterval = setInterval(() => {
           this.refreshStatus();
+          this.updateRuntime();
+          this.calculateMetrics();
+          
           if (this.status.running) {
             this.loadRecentJobs();
             this.loadLogs();
           }
-        }, 5000);
+        }, 3000);
+
+        this.$watch('logs', () => {
+          if (this.autoScroll) {
+            this.$nextTick(() => {
+              const el = document.getElementById('log-terminal');
+              if (el) el.scrollTop = el.scrollHeight;
+            });
+          }
+        });
+
+        this.$nextTick(() => lucide.createIcons());
+      },
+
+      get currentStep() {
+        if (!this.status.running) return 0;
+        const p = this.status.job?.progress?.percentage || 0;
+        if (p === 0) return 1;
+        if (p < 95) return 2;
+        return 3;
+      },
+
+      get processedLogs() {
+        if (!this.logs) return [];
+        return this.logs.split('\n').filter(l => l.trim()).map(line => {
+          let level = 'INFO';
+          const upper = line.toUpperCase();
+          if (upper.includes('[ERROR]') || upper.includes('ERROR:')) level = 'ERROR';
+          else if (upper.includes('[WARNING]') || upper.includes('WARNING:')) level = 'WARNING';
+          else if (upper.includes('[DEBUG]') || upper.includes('DEBUG:')) level = 'DEBUG';
+          else if (upper.includes('[SUCCESS]') || upper.includes('SUCCESSFULLY')) level = 'SUCCESS';
+          
+          return { level, text: line.replace(/\[\w+\]\s*/, '') };
+        });
+      },
+
+      getCategoryIcon(key) {
+        if (key.includes('konut')) return 'home';
+        if (key.includes('arsa')) return 'map';
+        if (key.includes('isyeri')) return 'briefcase';
+        if (key.includes('bina')) return 'building';
+        return 'box';
       },
 
       async loadCategoryCounts() {
@@ -856,7 +554,7 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
           const result = await response.json();
           if (result.success) this.categoryCounts = result.data;
         } catch (error) {
-          console.error("Kategori sayıları yüklenemedi:", error);
+          console.error("Discovery failed:", error);
         } finally {
           this.loadingCounts = false;
         }
@@ -872,9 +570,59 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
         try {
           const response = await fetch("/api/crawler/status");
           const result = await response.json();
-          if (result.success) this.status = result.data;
+          if (result.success) {
+            const wasRunning = this.status.running;
+            this.status = result.data;
+            
+            if (!wasRunning && this.status.running) {
+              this.startTime = new Date();
+              this.$nextTick(() => lucide.createIcons());
+            } else if (wasRunning && !this.status.running) {
+              this.startTime = null;
+            }
+          }
         } catch (error) {
-          console.error("Status yüklenemedi:", error);
+          console.error("Status link severed:", error);
+        }
+      },
+
+      updateRuntime() {
+        if (!this.startTime) {
+          this.runtime = "00:00:00";
+          return;
+        }
+        const now = new Date();
+        const diff = Math.floor((now - this.startTime) / 1000);
+        const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+        const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+        const s = Math.floor(diff % 60).toString().padStart(2, '0');
+        this.runtime = `${h}:${m}:${s}`;
+      },
+
+      calculateMetrics() {
+        if (!this.status.running || !this.status.job || !this.startTime) {
+          this.listingsPerMinute = 0;
+          this.eta = "--:--";
+          return;
+        }
+        
+        const total = (this.status.job.stats?.new_listings || 0) + (this.status.job.stats?.updated_listings || 0);
+        const elapsedMinutes = (new Date() - this.startTime) / 60000;
+        
+        if (elapsedMinutes > 0.1) {
+          this.listingsPerMinute = Math.round(total / elapsedMinutes);
+        }
+        
+        const p = this.status.job.progress?.percentage || 0;
+        if (p > 5 && p < 100) {
+          const elapsedSec = (new Date() - this.startTime) / 1000;
+          const remainingSec = (elapsedSec / p) * (100 - p);
+          
+            if (remainingSec > 0) {
+            const rm = Math.floor(remainingSec / 60);
+            const rs = Math.floor(remainingSec % 60);
+            this.eta = `${rm}dk ${rs}sn`;
+          }
         }
       },
 
@@ -884,7 +632,7 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
           const result = await response.json();
           if (result.success) this.recentJobs = result.data;
         } catch (error) {
-          console.error("Jobs yüklenemedi:", error);
+          console.error("Arşiv erişilemez:", error);
         }
       },
 
@@ -898,41 +646,33 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
             this.logs = result.data.logs;
           }
         } catch (error) {
-          console.error("Loglar yüklenemedi:", error);
-          this.logs = "Loglar yüklenemedi: " + error.message;
+          console.error("Konsol bağlantısı koptu:", error);
         }
+      },
+
+      checkScroll(e) {
+        const el = e.target;
+        this.autoScroll = (el.scrollHeight - el.scrollTop - el.clientHeight < 50);
       },
 
       async startCrawler() {
         if (this.form.categories.length === 0) {
-          if (window.showToast)
-            window.showToast("En az bir kategori seçin!", "error");
-          else alert("En az bir kategori seçin!");
+          this.$store.app.toast("En az bir hedef veri seçin!", "error");
           return;
         }
 
-        const modeText = this.form.parallel ? "PARALEL (2 Worker)" : "Tekli";
-        const districtText =
-          this.form.district.charAt(0).toUpperCase() +
-          this.form.district.slice(1);
-        if (
-          !confirm(
-            `${districtText} ilçesinde ${this.form.categories.length} kategori için ${modeText} crawler başlatılacak. Onaylıyor musunuz?`,
-          )
-        )
-          return;
+        const mode = this.form.parallel ? "ÇOKLU İŞLEM" : "SIRALI";
+        if (!confirm(`${this.form.categories.length} hedef için ${mode} görevi başlatılsın mı?`)) return;
 
         this.submitting = true;
         try {
-          const endpoint = this.form.parallel
-            ? "/api/crawler/start-parallel"
-            : "/api/crawler/start";
+          const endpoint = this.form.parallel ? "/api/crawler/start-parallel" : "/api/crawler/start";
           const response = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               categories: this.form.categories,
-              district: this.form.district, // YENİ: İlçe parametresi eklendi
+              district: this.form.district,
               max_pages: parseInt(this.form.max_pages),
               force: this.form.force,
               reverse_sort: this.form.reverse_sort,
@@ -942,62 +682,39 @@ block breadcrumb %}Robotik Kontrol{% endblock %} {% block content %}
           });
           const result = await response.json();
           if (result.success) {
-            if (window.showToast)
-              window.showToast("Crawler başarıyla başlatıldı!", "success");
+            this.$store.app.toast("Görev başarıyla başlatıldı.", "success");
+            this.startTime = new Date();
             await this.refreshStatus();
-            await this.loadRecentJobs();
           } else {
-            if (window.showToast)
-              window.showToast("Hata: " + result.error, "error");
+            this.$store.app.toast("Ateşleme hatası: " + result.error, "error");
           }
         } catch (error) {
-          if (window.showToast) window.showToast("Bağlantı hatası!", "error");
+          this.$store.app.toast("Bağlantı hatası.", "error");
         } finally {
           this.submitting = false;
         }
       },
 
-      resetForm() {
-        this.form = {
-          categories: ["konut_satilik"],
-          district: "hendek", // YENİ: İlçe default değeri
-          max_pages: 50,
-          force: false,
-          reverse_sort: false,
-          sync: false,
-          parallel: false,
-          turbo: false,
-        };
-      },
-
       async runMaintenance() {
-        if (
-          !confirm(
-            "Veritabanı temizliği verilerin tutarlılığı için önemlidir. Mükerrer ve bozuk kayıtlar silinecektir. Onaylıyor musunuz?",
-          )
-        )
-          return;
+        if (!confirm("Veritabanı bütünlük bakımı yürütülsün mü? Bu işlem gereksiz kayıtları temizleyecektir.")) return;
 
         this.maintenanceLoading = true;
         try {
-          const response = await fetch("/api/maintenance/run", {
-            method: "POST",
-          });
+          const response = await fetch("/api/maintenance/run", { method: "POST" });
           const result = await response.json();
-
           if (result.success) {
-            if (window.showToast) window.showToast(result.message, "success");
-            await this.loadCategoryCounts(); // Sayılar değişmiş olabilir
+            this.$store.app.toast(result.message, "success");
+            await this.loadCategoryCounts();
           } else {
-            if (window.showToast)
-              window.showToast("Hata: " + result.message, "error");
+            this.$store.app.toast("Bakım hatası: " + result.message, "error");
           }
         } catch (e) {
-          if (window.showToast) window.showToast("Bağlantı hatası", "error");
+          this.$store.app.toast("Bağlantı hatası.", "error");
         } finally {
           this.maintenanceLoading = false;
         }
       },
+
 
       destroy() {
         if (this.statusInterval) clearInterval(this.statusInterval);

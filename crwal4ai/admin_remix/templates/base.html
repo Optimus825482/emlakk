@@ -1,926 +1,374 @@
 <!doctype html>
 <html
   lang="tr"
-  x-data="{ darkMode: localStorage.getItem('darkMode') === 'true', sidebarOpen: true, mobileMenuOpen: false }"
-  :class="{ 'dark': darkMode }"
+  x-data
+  :class="{ 'dark': $store.app.darkMode }"
+  class="antialiased selection:bg-emerald-500/30 selection:text-emerald-200"
 >
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>
-      <title> {% block title %}Crawler Admin{% endblock %} - Sahibinden Crawler
-    </title>
+    <title>{% block title %}Admin Paneli{% endblock %} - Sahibinden Tarayıcı</title>
 
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
 
-    <!-- Tailwind CSS (Production Build) -->
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/output.css') }}"
-    />
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              border: "hsl(var(--border))",
+              input: "hsl(var(--input))",
+              ring: "hsl(var(--ring))",
+              background: "hsl(var(--background))",
+              foreground: "hsl(var(--foreground))",
+              primary: {
+                DEFAULT: "#10b981",
+                foreground: "#ffffff",
+                50: "#ecfdf5",
+                100: "#d1fae5",
+                200: "#a7f3d0",
+                300: "#6ee7b7",
+                400: "#34d399",
+                500: "#10b981",
+                600: "#059669",
+                700: "#047857",
+                800: "#065f46",
+                900: "#064e3b",
+              },
+              brand: {
+                black: "#0a0a0a",
+                gray: "#1a1a1a",
+                accent: "#d9ff00",
+              }
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              display: ["Outfit", "sans-serif"],
+            },
+          },
+        },
+      }
+    </script>
 
     <!-- Alpine.js -->
     <script
       defer
       src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
     ></script>
+    
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-      [x-cloak] {
-        display: none !important;
+      [x-cloak] { display: none !important; }
+      
+      :root {
+        --background: 0 0% 100%;
+        --foreground: 240 10% 3.9%;
+        --border: 240 5.9% 90%;
+      }
+      
+      .dark {
+        --background: 240 10% 3.9%;
+        --foreground: 0 0% 98%;
+        --border: 240 3.7% 15.9%;
       }
 
       body {
         font-family: "Inter", sans-serif;
+        background-color: rgb(249 250 251);
+      }
+      .dark body {
+        background-color: #050505;
       }
 
-      h1,
-      h2,
-      h3,
-      h4,
-      .font-outfit {
+      h1, h2, h3, h4, h5, h6, .font-display {
         font-family: "Outfit", sans-serif;
+        letter-spacing: -0.02em;
       }
 
-      .glass {
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(16px) saturate(180%);
-        -webkit-backdrop-filter: blur(16px) saturate(180%);
-        border: 1px solid rgba(255, 255, 255, 0.3);
+      /* Modern Scrollbar */
+      ::-webkit-scrollbar { width: 5px; height: 5px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { 
+        background: #e5e7eb; 
+        border-radius: 0px; 
+      }
+      .dark ::-webkit-scrollbar-thumb { background: #262626; }
+      ::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+
+      /* Technical Aesthetics */
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+      }
+      .dark .glass-panel {
+        background: rgba(10, 10, 10, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      
+      .nav-item-active {
+        @apply bg-brand-accent/10 text-brand-accent border-r-2 border-brand-accent;
       }
 
-      .dark .glass {
-        background: rgba(15, 23, 42, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+      /* Loading Bar Animation */
+      @keyframes loading-bar {
+        0% { left: -40%; width: 40%; }
+        100% { left: 100%; width: 40%; }
       }
-
-      .premium-card {
-        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        position: relative;
-        overflow: hidden;
-      }
-
-      .premium-card:hover {
-        transform: translateY(-6px) scale(1.01);
-        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
-      }
-
-      .dark .premium-card:hover {
-        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.5);
-      }
-
-      .sidebar-item {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-
-      .sidebar-item:hover {
-        padding-left: 1.5rem;
-        background: rgba(14, 120, 241, 0.08);
-      }
-
-      .dark .sidebar-item:hover {
-        background: rgba(14, 120, 241, 0.15);
-      }
-
-      .glow-primary:hover {
-        box-shadow: 0 0 20px rgba(14, 120, 241, 0.4);
-      }
-
-      .transition-premium {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-
-      ::-webkit-scrollbar {
-        width: 6px;
-      }
-
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-
-      ::-webkit-scrollbar-thumb {
-        background: #e2e8f0;
-        border-radius: 10px;
-      }
-
-      .dark ::-webkit-scrollbar-thumb {
-        background: #334155;
-      }
-
-      ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-      }
-
-      .shimmer {
-        background: linear-gradient(
-          90deg,
-          transparent,
-          rgba(255, 255, 255, 0.05),
-          transparent
-        );
-        background-size: 200% 100%;
-        animation: shimmer 2s infinite;
-      }
-
-      @keyframes shimmer {
-        0% {
-          background-position: -200% 0;
-        }
-        100% {
-          background-position: 200% 0;
-        }
+      .animate-loading {
+        animation: loading-bar 1.5s infinite linear;
       }
     </style>
+    
+    {% block head %}{% endblock %}
   </head>
-  <body
-    class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300"
-  >
-    <!-- Toast Notifications Container -->
-    <div
-      x-data="toastManager()"
-      x-init="init()"
-      id="toast-container"
-      class="fixed top-4 right-4 z-50 space-y-3"
+  <body class="text-slate-900 dark:text-slate-100 min-h-screen">
+
+    <script>
+      document.addEventListener('alpine:init', () => {
+        Alpine.store('app', {
+          sidebarOpen: localStorage.getItem('sidebarOpen') !== 'false',
+          darkMode: localStorage.getItem('darkMode') === 'true',
+          mobileOpen: false,
+          globalLoading: false,
+          toasts: [],
+          
+          toggleSidebar() {
+            this.sidebarOpen = !this.sidebarOpen;
+            localStorage.setItem('sidebarOpen', this.sidebarOpen);
+          },
+          
+          toggleDarkMode() {
+            this.darkMode = !this.darkMode;
+            localStorage.setItem('darkMode', this.darkMode);
+          },
+          
+          setLoading(status) {
+            this.globalLoading = status;
+          },
+          
+          toast(message, type = 'info') {
+            const id = Date.now();
+            this.toasts.push({ id, message, type });
+            setTimeout(() => this.removeToast(id), 5000);
+          },
+          
+          removeToast(id) {
+            this.toasts = this.toasts.filter(t => t.id !== id);
+          }
+        });
+      });
+      
+      // Initialize Lucide icons after Alpine
+      document.addEventListener('alpine:initialized', () => {
+        lucide.createIcons();
+      });
+    </script>
+
+    <div 
+      x-show="$store.app.globalLoading" 
+      x-cloak
+      class="fixed top-0 left-0 right-0 h-1 z-[100] bg-brand-accent/20 overflow-hidden"
     >
-      <template x-for="toast in toasts" :key="toast.id">
-        <div
-          x-show="toast.show"
-          x-transition:enter="transition ease-out duration-300"
-          x-transition:enter-start="opacity-0 translate-x-8"
-          x-transition:enter-end="opacity-100 translate-x-0"
+      <div class="absolute top-0 bottom-0 bg-brand-accent animate-loading"></div>
+    </div>
+
+    <div class="fixed bottom-6 right-6 z-[90] flex flex-col gap-3 pointer-events-none">
+      <template x-for="t in $store.app.toasts" :key="t.id">
+        <div 
+          x-transition:enter="transition ease-out duration-300 transform"
+          x-transition:enter-start="translate-y-4 opacity-0 scale-95"
+          x-transition:enter-end="translate-y-0 opacity-100 scale-100"
           x-transition:leave="transition ease-in duration-200"
-          x-transition:leave-start="opacity-100 translate-x-0"
-          x-transition:leave-end="opacity-0 translate-x-8"
+          x-transition:leave-start="opacity-100 scale-100"
+          x-transition:leave-end="opacity-0 scale-95"
+          class="pointer-events-auto min-w-[320px] p-4 bg-white dark:bg-brand-gray border border-slate-200 dark:border-white/10 shadow-2xl flex items-center gap-4"
           :class="{
-               'bg-green-500': toast.type === 'success',
-               'bg-red-500': toast.type === 'error',
-               'bg-yellow-500': toast.type === 'warning',
-               'bg-blue-500': toast.type === 'info'
-             }"
-          class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white min-w-[300px]"
+            'border-l-4 border-l-emerald-500': t.type === 'success',
+            'border-l-4 border-l-rose-500': t.type === 'error',
+            'border-l-4 border-l-amber-500': t.type === 'warning',
+            'border-l-4 border-l-blue-500': t.type === 'info',
+          }"
         >
-          <span x-show="toast.type === 'success'" class="text-xl">✓</span>
-          <span x-show="toast.type === 'error'" class="text-xl">✕</span>
-          <span x-show="toast.type === 'warning'" class="text-xl">⚠</span>
-          <span x-show="toast.type === 'info'" class="text-xl">ℹ</span>
-          <span
-            x-text="toast.message"
-            class="flex-1 text-sm font-medium"
-          ></span>
-          <button
-            @click="removeToast(toast.id)"
-            class="hover:bg-white/20 rounded-full p-1 transition"
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
+          <div class="flex-1">
+            <p class="text-sm font-medium" x-text="t.message"></p>
+          </div>
+          <button @click="$store.app.removeToast(t.id)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
       </template>
     </div>
 
     <div class="flex h-screen overflow-hidden">
-      <!-- Sidebar -->
-      <aside
-        :class="sidebarOpen ? 'w-64' : 'w-20'"
-        class="hidden lg:flex flex-col bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-all duration-300 ease-in-out"
+      <aside 
+        class="hidden lg:flex flex-col bg-white dark:bg-brand-black border-r border-slate-200 dark:border-white/5 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]"
+        :class="$store.app.sidebarOpen ? 'w-[280px]' : 'w-[80px]'"
       >
-        <!-- Logo -->
-        <div
-          class="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-700"
-        >
-          <a href="/" class="flex items-center gap-3">
-            <div
-              class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent flex items-center justify-center text-white font-bold text-lg shadow-lg"
-            >
-              🏠
+        <div class="h-20 flex items-center px-6 border-b border-slate-100 dark:border-white/5 overflow-hidden">
+          <div class="flex items-center gap-4 min-w-max">
+            <div class="w-10 h-10 bg-brand-accent flex items-center justify-center rounded-none transform rotate-3 hover:rotate-0 transition-transform duration-500 shadow-lg shadow-brand-accent/20">
+              <i data-lucide="building-2" class="w-6 h-6 text-brand-black"></i>
             </div>
-            <span
-              x-show="sidebarOpen"
-              x-transition
-              class="font-bold text-lg bg-gradient-to-r from-primary-600 to-accent bg-clip-text text-transparent"
-            >
-              Crawler
-            </span>
-          </a>
-          <button
-            @click="sidebarOpen = !sidebarOpen"
-            class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-          >
-            <svg
-              :class="sidebarOpen ? '' : 'rotate-180'"
-              class="w-5 h-5 text-slate-500 transition-transform"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-              ></path>
-            </svg>
-          </button>
+            <div x-show="$store.app.sidebarOpen" x-transition.opacity.duration.500 class="flex flex-col">
+              <span class="font-display font-extrabold text-xl tracking-tighter leading-none">DEMIR</span>
+              <span class="text-[10px] font-bold text-emerald-500 tracking-[0.2em] uppercase">TARAYICI SİSTEMİ</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Navigation -->
-        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-          <a
-            href="/"
-            class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}"
-          >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-              ></path>
-            </svg>
-            <span x-show="sidebarOpen" x-transition>Dashboard</span>
-          </a>
+        <nav class="flex-1 px-3 py-6 space-y-2 overflow-y-auto">
+          {% set nav_items = [
+            {'path': '/', 'label': 'Gösterge Paneli', 'icon': 'layout-dashboard'},
+            {'path': '/crawler', 'label': 'Tarayıcı Kontrolü', 'icon': 'cpu'},
+            {'path': '/listings', 'label': 'Aktif İlanlar', 'icon': 'clipboard-list'},
+            {'path': '/new-listings', 'label': 'Yeni Eklenenler', 'icon': 'sparkles', 'badge': 'YENİ'},
+            {'path': '/removed-listings', 'label': 'Arşivlenenler', 'icon': 'archive'},
+            {'path': '/stats', 'label': 'Analizler', 'icon': 'bar-chart-3'},
+            {'path': '/map', 'label': 'Harita', 'icon': 'map', 'badge': 'SICAK'},
+            {'path': '/sahibinden_check', 'label': 'Canlı Denetçi', 'icon': 'search-code'}
+          ] %}
 
-          <a
-            href="/crawler"
-            class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/crawler' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}"
+          {% for item in nav_items %}
+          <a 
+            href="{{ item.path }}"
+            class="group flex items-center gap-4 px-4 py-3 border border-transparent transition-all duration-300 hover:border-slate-200 dark:hover:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 {% if request.path == item.path %} bg-brand-accent/5 !border-brand-accent/50 text-brand-accent {% else %} text-slate-500 dark:text-slate-400 {% endif %}"
           >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              ></path>
-            </svg>
-            <span x-show="sidebarOpen" x-transition>Crawler</span>
-            <span
-              x-show="sidebarOpen"
-              class="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50"
-            >
-              <span class="w-2 h-2 rounded-full bg-green-500 status-dot"></span>
-            </span>
+            <i data-lucide="{{ item.icon }}" class="w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110"></i>
+            <span x-show="$store.app.sidebarOpen" x-transition.opacity class="font-medium text-sm whitespace-nowrap">{{ item.label }}</span>
+            {% if item.badge and '$store.app.sidebarOpen' %}
+              <span x-show="$store.app.sidebarOpen" class="ml-auto text-[8px] font-black bg-brand-accent text-brand-black px-1 py-0.5">{{ item.badge }}</span>
+            {% endif %}
           </a>
-
-          <a
-            href="/listings"
-            class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/listings' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}"
-          >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-              ></path>
-            </svg>
-            <span x-show="sidebarOpen" x-transition>İlanlar</span>
-          </a>
-
-          <a
-            href="/new-listings"
-            class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/new-listings' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}"
-          >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
-            <span x-show="sidebarOpen" x-transition>Yeni İlanlar</span>
-            <span
-              x-show="sidebarOpen"
-              class="ml-auto px-2 py-0.5 text-xs font-bold rounded-full bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400"
-              >YENİ</span
-            >
-          </a>
-
-          <a
-            href="/removed-listings"
-            class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/removed-listings' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}"
-          >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              ></path>
-            </svg>
-            <span x-show="sidebarOpen" x-transition>Kaldırılan</span>
-          </a>
-
-          <a
-            href="/stats"
-            class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/stats' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}"
-          >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              ></path>
-            </svg>
-            <span x-show="sidebarOpen" x-transition>İstatistikler</span>
-          </a>
-
-          <a
-            href="/jobs"
-            class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/jobs' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}"
-          >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
-            <span x-show="sidebarOpen" x-transition>Jobs</span>
-          </a>
-
-          <a
-            href="/map"
-            class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/map' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}"
-          >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-              ></path>
-            </svg>
-            <span x-show="sidebarOpen" x-transition>Harita</span>
-            <span
-              x-show="sidebarOpen"
-              class="ml-auto px-2 py-0.5 text-xs font-bold rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400"
-              >YENİ</span
-            >
-          </a>
-
-          <a
-            href="/sahibinden_check"
-            class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/sahibinden_check' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700{% endif %}"
-          >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              ></path>
-            </svg>
-            <span x-show="sidebarOpen" x-transition>Canlı Denetçi</span>
-          </a>
+          {% endfor %}
         </nav>
 
-        <!-- Bottom section -->
-        <div class="p-4 border-t border-slate-200 dark:border-slate-700">
-          <button
-            @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)"
-            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+        <div class="p-4 border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02]">
+          <button 
+            @click="$store.app.toggleDarkMode()"
+            class="w-full flex items-center gap-4 px-4 py-3 text-slate-500 dark:text-slate-400 hover:text-brand-accent transition-colors"
           >
-            <svg
-              x-show="!darkMode"
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-              ></path>
-            </svg>
-            <svg
-              x-show="darkMode"
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-              ></path>
-            </svg>
-            <span
-              x-show="sidebarOpen"
-              x-transition
-              x-text="darkMode ? 'Açık Mod' : 'Koyu Mod'"
-            ></span>
+            <i :data-lucide="$store.app.darkMode ? 'sun' : 'moon'" class="w-5 h-5"></i>
+            <span x-show="$store.app.sidebarOpen" x-text="$store.app.darkMode ? 'Açık Tema' : 'Koyu Tema'" class="text-sm font-medium"></span>
           </button>
         </div>
       </aside>
 
-      <!-- Mobile sidebar overlay -->
-      <div
-        x-show="mobileMenuOpen"
-        x-transition:enter="transition-opacity ease-linear duration-300"
-        x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100"
-        x-transition:leave="transition-opacity ease-linear duration-300"
-        x-transition:leave-start="opacity-100"
-        x-transition:leave-end="opacity-0"
-        @click="mobileMenuOpen = false"
-        class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
-      ></div>
-
-      <!-- Mobile sidebar -->
-      <aside
-        x-show="mobileMenuOpen"
-        x-transition:enter="transition ease-in-out duration-300 transform"
-        x-transition:enter-start="-translate-x-full"
-        x-transition:enter-end="translate-x-0"
-        x-transition:leave="transition ease-in-out duration-300 transform"
-        x-transition:leave-start="translate-x-0"
-        x-transition:leave-end="-translate-x-full"
-        class="fixed inset-y-0 left-0 w-64 bg-white dark:bg-slate-800 z-50 lg:hidden shadow-xl"
-      >
-        <!-- Mobile menu content (same as desktop) -->
-        <div
-          class="h-16 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-700"
-        >
-          <a href="/" class="flex items-center gap-3">
-            <div
-              class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent flex items-center justify-center text-white font-bold text-lg shadow-lg"
-            >
-              🏠
+      <div class="flex-1 flex flex-col relative bg-slate-50/50 dark:bg-transparent overflow-hidden">
+        
+        <header class="h-20 flex items-center justify-between px-6 lg:px-10 border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-brand-black/80 backdrop-blur-md z-30">
+          <div class="flex items-center gap-6">
+            <button @click="$store.app.toggleSidebar()" class="hidden lg:flex p-2 text-slate-400 hover:text-brand-accent transition">
+              <i :data-lucide="$store.app.sidebarOpen ? 'indent-decrease' : 'indent-increase'" class="w-6 h-6"></i>
+            </button>
+            <button @click="$store.app.mobileOpen = true" class="lg:hidden p-2 text-slate-400">
+              <i data-lucide="menu" class="w-6 h-6"></i>
+            </button>
+            
+            <div class="hidden md:flex items-center gap-2">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">SİSTEM</span>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>
+              <span class="text-sm font-display font-semibold">{% block breadcrumb %}Genel Bakış{% endblock %}</span>
             </div>
-            <span
-              class="font-bold text-lg bg-gradient-to-r from-primary-600 to-accent bg-clip-text text-transparent"
-            >
-              Crawler
-            </span>
-          </a>
-          <button
-            @click="mobileMenuOpen = false"
-            class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
-          </button>
-        </div>
-        <nav class="p-4 space-y-1">
-          <a
-            href="/"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-              ></path>
-            </svg>
-            <span>Dashboard</span>
-          </a>
-          <a
-            href="/crawler"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/crawler' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              ></path>
-            </svg>
-            <span>Crawler</span>
-          </a>
-          <a
-            href="/listings"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/listings' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-              ></path>
-            </svg>
-            <span>İlanlar</span>
-          </a>
-          <a
-            href="/new-listings"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/new-listings' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
-            <span>Yeni İlanlar</span>
-          </a>
-          <a
-            href="/removed-listings"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/removed-listings' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              ></path>
-            </svg>
-            <span>Kaldırılan</span>
-          </a>
-          <a
-            href="/stats"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/stats' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              ></path>
-            </svg>
-            <span>İstatistikler</span>
-          </a>
-          <a
-            href="/jobs"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/jobs' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
-            <span>Jobs</span>
-          </a>
-          <a
-            href="/map"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/map' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-              ></path>
-            </svg>
-            <span>Harita</span>
-          </a>
-          <a
-            href="/sahibinden_check"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/sahibinden_check' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
-            <span>Jobs</span>
-          </a>
-          <a
-            href="/sahibinden_check"
-            @click="mobileMenuOpen = false"
-            class="flex items-center gap-3 px-3 py-2.5 rounded-xl {% if request.path == '/sahibinden_check' %}bg-primary-50 dark:bg-primary-900/30 text-primary-600{% else %}text-slate-600 dark:text-slate-400{% endif %}"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              ></path>
-            </svg>
-            <span>Canlı Denetçi</span>
-          </a>
-        </nav>
-      </aside>
-
-      <!-- Main Content Area -->
-      <div class="flex-1 flex flex-col overflow-hidden">
-        <!-- Top Header -->
-        <header
-          class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 lg:px-6"
-        >
-          <!-- Mobile menu button -->
-          <button
-            @click="mobileMenuOpen = true"
-            class="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-          >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h16M4 12h16M4 18h16"
-              ></path>
-            </svg>
-          </button>
-
-          <!-- Breadcrumb / Title -->
-          <div class="hidden lg:flex items-center gap-2 text-sm">
-            <span class="text-slate-400">Admin</span>
-            <svg
-              class="w-4 h-4 text-slate-300"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5l7 7-7 7"
-              ></path>
-            </svg>
-            <span class="font-medium"
-              >{% block breadcrumb %}Dashboard{% endblock %}</span
-            >
           </div>
 
-          <!-- Right side -->
           <div class="flex items-center gap-4">
-            <!-- Crawler Status -->
-            <div
-              x-data="{ status: 'idle' }"
+            <div 
+              x-data="{ running: false }"
               x-init="
-              setInterval(async () => {
-                try {
-                  const res = await fetch('/api/crawler/status');
-                  const data = await res.json();
-                  status = data.data?.running ? 'running' : 'idle';
-                } catch(e) {}
-              }, 5000)
-            "
-              class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
-              :class="status === 'running' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'"
+                const checkStatus = async () => {
+                  try {
+                    const res = await fetch('/api/crawler/status');
+                    const data = await res.json();
+                    running = data.data?.running;
+                  } catch(e) { running = false; }
+                };
+                checkStatus();
+                setInterval(checkStatus, 10000);
+              "
+              class="flex items-center gap-3 px-4 py-2 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10"
             >
-              <span
-                :class="status === 'running' ? 'bg-green-500' : 'bg-slate-400'"
-                class="w-2 h-2 rounded-full"
-                :style="status === 'running' ? 'animation: pulse 2s infinite' : ''"
-              ></span>
-              <span
-                x-text="status === 'running' ? 'Crawler Çalışıyor' : 'Crawler Beklemede'"
+              <div class="relative flex h-2 w-2">
+                <span 
+                  x-show="running" 
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
+                ></span>
+                <span 
+                  class="relative inline-flex rounded-full h-2 w-2"
+                  :class="running ? 'bg-emerald-500' : 'bg-slate-400'"
+                ></span>
+              </div>
+              <span 
+                class="text-[10px] font-bold tracking-tight text-slate-500 dark:text-slate-400 uppercase"
+                x-text="running ? 'Tarayıcı Aktif' : 'Tarayıcı Beklemede'"
               ></span>
             </div>
 
-            <!-- Dark mode toggle (mobile) -->
-            <button
-              @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)"
-              class="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-            >
-              <svg
-                x-show="!darkMode"
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                ></path>
-              </svg>
-              <svg
-                x-show="darkMode"
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                ></path>
-              </svg>
-            </button>
-
-            <!-- Refresh button -->
-            <button
+            <button 
               onclick="location.reload()"
-              class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-              title="Yenile"
+              class="p-2 border border-slate-200 dark:border-white/10 hover:bg-brand-accent hover:border-brand-accent hover:text-brand-black transition-all group"
             >
-              <svg
-                class="w-5 h-5 text-slate-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                ></path>
-              </svg>
+              <i data-lucide="refresh-cw" class="w-5 h-5 group-active:rotate-180 transition-transform duration-500"></i>
             </button>
           </div>
         </header>
 
-        <!-- Page Content -->
-        <main class="flex-1 overflow-y-auto p-4 lg:p-6">
-          {% block content %}{% endblock %}
+        <main class="flex-1 overflow-y-auto p-6 lg:p-10 scroll-smooth">
+          <div class="max-w-[1600px] mx-auto">
+            {% block content %}{% endblock %}
+          </div>
         </main>
 
-        <!-- Footer -->
-        <footer
-          class="h-12 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex items-center justify-center px-4"
-        >
-          <p class="text-xs text-slate-500 dark:text-slate-400">
-            © 2025 Sahibinden Crawler Admin Panel •
-            <span class="text-primary-500">Demir Gayrimenkul</span>
-          </p>
+        <footer class="h-14 border-t border-slate-200 dark:border-white/5 px-10 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <div>&copy; 2026 Demir Technical</div>
+          <div class="flex items-center gap-4">
+            <span class="text-emerald-500">v4.2.0-STABLE</span>
+            <span class="w-1 h-1 bg-slate-300 dark:bg-white/20 rounded-full"></span>
+            <span>Güvenli Şifreleme</span>
+          </div>
         </footer>
       </div>
     </div>
 
-    <!-- Toast Manager Script -->
-    <script>
-      function toastManager() {
-        return {
-          toasts: [],
-          init() {
-            window.showToast = (message, type = "info", duration = 4000) => {
-              const id = Date.now();
-              this.toasts.push({ id, message, type, show: true });
-              setTimeout(() => this.removeToast(id), duration);
-            };
-          },
-          removeToast(id) {
-            const toast = this.toasts.find((t) => t.id === id);
-            if (toast) {
-              toast.show = false;
-              setTimeout(() => {
-                this.toasts = this.toasts.filter((t) => t.id !== id);
-              }, 300);
-            }
-          },
-        };
-      }
-    </script>
+    <div 
+      x-show="$store.app.mobileOpen"
+      x-cloak
+      class="fixed inset-0 z-[100] lg:hidden"
+    >
+      <div class="absolute inset-0 bg-brand-black/60 backdrop-blur-sm" @click="$store.app.mobileOpen = false"></div>
+      <div class="absolute inset-y-0 left-0 w-[80%] bg-brand-black border-r border-white/10 p-6 flex flex-col">
+        <div class="flex items-center justify-between mb-10">
+          <span class="font-display font-bold text-xl">DEMIR</span>
+          <button @click="$store.app.mobileOpen = false"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <nav class="space-y-4">
+          <a href="/" class="block py-2 text-lg font-display">Gösterge Paneli</a>
+          <a href="/crawler" class="block py-2 text-lg font-display">Tarayıcı</a>
+          <a href="/listings" class="block py-2 text-lg font-display">İlanlar</a>
+        </nav>
+      </div>
+    </div>
 
-    {% block scripts %}{% endblock %} {% block extra_scripts %}{% endblock %}
+    {% block scripts %}{% endblock %}
+    {% block extra_scripts %}{% endblock %}
+    
+    <script>
+      // Automatically refresh Lucide icons on Alpine changes
+      document.addEventListener('alpine:initialized', () => {
+        lucide.createIcons();
+      });
+    </script>
   </body>
 </html>
