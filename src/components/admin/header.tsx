@@ -119,9 +119,13 @@ export function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
       <div className="flex items-center gap-3 md:gap-4">
         {/* Mobile Menu Button */}
         <button
-          onClick={onMenuClick}
-          className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors md:hidden touch-manipulation"
+          onClick={() => {
+            console.log("Hamburger clicked!", onMenuClick);
+            onMenuClick?.();
+          }}
+          className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors lg:hidden touch-manipulation"
           aria-label="Menüyü Aç"
+          style={{ display: "block" }}
         >
           <Menu className="w-6 h-6" />
         </button>
