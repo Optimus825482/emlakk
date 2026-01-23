@@ -542,8 +542,26 @@ export default function AdminAyarlarPage() {
                 value={settings.address || ""}
                 onChange={(e) => updateSettings("address", e.target.value)}
                 rows={2}
+                placeholder="BAŞPINAR MAHALLESİ 1134 SOKAĞI No : 9/1 HENDEK/ SAKARYA"
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Google Maps Embed URL
+              </label>
+              <input
+                type="url"
+                value={settings.mapEmbedUrl || ""}
+                onChange={(e) => updateSettings("mapEmbedUrl", e.target.value)}
+                placeholder="https://www.google.com/maps/embed?pb=..."
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
+              />
+              <p className="text-xs text-slate-500 mt-2">
+                Google Maps'te konumunuzu bulun → Paylaş → Haritayı yerleştir →
+                HTML kodunu kopyalayın → src="..." kısmındaki URL'yi buraya
+                yapıştırın
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">

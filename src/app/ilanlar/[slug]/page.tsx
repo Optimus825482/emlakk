@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { ImageGallery } from "@/components/ui/image-gallery";
 import { ListingTracker } from "@/components/listing-tracker";
 import { db } from "@/db";
-import { listings, seoMetadata } from "@/db/schema";
+import { listings, seoMetadata, settings as settingsTable } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { formatPrice, formatPricePerSqm, formatArea } from "@/lib/format";
 
@@ -51,6 +51,15 @@ async function getSeoData(entityId: string) {
         ),
       )
       .limit(1);
+    return result[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+async function getSettings() {
+  try {
+    const result = await db.select().from(settingsTable).limit(1);
     return result[0] || null;
   } catch {
     return null;
@@ -115,6 +124,11 @@ export default async function IlanDetayPage({ params }: PageProps) {
   if (!listing) {
     notFound();
   }
+
+  // Fetch settings for phone number
+  const settings = await getSettings();
+  const phoneNumber = settings?.phone || "+90 264 123 45 67";
+  const phoneHref = `tel:${phoneNumber.replace(/\s/g, "")}`;
 
   const price = parseInt(listing.price) || 0;
   const pricePerSqm = listing.area > 0 ? Math.round(price / listing.area) : 0;
@@ -394,7 +408,7 @@ export default async function IlanDetayPage({ params }: PageProps) {
                     Randevu Al
                   </Link>
                   <a
-                    href="tel:+902641234567"
+                    href={phoneHref}
                     className="flex items-center justify-center gap-2 w-full px-6 py-4 border-2 border-gray-200 text-[var(--demir-slate)] rounded-xl font-semibold hover:border-[var(--terracotta)] hover:text-[var(--terracotta)] transition-all"
                   >
                     <Icon name="call" />

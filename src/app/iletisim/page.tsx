@@ -188,17 +188,17 @@ export default function IletisimPage() {
                   />
                 )}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-lg flex items-center gap-3">
+                  <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-lg flex items-center gap-3 max-w-md">
                     <Icon
                       name="location_on"
-                      className="text-[var(--terracotta)] text-3xl"
+                      className="text-[var(--terracotta)] text-3xl flex-shrink-0"
                     />
                     <div>
                       <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">
                         Ofis Konumu
                       </p>
-                      <p className="font-semibold text-[var(--demir-slate)]">
-                        Hendek, Sakarya
+                      <p className="font-semibold text-[var(--demir-slate)] text-sm">
+                        {settings.address || "Hendek, Sakarya"}
                       </p>
                     </div>
                   </div>
