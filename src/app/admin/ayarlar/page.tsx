@@ -57,6 +57,27 @@ const AI_PROVIDERS: { value: AIProvider; label: string; icon: string }[] = [
   { value: "openrouter", label: "OpenRouter", icon: "hub" },
 ];
 
+// Default models for each provider
+const DEFAULT_MODELS: Record<AIProvider, string[]> = {
+  deepseek: ["deepseek-chat", "deepseek-reasoner"],
+  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+  anthropic: [
+    "claude-3-5-sonnet-20241022",
+    "claude-3-5-haiku-20241022",
+    "claude-3-opus-20240229",
+  ],
+  "google-gemini": [
+    "gemini-2.0-flash-exp",
+    "gemini-1.5-pro",
+    "gemini-1.5-flash",
+  ],
+  openrouter: [
+    "anthropic/claude-3.5-sonnet",
+    "google/gemini-2.0-flash-exp:free",
+    "deepseek/deepseek-chat",
+  ],
+};
+
 export default function AdminAyarlarPage() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(
@@ -119,8 +140,11 @@ export default function AdminAyarlarPage() {
       if (response.ok) {
         const result = await response.json();
         setSystemSettings(result.data);
-        setSelectedProvider(result.data.aiProvider || "deepseek");
+        const provider = (result.data.aiProvider || "deepseek") as AIProvider;
+        setSelectedProvider(provider);
         setSelectedModel(result.data.aiModel || "deepseek-chat");
+        // Load default models for current provider
+        setAvailableModels(DEFAULT_MODELS[provider] || []);
       }
     } catch (error) {
       console.error("Sistem ayarları yüklenemedi:", error);
@@ -1140,7 +1164,13 @@ export default function AdminAyarlarPage() {
                     key={provider.value}
                     onClick={() => {
                       setSelectedProvider(provider.value);
-                      setAvailableModels([]);
+                      // Load default models for the selected provider
+                      setAvailableModels(DEFAULT_MODELS[provider.value] || []);
+                      // Set first model as default
+                      const defaultModel = DEFAULT_MODELS[provider.value]?.[0];
+                      if (defaultModel) {
+                        setSelectedModel(defaultModel);
+                      }
                       setNewApiKey("");
                     }}
                     className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
