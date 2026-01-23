@@ -167,6 +167,7 @@ export const POST = withAdmin(async (request: NextRequest) => {
       longitude: data.longitude?.toString(),
       features: data.features || undefined,
       images: data.images,
+      thumbnail: data.thumbnail,
       isFeatured: data.isFeatured,
       slug,
       pricePerSqm,
