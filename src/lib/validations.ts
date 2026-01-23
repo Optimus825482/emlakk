@@ -39,6 +39,7 @@ export const createListingSchema = z.object({
   metaTitle: z.string().optional(),
   metaDescription: z.string().optional(),
   isFeatured: z.boolean().default(false),
+  status: z.enum(["pending", "active", "sold", "draft"]).default("active"),
 });
 
 export type CreateListing = z.infer<typeof createListingSchema>;
