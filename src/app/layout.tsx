@@ -20,6 +20,9 @@ const notoSans = Noto_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+  ),
   title: {
     default: "DEMİR Gayrimenkul | Sakarya Hendek Emlak & Yatırım Danışmanlığı",
     template: "%s | DEMİR Gayrimenkul",
@@ -59,6 +62,8 @@ export const metadata: Metadata = {
       "Geleneksel dürüstlük, yapay zeka destekli yatırım öngörüleri ile buluşuyor. Sakarya Hendek'te güvenilir emlak ortağınız.",
     type: "website",
     locale: "tr_TR",
+    url: "/",
+    siteName: "DEMİR Gayrimenkul",
     images: [
       {
         url: "/logo.png",
@@ -67,6 +72,12 @@ export const metadata: Metadata = {
         alt: "Demir Gayrimenkul Logo",
       },
     ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DEMİR Gayrimenkul | Hendek'in Sağlam Kararı",
+    description:
+      "Geleneksel dürüstlük, yapay zeka destekli yatırım öngörüleri ile buluşuyor.",
   },
 };
 

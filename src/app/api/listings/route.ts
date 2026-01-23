@@ -171,7 +171,7 @@ export const POST = withAdmin(async (request: NextRequest) => {
       isFeatured: data.isFeatured,
       slug,
       pricePerSqm,
-      status: "draft" as const,
+      status: data.status,
     };
 
     const [newListing] = await db

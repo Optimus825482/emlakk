@@ -6,6 +6,7 @@ export interface ListingFormData {
   description: string;
   type: ListingType;
   transactionType: TransactionType;
+  status: string;
   address: string;
   district: string;
   neighborhood: string;

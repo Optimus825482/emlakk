@@ -358,7 +358,7 @@ export function DemirAICommandCenter() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col items-end pointer-events-none">
+    <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[9999] flex flex-col items-end pointer-events-none">
       {/* Draggable Area - Simplified as fixed but looks floating. Framer drag requires layout change or portal */}
       <AnimatePresence>
         {isOpen && !isMinimized && (
@@ -366,39 +366,37 @@ export function DemirAICommandCenter() {
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            // drag // Enabling drag would require more complex state management for position
-            // dragConstraints={{ left: -1000, right: 0, top: -800, bottom: 0 }}
-            className="mb-4 w-[400px] h-[600px] bg-zinc-950 border border-yellow-600/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto backdrop-blur-md shadow-yellow-900/20"
+            className="mb-4 w-[calc(100vw-2rem)] max-w-[400px] h-[calc(100vh-8rem)] max-h-[600px] md:w-[400px] md:h-[600px] bg-zinc-950 border border-yellow-600/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto backdrop-blur-md shadow-yellow-900/20"
           >
             {/* Header */}
-            <div className="h-14 bg-zinc-900/80 border-b border-yellow-600/20 flex items-center justify-between px-4 shrink-0 cursor-move">
-              <div className="flex items-center gap-3 text-yellow-500">
+            <div className="h-14 bg-zinc-900/80 border-b border-yellow-600/20 flex items-center justify-between px-3 md:px-4 shrink-0 cursor-move">
+              <div className="flex items-center gap-2 md:gap-3 text-yellow-500">
                 <div className="relative">
                   <div className="absolute inset-0 bg-yellow-500/20 rounded-full animate-pulse" />
-                  <Bot className="w-6 h-6 relative z-10" />
+                  <Bot className="w-5 h-5 md:w-6 md:h-6 relative z-10" />
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm tracking-widest text-yellow-100/90 font-mono">
+                  <h3 className="font-bold text-xs md:text-sm tracking-widest text-yellow-100/90 font-mono">
                     DEMIR AI
                   </h3>
                   <div className="flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-yellow-500/50" />
-                    <span className="text-[10px] text-yellow-600/80 font-mono tracking-widest">
+                    <span className="text-[9px] md:text-[10px] text-yellow-600/80 font-mono tracking-widest">
                       ONLINE
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5 md:gap-1">
                 {/* Auto Speak Toggle */}
                 <button
                   onClick={() => setIsAutoSpeakEnabled(!isAutoSpeakEnabled)}
                   className={cn(
-                    "p-2 rounded-lg transition-colors mr-1",
+                    "p-1.5 md:p-2 rounded-lg transition-colors mr-0.5 md:mr-1 touch-manipulation",
                     isAutoSpeakEnabled
-                      ? "text-green-500 hover:bg-green-500/10" // Green when enabled
-                      : "text-red-500 hover:bg-red-500/10", // Red when disabled
+                      ? "text-green-500 hover:bg-green-500/10"
+                      : "text-red-500 hover:bg-red-500/10",
                   )}
                   title={
                     isAutoSpeakEnabled
@@ -407,9 +405,9 @@ export function DemirAICommandCenter() {
                   }
                 >
                   {isAutoSpeakEnabled ? (
-                    <Volume2 className="w-4 h-4" />
+                    <Volume2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   ) : (
-                    <VolumeX className="w-4 h-4" />
+                    <VolumeX className="w-3.5 h-3.5 md:w-4 md:h-4" />
                   )}
                 </button>
 
@@ -419,23 +417,23 @@ export function DemirAICommandCenter() {
                     setMessages([]);
                     toast.success("Sohbet temizlendi.");
                   }}
-                  className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                  className="p-1.5 md:p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors touch-manipulation"
                   title="Sohbeti Temizle"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
 
                 <button
                   onClick={() => setIsMinimized(true)}
-                  className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                  className="p-1.5 md:p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors touch-manipulation"
                 >
-                  <Minimize2 className="w-4 h-4" />
+                  <Minimize2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-2 hover:bg-red-900/20 rounded-lg text-zinc-400 hover:text-red-400 transition-colors"
+                  className="p-1.5 md:p-2 hover:bg-red-900/20 rounded-lg text-zinc-400 hover:text-red-400 transition-colors touch-manipulation"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
               </div>
             </div>
@@ -443,7 +441,7 @@ export function DemirAICommandCenter() {
             {/* Chat Area */}
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent bg-gradient-to-b from-zinc-950 to-black pb-4"
+              className="flex-1 overflow-y-auto space-y-3 md:space-y-4 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent bg-gradient-to-b from-zinc-950 to-black pb-3 md:pb-4"
             >
               {/* Agent Logs (Matrix Style) */}
               <AgentProcessLog
@@ -451,9 +449,9 @@ export function DemirAICommandCenter() {
                 isVisible={isProcessing || logs.length > 0}
               />
 
-              <div className="px-4">
+              <div className="px-3 md:px-4">
                 {permissionError && (
-                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl text-xs flex flex-col gap-2 mb-4">
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-2.5 md:p-3 rounded-xl text-[11px] md:text-xs flex flex-col gap-2 mb-3 md:mb-4">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-red-500/10 rounded-full shrink-0">
                         <X className="w-3 h-3" />
@@ -486,7 +484,7 @@ export function DemirAICommandCenter() {
                             );
                           }
                         }}
-                        className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 w-fit"
+                        className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 w-fit touch-manipulation"
                       >
                         <Mic className="w-3 h-3" />
                         İzni Tekrar İste
@@ -504,13 +502,13 @@ export function DemirAICommandCenter() {
                     animate={{ opacity: 1, y: 0 }}
                     key={msg.id}
                     className={cn(
-                      "flex w-full mb-4",
+                      "flex w-full mb-3 md:mb-4",
                       msg.role === "user" ? "justify-end" : "justify-start",
                     )}
                   >
                     <div
                       className={cn(
-                        "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-lg backdrop-blur-sm",
+                        "max-w-[90%] md:max-w-[85%] rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm leading-relaxed shadow-lg backdrop-blur-sm",
                         msg.role === "user"
                           ? "bg-yellow-600/90 text-white rounded-br-none border border-yellow-500/20"
                           : "bg-zinc-900/90 text-zinc-200 border border-zinc-800 rounded-bl-none",
@@ -519,15 +517,15 @@ export function DemirAICommandCenter() {
                       {msg.role === "assistant" && (
                         <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
                           <Sparkles className="w-3 h-3 text-yellow-500" />
-                          <span className="text-[10px] uppercase tracking-widest text-zinc-500">
+                          <span className="text-[9px] md:text-[10px] uppercase tracking-widest text-zinc-500">
                             System Response
                           </span>
                         </div>
                       )}
-                      {msg.content}
+                      <div className="break-words">{msg.content}</div>
                       <div
                         className={cn(
-                          "text-[10px] mt-2 font-mono flex items-center justify-end gap-1 opacity-50",
+                          "text-[9px] md:text-[10px] mt-2 font-mono flex items-center justify-end gap-1 opacity-50",
                           msg.role === "user"
                             ? "text-yellow-100"
                             : "text-zinc-500",
@@ -546,7 +544,7 @@ export function DemirAICommandCenter() {
                               handleSpeakMessage(msg);
                             }}
                             className={cn(
-                              "p-1 rounded-full opacity-60 hover:opacity-100 transition-opacity ml-2",
+                              "p-1 rounded-full opacity-60 hover:opacity-100 transition-opacity ml-2 touch-manipulation",
                               speakingMessageId === msg.id
                                 ? "text-yellow-400 bg-yellow-400/10"
                                 : "text-zinc-400 hover:bg-zinc-700",
@@ -567,8 +565,8 @@ export function DemirAICommandCenter() {
 
                 {isProcessing && (
                   <div className="flex justify-start">
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl rounded-bl-none px-4 py-3 flex items-center gap-1">
-                      <span className="text-xs text-zinc-500 animate-pulse mr-2">
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl rounded-bl-none px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-1">
+                      <span className="text-[10px] md:text-xs text-zinc-500 animate-pulse mr-2">
                         ANALYZING
                       </span>
                       <span className="w-1 h-1 bg-yellow-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
@@ -581,12 +579,12 @@ export function DemirAICommandCenter() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-zinc-900 border-t border-yellow-600/10 shrink-0 backdrop-blur-md relative z-[100]">
-              <div className="relative flex items-center gap-2">
+            <div className="p-3 md:p-4 bg-zinc-900 border-t border-yellow-600/10 shrink-0 backdrop-blur-md relative z-[100]">
+              <div className="relative flex items-center gap-1.5 md:gap-2">
                 <button
                   onClick={toggleRecording}
                   className={cn(
-                    "p-3 rounded-xl transition-all duration-300 relative group overflow-hidden pointer-events-auto cursor-pointer select-none",
+                    "p-2.5 md:p-3 rounded-xl transition-all duration-300 relative group overflow-hidden pointer-events-auto cursor-pointer select-none touch-manipulation",
                     isRecording
                       ? "bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)] scale-105 active:scale-95"
                       : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-zinc-700 active:scale-95",
@@ -596,9 +594,9 @@ export function DemirAICommandCenter() {
                   disabled={isProcessing}
                 >
                   {isRecording ? (
-                    <StopCircle className="w-5 h-5 relative z-10 animate-pulse" />
+                    <StopCircle className="w-4 h-4 md:w-5 md:h-5 relative z-10 animate-pulse" />
                   ) : (
-                    <Mic className="w-5 h-5 relative z-10" />
+                    <Mic className="w-4 h-4 md:w-5 md:h-5 relative z-10" />
                   )}
                 </button>
 
@@ -608,7 +606,7 @@ export function DemirAICommandCenter() {
                       <VoiceVisualizer isRecording={isRecording} />
                       <div className="absolute inset-0 flex items-center justify-center gap-2">
                         <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
-                        <span className="text-xs text-yellow-500 font-mono tracking-[0.2em] font-bold drop-shadow-md">
+                        <span className="text-[10px] md:text-xs text-yellow-500 font-mono tracking-[0.2em] font-bold drop-shadow-md">
                           DINLIYORUM...
                         </span>
                       </div>
@@ -624,17 +622,17 @@ export function DemirAICommandCenter() {
                       }
                     }}
                     placeholder="Komut Girin..."
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-yellow-600/40 rounded-xl px-4 py-3 text-sm text-white shadow-inner focus:ring-1 focus:ring-yellow-600/20 focus:outline-none placeholder:text-zinc-700 font-medium z-10"
+                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-yellow-600/40 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white shadow-inner focus:ring-1 focus:ring-yellow-600/20 focus:outline-none placeholder:text-zinc-700 font-medium z-10"
                   />
                 </div>
 
                 <button
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() || isProcessing}
-                  className="p-3 bg-gradient-to-br from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-yellow-900/20 active:scale-95 pointer-events-auto cursor-pointer z-10"
+                  className="p-2.5 md:p-3 bg-gradient-to-br from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-yellow-900/20 active:scale-95 pointer-events-auto cursor-pointer z-10 touch-manipulation"
                   type="button"
                 >
-                  <Send className="w-5 h-5 pointer-events-none" />
+                  <Send className="w-4 h-4 md:w-5 md:h-5 pointer-events-none" />
                 </button>
               </div>
             </div>
@@ -650,10 +648,10 @@ export function DemirAICommandCenter() {
           setIsMinimized(false);
         }}
         className={cn(
-          "pointer-events-auto flex items-center justify-center rounded-full shadow-2xl transition-all duration-300 group border border-yellow-500/20 relative overflow-hidden backdrop-blur-sm",
+          "pointer-events-auto flex items-center justify-center rounded-full shadow-2xl transition-all duration-300 group border border-yellow-500/20 relative overflow-hidden backdrop-blur-sm touch-manipulation",
           isOpen && !isMinimized
             ? "w-0 h-0 p-0 opacity-0"
-            : "w-16 h-16 bg-zinc-900 text-yellow-500 hover:scale-110 hover:shadow-yellow-500/20 hover:border-yellow-500/50",
+            : "w-14 h-14 md:w-16 md:h-16 bg-zinc-900 text-yellow-500 hover:scale-110 hover:shadow-yellow-500/20 hover:border-yellow-500/50 active:scale-95",
         )}
       >
         <div className="absolute inset-0 bg-gradient-to-tr from-yellow-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -661,10 +659,10 @@ export function DemirAICommandCenter() {
         {isMinimized ? (
           <div className="relative">
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-zinc-900 shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-            <Bot className="w-8 h-8 relative z-10" />
+            <Bot className="w-7 h-7 md:w-8 md:h-8 relative z-10" />
           </div>
         ) : (
-          <Bot className="w-8 h-8 relative z-10" />
+          <Bot className="w-7 h-7 md:w-8 md:h-8 relative z-10" />
         )}
       </motion.button>
     </div>

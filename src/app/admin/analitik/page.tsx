@@ -62,7 +62,9 @@ export default function AdminAnalitikPage() {
   async function fetchAnalytics() {
     try {
       setLoading(true);
-      const response = await fetch(`/api/analytics?type=all&days=${dateRange}`);
+      // Eğer 60 dakika veya 24 saat seçiliyse, days parametresini float olarak gönder
+      const daysParam = dateRange < 1 ? dateRange.toFixed(2) : dateRange;
+      const response = await fetch(`/api/analytics?type=all&days=${daysParam}`);
       const result = await response.json();
 
       if (!result.configured) {
@@ -130,15 +132,6 @@ export default function AdminAnalitikPage() {
             Analitik verilerini görmek için .env dosyasına GA credentials
             ekleyin.
           </p>
-          <a
-            href="https://vercel.com/erkans-projects-e8f0e8e5/demir-gayrimenkul/analytics"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-900 px-6 py-3 rounded-lg font-bold transition-colors"
-          >
-            <Icon name="open_in_new" />
-            Vercel Analytics'e Git
-          </a>
         </div>
       </div>
     );
@@ -183,7 +176,12 @@ export default function AdminAnalitikPage() {
             Analitik
           </h2>
           <p className="text-slate-400 text-sm mt-1">
-            Google Analytics verileri • Son {dateRange} gün
+            Google Analytics verileri • Son{" "}
+            {dateRange < 1
+              ? dateRange === 0.04
+                ? "60 dakika"
+                : "24 saat"
+              : `${dateRange} gün`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -192,6 +190,8 @@ export default function AdminAnalitikPage() {
             onChange={(e) => setDateRange(parseInt(e.target.value))}
             className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm"
           >
+            <option value={0.04}>Son 60 Dakika</option>
+            <option value={1}>Son 24 Saat</option>
             <option value={7}>Son 7 gün</option>
             <option value={14}>Son 14 gün</option>
             <option value={30}>Son 30 gün</option>
@@ -404,24 +404,6 @@ export default function AdminAnalitikPage() {
         >
           <Icon name="open_in_new" />
           Google Analytics
-        </a>
-        <a
-          href="https://vercel.com/erkans-projects-e8f0e8e5/demir-gayrimenkul/analytics"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-        >
-          <Icon name="open_in_new" />
-          Vercel Analytics
-        </a>
-        <a
-          href="https://vercel.com/erkans-projects-e8f0e8e5/demir-gayrimenkul/speed-insights"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-        >
-          <Icon name="open_in_new" />
-          Speed Insights
         </a>
       </div>
     </div>

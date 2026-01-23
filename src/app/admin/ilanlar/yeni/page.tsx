@@ -74,6 +74,7 @@ export default function YeniIlanPage() {
     description: "",
     type: "konut" as ListingType,
     transactionType: "sale" as TransactionType,
+    status: "active" as string,
     address: "",
     district: "Hendek",
     neighborhood: "",
@@ -616,6 +617,7 @@ export default function YeniIlanPage() {
           price: formData.price,
           images,
           thumbnail: images[0] || null,
+          status: formData.status,
           metaTitle: formData.metaTitle || formData.title,
           metaDescription:
             formData.metaDescription || formData.description?.slice(0, 160),
@@ -749,6 +751,22 @@ export default function YeniIlanPage() {
               >
                 <option value="sale">Satılık</option>
                 <option value="rent">Kiralık</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                İlan Durumu *
+              </label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="active">Aktif (Sitede Görünür)</option>
+                <option value="draft">Taslak (Gizli)</option>
+                <option value="pending">Beklemede</option>
+                <option value="sold">Satıldı</option>
               </select>
             </div>
           </div>

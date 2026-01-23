@@ -13,13 +13,18 @@ function getCredentials() {
   }
 
   // Option 2: Individual environment variables
-  const privateKey = process.env.GA_PRIVATE_KEY;
-  if (!privateKey || !process.env.GA_CLIENT_EMAIL) {
+  let privateKey = process.env.GA_PRIVATE_KEY;
+  let clientEmail = process.env.GA_CLIENT_EMAIL;
+
+  if (!privateKey || !clientEmail) {
     return null;
   }
 
+  privateKey = privateKey.replace(/^["']|["']$/g, "");
+  clientEmail = clientEmail.replace(/^["']|["']$/g, "");
+
   return {
-    client_email: process.env.GA_CLIENT_EMAIL,
+    client_email: clientEmail,
     // Handle both escaped \n and actual newlines
     private_key: privateKey.includes("\\n")
       ? privateKey.replace(/\\n/g, "\n")
@@ -88,11 +93,14 @@ export interface DailyData {
 }
 
 function handleAnalyticsError(error: any) {
-  // 16 = UNAUTHENTICATED
-  if (error.code === 16) {
+  const errorMessage = error?.message || String(error);
+  const isAuthError = error.code === 16;
+  const isDecoderError = errorMessage.includes("DECODER routines::unsupported");
+
+  if (isAuthError || isDecoderError) {
     if (analyticsEnabled) {
       console.warn(
-        "Google Analytics Authentication Failed (Invalid Credentials). Disabling Analytics to prevent log spam.",
+        `Google Analytics ${isAuthError ? "Authentication" : "Configuration"} Failed. Disabling Analytics to prevent log spam. Error: ${errorMessage}`,
       );
       analyticsEnabled = false;
     }

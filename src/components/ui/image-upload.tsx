@@ -239,7 +239,7 @@ export function ImageUpload({
                     dosya seçin
                   </button>
                   <p className="text-xs text-slate-500 mt-3">
-                    JPG, PNG, WebP • Maks. 5MB
+                    JPG, PNG, WebP • Maks. 10MB
                   </p>
                 </>
               )}

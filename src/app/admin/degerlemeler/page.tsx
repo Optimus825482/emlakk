@@ -37,6 +37,14 @@ interface ApiResponse {
   };
 }
 
+interface GroupedValuation {
+  userId: string;
+  userName: string;
+  date: string;
+  valuations: Valuation[];
+  expanded: boolean;
+}
+
 const typeColors: Record<string, string> = {
   konut: "bg-orange-500",
   sanayi: "bg-blue-500",
@@ -60,6 +68,12 @@ export default function AdminDegerlemelerPage() {
   const [selectedValuation, setSelectedValuation] = useState<string | null>(
     null,
   );
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [groupByUser, setGroupByUser] = useState(true);
+  const [groupedData, setGroupedData] = useState<GroupedValuation[]>([]);
+  const pageSize = 20;
 
   const generatePDFReport = (valuation: Valuation) => {
     // Yeni pencerede PDF rapor sayfasını aç
@@ -548,18 +562,61 @@ export default function AdminDegerlemelerPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (filter !== "all") params.set("propertyType", filter);
+      params.set("page", page.toString());
+      params.set("limit", pageSize.toString());
 
       const response = await fetch(`/api/valuations?${params.toString()}`);
       if (!response.ok) throw new Error("Değerlemeler yüklenemedi");
 
       const result: ApiResponse = await response.json();
       setValuations(result.data);
+      setTotalPages(result.pagination.totalPages);
+      setTotal(result.pagination.total);
+
+      // Gruplama işlemi
+      if (groupByUser) {
+        groupValuations(result.data);
+      }
     } catch (error) {
       console.error("Değerleme yükleme hatası:", error);
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, page, groupByUser]);
+
+  const groupValuations = (data: Valuation[]) => {
+    const groups: Record<string, GroupedValuation> = {};
+
+    data.forEach((val) => {
+      const date = new Date(val.createdAt).toLocaleDateString("tr-TR");
+      const userId = val.email || val.phone || "unknown";
+      const key = `${userId}_${date}`;
+
+      if (!groups[key]) {
+        groups[key] = {
+          userId,
+          userName: val.name || "İsimsiz",
+          date,
+          valuations: [],
+          expanded: false,
+        };
+      }
+
+      groups[key].valuations.push(val);
+    });
+
+    setGroupedData(Object.values(groups));
+  };
+
+  const toggleGroup = (userId: string, date: string) => {
+    setGroupedData((prev) =>
+      prev.map((group) =>
+        group.userId === userId && group.date === date
+          ? { ...group, expanded: !group.expanded }
+          : group,
+      ),
+    );
+  };
 
   useEffect(() => {
     fetchValuations();
@@ -570,11 +627,19 @@ export default function AdminDegerlemelerPage() {
       return;
 
     try {
-      await fetch(`/api/valuations/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/valuations/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Silme işlemi başarısız");
+      }
+
       setSelectedValuation(null);
       fetchValuations();
     } catch (error) {
       console.error("Silme hatası:", error);
+      alert("Silme işlemi sırasında bir hata oluştu");
     }
   };
 
@@ -598,10 +663,21 @@ export default function AdminDegerlemelerPage() {
             Değerleme Raporları
           </h2>
           <p className="text-slate-400 text-sm mt-1">
-            {valuations.length} değerleme raporu
+            {total} değerleme raporu • Sayfa {page}/{totalPages}
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setGroupByUser(!groupByUser)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              groupByUser
+                ? "bg-emerald-500 text-slate-900"
+                : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"
+            }`}
+          >
+            <Icon name={groupByUser ? "group" : "list"} />
+            {groupByUser ? "Gruplu Görünüm" : "Liste Görünümü"}
+          </button>
           <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
             <Icon name="auto_awesome" className="text-purple-400" />
             <span className="text-sm text-slate-300">
@@ -616,7 +692,10 @@ export default function AdminDegerlemelerPage() {
         {["all", "konut", "sanayi", "tarim", "ticari", "arsa"].map((type) => (
           <button
             key={type}
-            onClick={() => setFilter(type)}
+            onClick={() => {
+              setFilter(type);
+              setPage(1); // Reset to first page on filter change
+            }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               filter === type
                 ? "bg-emerald-500 text-slate-900"
@@ -635,387 +714,495 @@ export default function AdminDegerlemelerPage() {
           <p className="text-slate-400">Değerleme talebi bulunamadı</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {valuations.map((valuation) => (
-            <div
-              key={valuation.id}
-              className={`bg-slate-800 border rounded-lg overflow-hidden transition-all ${
-                selectedValuation === valuation.id
-                  ? "border-emerald-500"
-                  : "border-slate-700 hover:border-slate-600"
-              }`}
-            >
-              {/* Main Row */}
-              <div
-                className="p-5 cursor-pointer"
-                onClick={() =>
-                  setSelectedValuation(
-                    selectedValuation === valuation.id ? null : valuation.id,
-                  )
-                }
-              >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 flex-1">
-                    {/* Tarih/Saat - Sol Üst Köşe */}
-                    <div className="text-left min-w-[140px]">
-                      <p className="text-slate-500 text-[10px] uppercase mb-1">
-                        Değerleme Tarihi
-                      </p>
-                      <p className="text-slate-300 text-xs font-mono">
-                        {new Date(valuation.createdAt).toLocaleDateString(
-                          "tr-TR",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                          },
-                        )}
-                      </p>
-                      <p className="text-slate-400 text-[10px] font-mono">
-                        {new Date(valuation.createdAt).toLocaleTimeString(
-                          "tr-TR",
-                          {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )}
-                      </p>
-                    </div>
-
+        <>
+          <div className="space-y-4">
+            {groupByUser && groupedData.length > 0
+              ? // Gruplu Görünüm
+                groupedData.map((group, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden"
+                  >
+                    {/* Group Header */}
                     <div
-                      className={`w-12 h-12 rounded-lg ${
-                        typeColors[valuation.propertyType]
-                      } flex items-center justify-center`}
+                      className="p-4 bg-slate-900/50 cursor-pointer hover:bg-slate-900/70 transition-colors flex items-center justify-between"
+                      onClick={() => toggleGroup(group.userId, group.date)}
                     >
-                      <Icon
-                        name={typeIcons[valuation.propertyType]}
-                        className="text-white text-xl"
-                      />
-                    </div>
-                    <div>
+                      <div className="flex items-center gap-3">
+                        <Icon
+                          name={
+                            group.expanded ? "expand_more" : "chevron_right"
+                          }
+                          className="text-emerald-400 text-xl"
+                        />
+                        <div>
+                          <h3 className="text-white font-semibold">
+                            {group.userName}
+                          </h3>
+                          <p className="text-slate-400 text-sm">
+                            {group.date} • {group.valuations.length} değerleme
+                          </p>
+                        </div>
+                      </div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-white font-medium">
-                          {valuation.name || "İsimsiz"}
-                        </h3>
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded ${
-                            typeColors[valuation.propertyType]
-                          } text-white`}
-                        >
-                          {valuationPropertyTypeLabels[valuation.propertyType]}
+                        <span className="text-xs px-3 py-1 rounded bg-slate-700 text-slate-300">
+                          {group.userId}
                         </span>
                       </div>
                     </div>
+
+                    {/* Group Items */}
+                    {group.expanded && (
+                      <div className="divide-y divide-slate-700">
+                        {group.valuations.map((valuation) => (
+                          <ValuationItem
+                            key={valuation.id}
+                            valuation={valuation}
+                            selectedValuation={selectedValuation}
+                            setSelectedValuation={setSelectedValuation}
+                            handleDelete={handleDelete}
+                            generatePDFReport={generatePDFReport}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
+                ))
+              : // Liste Görünümü
+                valuations.map((valuation) => (
+                  <ValuationItem
+                    key={valuation.id}
+                    valuation={valuation}
+                    selectedValuation={selectedValuation}
+                    setSelectedValuation={setSelectedValuation}
+                    handleDelete={handleDelete}
+                    generatePDFReport={generatePDFReport}
+                  />
+                ))}
+          </div>
 
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <p className="text-slate-500 text-xs uppercase">Alan</p>
-                      <p className="text-white font-mono">
-                        {valuation.area.toLocaleString("tr-TR")}m²
-                      </p>
-                    </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"
+              >
+                <Icon name="chevron_left" />
+              </button>
 
-                    {valuation.estimatedValue && (
-                      <div className="text-right">
-                        <p className="text-slate-500 text-xs uppercase">
-                          Tahmini Değer
-                        </p>
-                        <p className="text-emerald-400 font-mono font-bold">
-                          ₺
-                          {(
-                            parseFloat(valuation.estimatedValue) / 1000000
-                          ).toFixed(2)}
-                          M
-                        </p>
-                      </div>
-                    )}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
 
-                    {valuation.confidenceScore && (
-                      <div className="text-right">
-                        <p className="text-slate-500 text-xs uppercase">
-                          AI Güven
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-2 bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-emerald-500 rounded-full"
-                              style={{ width: `${valuation.confidenceScore}%` }}
-                            />
-                          </div>
-                          <span className="text-emerald-400 text-sm font-mono">
-                            {valuation.confidenceScore}%
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <span
-                      className={`text-xs px-3 py-1.5 rounded border ${
-                        valuation.estimatedValue
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                          : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      className={`w-10 h-10 rounded-lg font-medium transition-colors ${
+                        page === pageNum
+                          ? "bg-emerald-500 text-slate-900"
+                          : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"
                       }`}
                     >
-                      {valuation.estimatedValue ? "Tamamlandı" : "Bekliyor"}
-                    </span>
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-700 transition-colors"
+              >
+                <Icon name="chevron_right" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Valuation Item Component
+function ValuationItem({
+  valuation,
+  selectedValuation,
+  setSelectedValuation,
+  handleDelete,
+  generatePDFReport,
+}: {
+  valuation: Valuation;
+  selectedValuation: string | null;
+  setSelectedValuation: (id: string | null) => void;
+  handleDelete: (id: string) => void;
+  generatePDFReport: (valuation: Valuation) => void;
+}) {
+  const typeColors: Record<string, string> = {
+    konut: "bg-orange-500",
+    sanayi: "bg-blue-500",
+    tarim: "bg-emerald-500",
+    ticari: "bg-purple-500",
+    arsa: "bg-amber-500",
+  };
+
+  const typeIcons: Record<string, string> = {
+    konut: "home",
+    sanayi: "factory",
+    tarim: "agriculture",
+    ticari: "store",
+    arsa: "landscape",
+  };
+
+  return (
+    <div
+      className={`bg-slate-800 border rounded-lg overflow-hidden transition-all ${
+        selectedValuation === valuation.id
+          ? "border-emerald-500"
+          : "border-slate-700 hover:border-slate-600"
+      }`}
+    >
+      {/* Main Row */}
+      <div
+        className="p-5 cursor-pointer"
+        onClick={() =>
+          setSelectedValuation(
+            selectedValuation === valuation.id ? null : valuation.id,
+          )
+        }
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 flex-1">
+            {/* Tarih/Saat - Sol Üst Köşe */}
+            <div className="text-left min-w-[140px]">
+              <p className="text-slate-500 text-[10px] uppercase mb-1">
+                Değerleme Tarihi
+              </p>
+              <p className="text-slate-300 text-xs font-mono">
+                {new Date(valuation.createdAt).toLocaleDateString("tr-TR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })}
+              </p>
+              <p className="text-slate-400 text-[10px] font-mono">
+                {new Date(valuation.createdAt).toLocaleTimeString("tr-TR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+
+            <div
+              className={`w-12 h-12 rounded-lg ${
+                typeColors[valuation.propertyType]
+              } flex items-center justify-center`}
+            >
+              <Icon
+                name={typeIcons[valuation.propertyType]}
+                className="text-white text-xl"
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-white font-medium">
+                  {valuation.name || "İsimsiz"}
+                </h3>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded ${
+                    typeColors[valuation.propertyType]
+                  } text-white`}
+                >
+                  {valuationPropertyTypeLabels[valuation.propertyType]}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <p className="text-slate-500 text-xs uppercase">Alan</p>
+              <p className="text-white font-mono">
+                {valuation.area.toLocaleString("tr-TR")}m²
+              </p>
+            </div>
+
+            {valuation.estimatedValue && (
+              <div className="text-right">
+                <p className="text-slate-500 text-xs uppercase">
+                  Tahmini Değer
+                </p>
+                <p className="text-emerald-400 font-mono font-bold">
+                  ₺{(parseFloat(valuation.estimatedValue) / 1000000).toFixed(2)}
+                  M
+                </p>
+              </div>
+            )}
+
+            {valuation.confidenceScore && (
+              <div className="text-right">
+                <p className="text-slate-500 text-xs uppercase">AI Güven</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-16 h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full"
+                      style={{ width: `${valuation.confidenceScore}%` }}
+                    />
                   </div>
+                  <span className="text-emerald-400 text-sm font-mono">
+                    {valuation.confidenceScore}%
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <span
+              className={`text-xs px-3 py-1.5 rounded border ${
+                valuation.estimatedValue
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+              }`}
+            >
+              {valuation.estimatedValue ? "Tamamlandı" : "Bekliyor"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded Details - Mevcut detay kısmı burada kalacak */}
+      {selectedValuation === valuation.id && (
+        <div className="px-5 pb-5 pt-0 border-t border-slate-700 mt-0">
+          <div className="pt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Contact Info */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-slate-400 uppercase">
+                İletişim
+              </h4>
+              <div className="space-y-2">
+                {valuation.phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Icon name="phone" className="text-slate-500" />
+                    <span className="text-white">{valuation.phone}</span>
+                  </div>
+                )}
+                {valuation.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Icon name="email" className="text-slate-500" />
+                    <span className="text-white">{valuation.email}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Property Features */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-slate-400 uppercase">
+                Detaylar
+              </h4>
+              <div className="space-y-2">
+                {/* Adres */}
+                <div className="flex items-start gap-2 text-sm">
+                  <Icon name="location_on" className="text-slate-500 mt-0.5" />
+                  <div>
+                    <p className="text-white text-xs leading-relaxed">
+                      {valuation.address}, {valuation.city}
+                    </p>
+                    {valuation.details?.lat && valuation.details?.lng ? (
+                      <p className="text-slate-400 text-[10px] mt-1">
+                        {parseFloat(String(valuation.details.lat)).toFixed(6)},{" "}
+                        {parseFloat(String(valuation.details.lng)).toFixed(6)}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Metrekare */}
+                <div className="flex items-center gap-2 text-sm">
+                  <Icon name="square_foot" className="text-slate-500" />
+                  <span className="text-white">
+                    {(valuation.details?.area as number) || valuation.area} m²
+                  </span>
                 </div>
               </div>
 
-              {/* Expanded Details */}
-              {selectedValuation === valuation.id && (
-                <div className="px-5 pb-5 pt-0 border-t border-slate-700 mt-0">
-                  <div className="pt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Contact Info */}
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-bold text-slate-400 uppercase">
-                        İletişim
-                      </h4>
-                      <div className="space-y-2">
-                        {valuation.phone && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Icon name="phone" className="text-slate-500" />
-                            <span className="text-white">
-                              {valuation.phone}
-                            </span>
-                          </div>
-                        )}
-                        {valuation.email && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Icon name="email" className="text-slate-500" />
-                            <span className="text-white">
-                              {valuation.email}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+              <h4 className="text-sm font-bold text-slate-400 uppercase mt-4">
+                Özellikler
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {valuation.details &&
+                  Object.entries(valuation.details)
+                    .filter(([key]) => !["lat", "lng", "area"].includes(key))
+                    .map(([key, value]) => {
+                      const labels: Record<string, string> = {
+                        floor: "Kat",
+                        mahalle: "Mahalle",
+                        roomCount: "Oda Sayısı",
+                        hasBalcony: "Balkon",
+                        hasParking: "Otopark",
+                        buildingAge: "Bina Yaşı",
+                        hasElevator: "Asansör",
+                        propertyType: "Mülk Tipi",
+                      };
 
-                    {/* Property Features */}
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-bold text-slate-400 uppercase">
-                        Detaylar
-                      </h4>
-                      <div className="space-y-2">
-                        {/* Adres */}
-                        <div className="flex items-start gap-2 text-sm">
-                          <Icon
-                            name="location_on"
-                            className="text-slate-500 mt-0.5"
-                          />
-                          <div>
-                            <p className="text-white text-xs leading-relaxed">
-                              {valuation.address}, {valuation.city}
-                            </p>
-                            {valuation.details?.lat &&
-                            valuation.details?.lng ? (
-                              <p className="text-slate-400 text-[10px] mt-1">
-                                {parseFloat(
-                                  String(valuation.details.lat),
-                                ).toFixed(6)}
-                                ,{" "}
-                                {parseFloat(
-                                  String(valuation.details.lng),
-                                ).toFixed(6)}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
+                      const colorMap: Record<string, string> = {
+                        floor:
+                          "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                        mahalle:
+                          "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                        roomCount:
+                          "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+                        hasBalcony:
+                          "bg-green-500/20 text-green-300 border-green-500/30",
+                        hasParking:
+                          "bg-orange-500/20 text-orange-300 border-orange-500/30",
+                        buildingAge:
+                          "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                        hasElevator:
+                          "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+                        propertyType:
+                          "bg-pink-500/20 text-pink-300 border-pink-500/30",
+                      };
 
-                        {/* Metrekare */}
-                        <div className="flex items-center gap-2 text-sm">
-                          <Icon name="square_foot" className="text-slate-500" />
-                          <span className="text-white">
-                            {(valuation.details?.area as number) ||
-                              valuation.area}{" "}
-                            m²
-                          </span>
-                        </div>
-                      </div>
+                      const label = labels[key] || key;
+                      const colorClass =
+                        colorMap[key] ||
+                        "bg-slate-700 text-slate-300 border-slate-600";
 
-                      <h4 className="text-sm font-bold text-slate-400 uppercase mt-4">
-                        Özellikler
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {valuation.details &&
-                          Object.entries(valuation.details)
-                            .filter(
-                              ([key]) => !["lat", "lng", "area"].includes(key),
-                            )
-                            .map(([key, value]) => {
-                              const labels: Record<string, string> = {
-                                floor: "Kat",
-                                mahalle: "Mahalle",
-                                roomCount: "Oda Sayısı",
-                                hasBalcony: "Balkon",
-                                hasParking: "Otopark",
-                                buildingAge: "Bina Yaşı",
-                                hasElevator: "Asansör",
-                                propertyType: "Mülk Tipi",
-                              };
-
-                              const colorMap: Record<string, string> = {
-                                floor:
-                                  "bg-blue-500/20 text-blue-300 border-blue-500/30",
-                                mahalle:
-                                  "bg-purple-500/20 text-purple-300 border-purple-500/30",
-                                roomCount:
-                                  "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-                                hasBalcony:
-                                  "bg-green-500/20 text-green-300 border-green-500/30",
-                                hasParking:
-                                  "bg-orange-500/20 text-orange-300 border-orange-500/30",
-                                buildingAge:
-                                  "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                                hasElevator:
-                                  "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-                                propertyType:
-                                  "bg-pink-500/20 text-pink-300 border-pink-500/30",
-                              };
-
-                              const label = labels[key] || key;
-                              const colorClass =
-                                colorMap[key] ||
-                                "bg-slate-700 text-slate-300 border-slate-600";
-
-                              return (
-                                <span
-                                  key={key}
-                                  className={`text-xs px-2 py-1 rounded border ${colorClass}`}
-                                >
-                                  {label}:{" "}
-                                  {typeof value === "boolean"
-                                    ? value
-                                      ? "Var"
-                                      : "Yok"
-                                    : String(value)}
-                                </span>
-                              );
-                            })}
-                        {(!valuation.details ||
-                          Object.keys(valuation.details).filter(
-                            (k) => !["lat", "lng", "area"].includes(k),
-                          ).length === 0) && (
-                          <span className="text-slate-500 text-sm">
-                            Özellik belirtilmemiş
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-4 pt-2 border-t border-slate-700/50">
-                        <p className="text-[10px] text-slate-500 uppercase flex items-center gap-1">
-                          <Icon name="calendar_today" className="text-[10px]" />
-                          Analiz Tarihi:{" "}
-                          {new Date(valuation.createdAt).toLocaleString(
-                            "tr-TR",
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-bold text-slate-400 uppercase">
-                        İşlemler
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {valuation.estimatedValue && (
-                          <button
-                            onClick={() => generatePDFReport(valuation)}
-                            className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
-                          >
-                            <Icon name="picture_as_pdf" />
-                            Raporu Yazdır / İndir
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(valuation.id)}
-                          className="flex items-center gap-2 bg-slate-700 hover:bg-red-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors border border-slate-600"
+                      return (
+                        <span
+                          key={key}
+                          className={`text-xs px-2 py-1 rounded border ${colorClass}`}
                         >
-                          <Icon name="delete" />
-                          Sil
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                          {label}:{" "}
+                          {typeof value === "boolean"
+                            ? value
+                              ? "Var"
+                              : "Yok"
+                            : String(value)}
+                        </span>
+                      );
+                    })}
+                {(!valuation.details ||
+                  Object.keys(valuation.details).filter(
+                    (k) => !["lat", "lng", "area"].includes(k),
+                  ).length === 0) && (
+                  <span className="text-slate-500 text-sm">
+                    Özellik belirtilmemiş
+                  </span>
+                )}
+              </div>
 
-                  {/* Market Analysis */}
-                  {valuation.marketAnalysis && (
-                    <div className="mt-4 pt-4 border-t border-slate-700">
-                      <h4 className="text-sm font-bold text-slate-400 uppercase mb-2 flex items-center gap-2">
-                        <Icon
-                          name="auto_awesome"
-                          className="text-purple-400 text-xs"
-                        />
-                        AI Pazar Analizi & Özet
-                      </h4>
-                      <p className="text-slate-300 text-sm leading-relaxed italic">
-                        "{valuation.marketAnalysis}"
-                      </p>
-                    </div>
-                  )}
+              <div className="mt-4 pt-2 border-t border-slate-700/50">
+                <p className="text-[10px] text-slate-500 uppercase flex items-center gap-1">
+                  <Icon name="calendar_today" className="text-[10px]" />
+                  Analiz Tarihi:{" "}
+                  {new Date(valuation.createdAt).toLocaleString("tr-TR")}
+                </p>
+              </div>
+            </div>
 
-                  {/* Comparable Properties */}
-                  {valuation.comparables &&
-                    (valuation.comparables as any[]).length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-slate-700">
-                        <h4 className="text-sm font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
-                          <Icon
-                            name="list"
-                            className="text-emerald-400 text-xs"
-                          />
-                          Eşleşen Benzer İlanlar (
-                          {(valuation.comparables as any[]).length})
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {(valuation.comparables as any[]).map(
-                            (comp: any, i: number) => (
-                              <div
-                                key={i}
-                                className="bg-slate-900/50 border border-slate-700 rounded-lg p-3 hover:border-slate-500 transition-colors"
-                              >
-                                <div className="flex justify-between items-start mb-1">
-                                  <span className="text-xs text-slate-500">
-                                    ID: {comp.id}
-                                  </span>
-                                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] px-1.5 py-0">
-                                    %{Math.round(comp.similarity || 0)} Benzer
-                                  </Badge>
-                                </div>
-                                <h5 className="text-white text-xs font-medium line-clamp-1 mb-2">
-                                  {comp.baslik}
-                                </h5>
-                                <div className="flex justify-between items-end">
-                                  <div>
-                                    <p className="text-emerald-400 font-bold text-sm">
-                                      ₺{comp.fiyat?.toLocaleString("tr-TR")}
-                                    </p>
-                                    <p className="text-slate-500 text-[10px]">
-                                      {comp.m2}m² • ₺
-                                      {Math.round(
-                                        comp.fiyat / comp.m2,
-                                      ).toLocaleString("tr-TR")}
-                                      /m²
-                                    </p>
-                                  </div>
-                                  <p className="text-slate-400 text-[10px] flex items-center gap-1">
-                                    <Icon
-                                      name="location_on"
-                                      className="text-[10px]"
-                                    />
-                                    {(comp.distance || 0).toFixed(2)} km
-                                  </p>
-                                </div>
-                              </div>
-                            ),
-                          )}
+            {/* Actions */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-bold text-slate-400 uppercase">
+                İşlemler
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {valuation.estimatedValue && (
+                  <button
+                    onClick={() => generatePDFReport(valuation)}
+                    className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                  >
+                    <Icon name="picture_as_pdf" />
+                    Raporu Yazdır / İndir
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(valuation.id)}
+                  className="flex items-center gap-2 bg-slate-700 hover:bg-red-600 text-white px-4 py-2 rounded text-sm font-medium transition-colors border border-slate-600"
+                >
+                  <Icon name="delete" />
+                  Sil
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Market Analysis */}
+          {valuation.marketAnalysis && (
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <h4 className="text-sm font-bold text-slate-400 uppercase mb-2 flex items-center gap-2">
+                <Icon name="auto_awesome" className="text-purple-400 text-xs" />
+                AI Pazar Analizi & Özet
+              </h4>
+              <p className="text-slate-300 text-sm leading-relaxed italic">
+                "{valuation.marketAnalysis}"
+              </p>
+            </div>
+          )}
+
+          {/* Comparable Properties */}
+          {valuation.comparables &&
+            (valuation.comparables as any[]).length > 0 && (
+              <div className="mt-4 pt-4 border-t border-slate-700">
+                <h4 className="text-sm font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
+                  <Icon name="list" className="text-emerald-400 text-xs" />
+                  Eşleşen Benzer İlanlar (
+                  {(valuation.comparables as any[]).length})
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(valuation.comparables as any[]).map(
+                    (comp: any, i: number) => (
+                      <div
+                        key={i}
+                        className="bg-slate-900/50 border border-slate-700 rounded-lg p-3 hover:border-slate-500 transition-colors"
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-xs text-slate-500">
+                            ID: {comp.id}
+                          </span>
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] px-1.5 py-0">
+                            %{Math.round(comp.similarity || 0)} Benzer
+                          </Badge>
+                        </div>
+                        <h5 className="text-white text-xs font-medium line-clamp-1 mb-2">
+                          {comp.baslik}
+                        </h5>
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <p className="text-emerald-400 font-bold text-sm">
+                              ₺{comp.fiyat?.toLocaleString("tr-TR")}
+                            </p>
+                            <p className="text-slate-500 text-[10px]">
+                              {comp.m2}m² • ₺
+                              {Math.round(comp.fiyat / comp.m2).toLocaleString(
+                                "tr-TR",
+                              )}
+                              /m²
+                            </p>
+                          </div>
+                          <p className="text-slate-400 text-[10px] flex items-center gap-1">
+                            <Icon name="location_on" className="text-[10px]" />
+                            {(comp.distance || 0).toFixed(2)} km
+                          </p>
                         </div>
                       </div>
-                    )}
+                    ),
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            )}
         </div>
       )}
     </div>

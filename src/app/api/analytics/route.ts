@@ -10,6 +10,7 @@ import {
 /**
  * GET /api/analytics
  * Google Analytics verilerini getir
+ * Graceful degradation: Analytics yapılandırılmamışsa mock data döner
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,11 +19,15 @@ export async function GET(request: NextRequest) {
     const days = parseInt(searchParams.get("days") || "7");
     const limit = parseInt(searchParams.get("limit") || "10");
 
-    // GA credentials kontrolü
+    // GA credentials kontrolü - Graceful degradation
     if (!process.env.GA_PROPERTY_ID || !process.env.GA_CLIENT_EMAIL) {
+      console.warn(
+        "Analytics not configured - using mock data for development",
+      );
       return NextResponse.json({
-        error: "Google Analytics yapılandırılmamış",
         configured: false,
+        message: "Google Analytics yapılandırılmamış. Geliştirme modu aktif.",
+        data: getMockAnalyticsData(type),
       });
     }
 
@@ -61,7 +66,7 @@ export async function GET(request: NextRequest) {
             error:
               "Geçersiz tip. Kullanılabilir: overview, pages, sources, trend, realtime, all",
           },
-          { status: 400 }
+          { status: 400 },
         );
     }
 
@@ -74,7 +79,31 @@ export async function GET(request: NextRequest) {
         details: String(error),
         configured: true,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
+}
+
+/**
+ * Mock analytics data for development
+ */
+function getMockAnalyticsData(type: string) {
+  const mockData = {
+    overview: {
+      users: 0,
+      sessions: 0,
+      pageviews: 0,
+      bounceRate: 0,
+    },
+    pages: [],
+    sources: [],
+    trend: [],
+    realtime: { activeUsers: 0 },
+  };
+
+  if (type === "all") {
+    return mockData;
+  }
+
+  return mockData[type as keyof typeof mockData] || null;
 }

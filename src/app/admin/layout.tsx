@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth";
-import { AdminSidebar } from "@/components/admin/sidebar";
-import { AdminHeader } from "@/components/admin/header";
+import { AdminLayoutClient } from "./layout-client";
 import { DemirAICommandCenter } from "@/components/admin/DemirAICommandCenter";
 
 export const metadata = {
@@ -25,16 +24,5 @@ export default async function AdminLayout({
     );
   }
 
-  return (
-    <div className="min-h-screen bg-slate-900 text-gray-100 font-sans flex flex-col">
-      <AdminHeader user={session.user} />
-      <div className="flex flex-1 overflow-hidden">
-        <AdminSidebar />
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">{children}</main>
-      </div>
-
-      {/* Global Demir-AI Command Center */}
-      <DemirAICommandCenter />
-    </div>
-  );
+  return <AdminLayoutClient user={session.user}>{children}</AdminLayoutClient>;
 }

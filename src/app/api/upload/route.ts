@@ -6,9 +6,9 @@ import { existsSync } from "fs";
 import sharp from "sharp";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
-
+console.log("Upload dir:", UPLOAD_DIR);
 // Image optimization settings
 const IMAGE_QUALITY = 80;
 const MAX_WIDTH = 1920;

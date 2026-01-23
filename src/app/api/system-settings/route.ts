@@ -4,6 +4,9 @@ import { systemSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { withAdmin } from "@/lib/api-auth";
 
+// Cache configuration: 5 dakika cache (ayarlar sık değişmez)
+export const revalidate = 300;
+
 export const GET = withAdmin(async () => {
   try {
     let [settings] = await db.select().from(systemSettings).limit(1);
@@ -31,7 +34,7 @@ export const GET = withAdmin(async () => {
     console.error("System Settings GET error:", error);
     return NextResponse.json(
       { error: "Sistem ayarları yüklenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 });
@@ -89,7 +92,7 @@ export const PATCH = withAdmin(async (request: NextRequest) => {
     console.error("System Settings PATCH error:", error);
     return NextResponse.json(
       { error: "Sistem ayarları güncellenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 });

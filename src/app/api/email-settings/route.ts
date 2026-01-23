@@ -3,6 +3,9 @@ import { db } from "@/db";
 import { emailSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
+// Cache configuration: 5 dakika cache (ayarlar sık değişmez)
+export const revalidate = 300;
+
 /**
  * GET /api/email-settings
  * E-posta ayarlarını getir
@@ -26,7 +29,7 @@ export async function GET() {
     console.error("Email settings GET error:", error);
     return NextResponse.json(
       { error: "E-posta ayarları yüklenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -95,7 +98,7 @@ export async function POST(request: NextRequest) {
     console.error("Email settings POST error:", error);
     return NextResponse.json(
       { error: "E-posta ayarları kaydedilirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -112,7 +115,7 @@ export async function PUT(request: NextRequest) {
     if (!testEmail) {
       return NextResponse.json(
         { error: "Test e-posta adresi gerekli" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -122,7 +125,7 @@ export async function PUT(request: NextRequest) {
     if (!settings || !settings.smtpHost || !settings.smtpUsername) {
       return NextResponse.json(
         { error: "SMTP ayarları eksik. Önce ayarları kaydedin." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -144,14 +147,14 @@ export async function PUT(request: NextRequest) {
     } else {
       return NextResponse.json(
         { error: "SMTP bağlantısı başarısız. Ayarları kontrol edin." },
-        { status: 400 }
+        { status: 400 },
       );
     }
   } catch (error) {
     console.error("Email settings test error:", error);
     return NextResponse.json(
       { error: "SMTP testi sırasında bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

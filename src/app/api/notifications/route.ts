@@ -3,9 +3,14 @@ import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { desc, eq, sql, and } from "drizzle-orm";
 
+// Cache configuration: 60 saniye cache (notifications sık değişmez)
+export const revalidate = 60;
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/notifications
  * Bildirimleri listele
+ * Performance: Optimized with caching and parallel queries
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,18 +23,19 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(notifications.isRead, false));
     }
 
-    const results = await db
-      .select()
-      .from(notifications)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(notifications.createdAt))
-      .limit(limit);
-
-    // Okunmamış sayısı
-    const unreadCount = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(notifications)
-      .where(eq(notifications.isRead, false));
+    // Parallel queries for better performance
+    const [results, unreadCount] = await Promise.all([
+      db
+        .select()
+        .from(notifications)
+        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .orderBy(desc(notifications.createdAt))
+        .limit(limit),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(notifications)
+        .where(eq(notifications.isRead, false)),
+    ]);
 
     return NextResponse.json({
       data: results,
@@ -39,7 +45,7 @@ export async function GET(request: NextRequest) {
     console.error("Notifications GET error:", error);
     return NextResponse.json(
       { error: "Bildirimler yüklenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
     if (!type || !title || !message) {
       return NextResponse.json(
         { error: "type, title ve message zorunludur" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -77,7 +83,7 @@ export async function POST(request: NextRequest) {
     console.error("Notifications POST error:", error);
     return NextResponse.json(
       { error: "Bildirim oluşturulurken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -100,7 +106,7 @@ export async function PATCH() {
     console.error("Notifications PATCH error:", error);
     return NextResponse.json(
       { error: "Bildirimler güncellenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -35,8 +35,8 @@ export const RawListingSchema = z.object({
   fiyat: z.string().optional(),
   konum: z.string().optional(),
   tarih: z.string().optional(),
-  link: z.string().url("Geçerli bir URL olmalı"),
-  resim: z.string().url().optional().nullable(),
+  link: z.string().min(1, "Geçerli bir link olmalı"),
+  resim: z.string().optional().nullable(),
 
   // Breadcrumb bilgileri
   breadcrumb: z.array(z.string()).optional(),
@@ -55,7 +55,7 @@ export const ListingDetailSchema = z.object({
   features: z
     .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
     .optional(),
-  images: z.array(z.string().url()).max(50).optional(),
+  images: z.array(z.string()).max(50).optional(),
   area: z.number().positive().optional(),
 
   // Ek özellikler
@@ -72,7 +72,7 @@ export const ListingDetailSchema = z.object({
 // Veritabanına kaydedilecek veri
 export const CollectedListingSchema = z.object({
   sourceId: z.string().min(1),
-  sourceUrl: z.string().url(),
+  sourceUrl: z.string().min(1),
   title: z.string().min(3).max(500),
   price: z.string().optional().nullable(),
   priceValue: z.string().optional().nullable(),
@@ -81,7 +81,7 @@ export const CollectedListingSchema = z.object({
   category: CollectedCategoryEnum,
   transactionType: CollectedTransactionEnum,
   status: CollectedStatusEnum.default("pending"),
-  thumbnail: z.string().url().optional().nullable(),
+  thumbnail: z.string().optional().nullable(),
   images: z.array(z.string()).default([]),
   description: z.string().optional().nullable(),
   features: z.record(z.string(), z.unknown()).optional().nullable(),
@@ -166,9 +166,13 @@ export const createListingSchema = z.object({
   neighborhood: z.string().max(100).optional(),
   latitude: z.coerce.number().min(-90).max(90).optional(),
   longitude: z.coerce.number().min(-180).max(180).optional(),
-  features: z.array(z.string()).optional(),
-  images: z.array(z.string().url()).max(20).optional(),
+  features: z.record(z.string(), z.unknown()).optional(),
+  images: z.array(z.string()).max(20).optional(),
+  thumbnail: z.string().optional().nullable(),
+  metaTitle: z.string().max(200).optional().nullable(),
+  metaDescription: z.string().max(500).optional().nullable(),
   isFeatured: z.boolean().default(false),
+  status: ListingStatusEnum.default("active"),
 });
 
 // Ana listings API için query schema

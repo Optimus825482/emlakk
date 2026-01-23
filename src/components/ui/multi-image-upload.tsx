@@ -50,9 +50,8 @@ export function MultiImageUpload({
         continue;
       }
 
-      // Boyut kontrolü (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setError("Dosya boyutu 5MB'dan küçük olmalıdır");
+      if (file.size > 10 * 1024 * 1024) {
+        setError("Dosya boyutu 10MB'dan küçük olmalıdır");
         continue;
       }
 
@@ -236,7 +235,7 @@ export function MultiImageUpload({
                     Görselleri sürükleyin veya tıklayın
                   </p>
                   <p className="text-slate-500 text-sm mt-1">
-                    PNG, JPG, WebP • Maks. 5MB • {maxImages - value.length}{" "}
+                    PNG, JPG, WebP • Maks. 10MB • {maxImages - value.length}{" "}
                     görsel daha ekleyebilirsiniz
                   </p>
                 </div>
