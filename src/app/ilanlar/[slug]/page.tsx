@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { ImageGallery } from "@/components/ui/image-gallery";
 import { ListingTracker } from "@/components/listing-tracker";
 import { db } from "@/db";
-import { listings, seoMetadata, settings as settingsTable } from "@/db/schema";
+import { listings, seoMetadata, siteSettings } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { formatPrice, formatPricePerSqm, formatArea } from "@/lib/format";
 
@@ -59,7 +59,7 @@ async function getSeoData(entityId: string) {
 
 async function getSettings() {
   try {
-    const result = await db.select().from(settingsTable).limit(1);
+    const result = await db.select().from(siteSettings).limit(1);
     return result[0] || null;
   } catch {
     return null;
