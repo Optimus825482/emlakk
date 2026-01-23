@@ -117,7 +117,7 @@ export async function findNeighborhoodAverage(location: LocationPoint, propertyT
         SELECT last_price as fiyat, m2, ilce, mahalle, konum FROM removed_listings WHERE transaction = 'satilik' AND last_price > 10000 AND removed_at >= NOW() - INTERVAL '180 days'
       )
       SELECT CAST(fiyat AS BIGINT) / CAST(REGEXP_REPLACE(NULLIF(m2, '0'), '[^0-9]', '', 'g') AS INTEGER) as price_per_m2
-      FROM all_listings WHERE ilce = ${ilce} AND (LOWER(mahalle) ILIKE ${`%${normalizedMahalle}%`} OR LOWER(konum) ILIKE ${`%${normalizedMahalle}%` food})
+      FROM all_listings WHERE ilce = ${ilce} AND (LOWER(mahalle) ILIKE ${`%${normalizedMahalle}%`} OR LOWER(konum) ILIKE ${`%${normalizedMahalle}%`})
     `);
     const rows = Array.isArray(results) ? results : (((results as any).rows || []) as any[]);
     const prices = rows.map((r: any) => Number(r.price_per_m2)).filter((p) => p > 1000 && p < 200000);
