@@ -16,6 +16,11 @@ export default auth((req: AuthRequest) => {
   const isLoggedIn = !!req.auth;
   const isAdmin = req.auth?.user?.role === "admin";
 
+  if (pathname.startsWith("/uploads/")) {
+    const apiPath = pathname.replace("/uploads/", "/api/uploads/");
+    return NextResponse.rewrite(new URL(apiPath, req.url));
+  }
+
   const response = NextResponse.next();
 
   response.headers.set("X-DNS-Prefetch-Control", "on");
@@ -55,5 +60,5 @@ export default auth((req: AuthRequest) => {
 });
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/:path*"],
+  matcher: ["/admin/:path*", "/api/:path*", "/uploads/:path*"],
 };
