@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
 
@@ -32,7 +32,7 @@ const typeColors: Record<string, string> = {
   ticari: "text-purple-400",
 };
 
-export function MarketTicker() {
+export const MarketTicker = memo(() => {
   const [listings, setListings] = useState<Listing[]>([]);
   const [stats, setStats] = useState<TickerStats>({
     totalListings: 0,
@@ -151,4 +151,6 @@ export function MarketTicker() {
       </div>
     </div>
   );
-}
+});
+
+MarketTicker.displayName = "MarketTicker";

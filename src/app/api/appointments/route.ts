@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { appointments } from "@/db/schema";
+import { withAdmin } from "@/lib/api-auth";
 import {
   createAppointmentSchema,
   appointmentQuerySchema,
@@ -13,7 +14,7 @@ import { notifyNewAppointment } from "@/lib/notification-helper";
  * GET /api/appointments
  * List all appointments with filtering and pagination
  */
-export async function GET(request: NextRequest) {
+export const GET = withAdmin(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const params = Object.fromEntries(searchParams.entries());
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});
 
 /**
  * Map frontend appointment types to database enum values
@@ -107,7 +108,7 @@ const mapAppointmentType = (
  * POST /api/appointments
  * Create a new appointment
  */
-export async function POST(request: NextRequest) {
+export const POST = withAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
 
@@ -160,4 +161,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

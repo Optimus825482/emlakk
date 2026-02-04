@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Icon } from "@/components/ui/icon";
 import { signOut } from "next-auth/react";
 import { Menu } from "lucide-react";
+import { toast } from "sonner";
 
 interface AdminHeaderProps {
   user: {
@@ -142,16 +143,18 @@ export function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search - Desktop */}
       <div className="flex-1 max-w-xl mx-8 hidden lg:block">
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Icon name="search" className="text-slate-400" />
+            <Icon name="search" className="text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
           </div>
           <input
             className="block w-full rounded bg-slate-900 border border-slate-700 text-gray-300 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 text-sm pl-10 py-2 placeholder-slate-500 font-mono transition-colors"
             placeholder="Ara..."
             type="text"
+            role="searchbox"
+            aria-label="Admin panelinde ara"
           />
           <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
             <kbd className="inline-flex items-center border border-slate-600 rounded px-2 text-xs font-mono text-slate-400">
@@ -163,6 +166,17 @@ export function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
 
       {/* Right Side */}
       <div className="flex items-center gap-2 md:gap-4">
+        {/* Mobile Search Button */}
+        <button
+          className="p-2 text-slate-400 hover:text-white transition-colors lg:hidden touch-manipulation"
+          aria-label="Ara"
+          onClick={() => {
+            // Future: Implement mobile search modal or expand bar
+            toast.info("Arama sistemi yakında mobil cihazlarda da aktif olacak.");
+          }}
+        >
+          <Icon name="search" />
+        </button>
         {/* System Stats */}
         <div className="hidden lg:flex items-center gap-3 mr-4 border-r border-slate-600 pr-4">
           <div className="flex flex-col items-end">
@@ -184,6 +198,9 @@ export function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             className="relative p-2 text-slate-400 hover:text-white transition-colors"
+            aria-label={`Bildirimler${unreadCount > 0 ? ` (${unreadCount} okunmamış)` : ''}`}
+            aria-expanded={showDropdown || undefined}
+            aria-haspopup="menu"
           >
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center px-1">
@@ -220,16 +237,14 @@ export function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
                     const link = getEntityLink(notification);
                     const Content = (
                       <div
-                        className={`px-4 py-3 hover:bg-slate-700/50 transition-colors ${
-                          !notification.isRead ? "bg-slate-700/30" : ""
-                        }`}
+                        className={`px-4 py-3 hover:bg-slate-700/50 transition-colors ${!notification.isRead ? "bg-slate-700/30" : ""
+                          }`}
                       >
                         <div className="flex gap-3">
                           <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                              TYPE_COLORS[notification.type] ||
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${TYPE_COLORS[notification.type] ||
                               TYPE_COLORS.system
-                            }`}
+                              }`}
                           >
                             <Icon
                               name={TYPE_ICONS[notification.type] || "info"}
@@ -287,6 +302,7 @@ export function AdminHeader({ user, onMenuClick }: AdminHeaderProps) {
             onClick={() => signOut({ callbackUrl: "/admin/giris" })}
             className="p-2 text-slate-400 hover:text-red-400 transition-colors touch-manipulation"
             title="Çıkış Yap"
+            aria-label="Oturumu kapat"
           >
             <Icon name="logout" className="text-lg md:text-xl" />
           </button>

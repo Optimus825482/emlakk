@@ -38,8 +38,8 @@
   --color-primary-700: #bb3814;
   --color-primary-800: #952e18;
   --color-primary-900: #792816;
-  --font-sans: var(--font-space-grotesk);
-  --font-body: var(--font-noto-sans);
+  --font-sans: var(--font-outfit);
+  --font-body: var(--font-outfit);
 }
 
 /* Custom scrollbar */

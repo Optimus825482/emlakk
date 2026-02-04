@@ -136,7 +136,7 @@ export default function AdminHakkimizdaPage() {
       console.error("Kaydetme hatası:", error);
       alert(
         "Kaydetme hatası: " +
-          (error instanceof Error ? error.message : "Bilinmeyen hata")
+        (error instanceof Error ? error.message : "Bilinmeyen hata")
       );
     } finally {
       setSaving(false);
@@ -262,11 +262,10 @@ export default function AdminHakkimizdaPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? "bg-slate-700 text-white"
-                : "text-slate-400 hover:text-white hover:bg-slate-800"
-            }`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${activeTab === tab.id
+              ? "bg-slate-700 text-white"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
+              }`}
           >
             <Icon name={tab.icon} className="text-lg" />
             {tab.label}
@@ -281,10 +280,11 @@ export default function AdminHakkimizdaPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="founderName" className="block text-sm font-medium text-slate-300 mb-2">
                   Ad Soyad
                 </label>
                 <input
+                  id="founderName"
                   type="text"
                   value={founder.name}
                   onChange={(e) =>
@@ -294,10 +294,11 @@ export default function AdminHakkimizdaPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="founderTitle" className="block text-sm font-medium text-slate-300 mb-2">
                   Ünvan
                 </label>
                 <input
+                  id="founderTitle"
                   type="text"
                   value={founder.title}
                   onChange={(e) =>
@@ -319,10 +320,11 @@ export default function AdminHakkimizdaPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="founderBadge" className="block text-sm font-medium text-slate-300 mb-2">
                   Badge Metni
                 </label>
                 <input
+                  id="founderBadge"
                   type="text"
                   value={founder.badgeText}
                   onChange={(e) =>
@@ -332,10 +334,11 @@ export default function AdminHakkimizdaPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="founderDivider" className="block text-sm font-medium text-slate-300 mb-2">
                   Bölüm Ayırıcı Metin
                 </label>
                 <input
+                  id="founderDivider"
                   type="text"
                   value={founder.narrativeDividerText}
                   onChange={(e) =>
@@ -350,10 +353,11 @@ export default function AdminHakkimizdaPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="founderHeroTitle" className="block text-sm font-medium text-slate-300 mb-2">
                 Hero Başlık
               </label>
               <input
+                id="founderHeroTitle"
                 type="text"
                 value={founder.heroTitle}
                 onChange={(e) =>
@@ -364,10 +368,11 @@ export default function AdminHakkimizdaPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="founderHeroHighlight" className="block text-sm font-medium text-slate-300 mb-2">
                 Hero Başlık Vurgu (Gri renkte görünür)
               </label>
               <input
+                id="founderHeroHighlight"
                 type="text"
                 value={founder.heroTitleHighlight}
                 onChange={(e) =>
@@ -378,10 +383,11 @@ export default function AdminHakkimizdaPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="founderNarrativeTitle" className="block text-sm font-medium text-slate-300 mb-2">
                 Hikaye Başlığı
               </label>
               <input
+                id="founderNarrativeTitle"
                 type="text"
                 value={founder.narrativeTitle}
                 onChange={(e) =>
@@ -392,10 +398,11 @@ export default function AdminHakkimizdaPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="founderParagraph1" className="block text-sm font-medium text-slate-300 mb-2">
                 Hikaye Paragraf 1
               </label>
               <textarea
+                id="founderParagraph1"
                 value={founder.narrativeParagraph1}
                 onChange={(e) =>
                   setFounder({
@@ -409,10 +416,11 @@ export default function AdminHakkimizdaPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="founderParagraph2" className="block text-sm font-medium text-slate-300 mb-2">
                 Hikaye Paragraf 2
               </label>
               <textarea
+                id="founderParagraph2"
                 value={founder.narrativeParagraph2}
                 onChange={(e) =>
                   setFounder({
@@ -440,11 +448,12 @@ export default function AdminHakkimizdaPage() {
                 <div className="p-4 bg-slate-900 rounded-lg border border-slate-600">
                   <div className="flex items-center gap-2 mb-3">
                     <Icon name="history" className="text-[var(--terracotta)]" />
-                    <label className="text-sm font-medium text-slate-300">
+                    <label htmlFor="heritageTitle" className="text-sm font-medium text-slate-300">
                       Mirasımız Başlık
                     </label>
                   </div>
                   <input
+                    id="heritageTitle"
                     type="text"
                     value={founder.heritageTitle || ""}
                     onChange={(e) =>
@@ -452,10 +461,11 @@ export default function AdminHakkimizdaPage() {
                     }
                     className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white mb-3"
                   />
-                  <label className="block text-sm text-slate-400 mb-1">
+                  <label htmlFor="heritageText" className="block text-sm text-slate-400 mb-1">
                     Mirasımız Açıklama
                   </label>
                   <textarea
+                    id="heritageText"
                     value={founder.heritageText || ""}
                     onChange={(e) =>
                       setFounder({ ...founder, heritageText: e.target.value })
@@ -469,11 +479,12 @@ export default function AdminHakkimizdaPage() {
                 <div className="p-4 bg-slate-900 rounded-lg border border-slate-600">
                   <div className="flex items-center gap-2 mb-3">
                     <Icon name="visibility" className="text-[var(--forest)]" />
-                    <label className="text-sm font-medium text-slate-300">
+                    <label htmlFor="visionTitle" className="text-sm font-medium text-slate-300">
                       Vizyonumuz Başlık
                     </label>
                   </div>
                   <input
+                    id="visionTitle"
                     type="text"
                     value={founder.visionTitle || ""}
                     onChange={(e) =>
@@ -481,10 +492,11 @@ export default function AdminHakkimizdaPage() {
                     }
                     className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white mb-3"
                   />
-                  <label className="block text-sm text-slate-400 mb-1">
+                  <label htmlFor="visionText" className="block text-sm text-slate-400 mb-1">
                     Vizyonumuz Açıklama
                   </label>
                   <textarea
+                    id="visionText"
                     value={founder.visionText || ""}
                     onChange={(e) =>
                       setFounder({ ...founder, visionText: e.target.value })
@@ -520,10 +532,11 @@ export default function AdminHakkimizdaPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="manifestoShortTitle" className="block text-sm font-medium text-slate-300 mb-2">
                   Kısa Başlık (Ana Sayfa)
                 </label>
                 <input
+                  id="manifestoShortTitle"
                   type="text"
                   value={manifesto.shortTitle}
                   onChange={(e) =>
@@ -533,10 +546,11 @@ export default function AdminHakkimizdaPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="manifestoFullTitle" className="block text-sm font-medium text-slate-300 mb-2">
                   Uzun Başlık (Hakkımızda)
                 </label>
                 <input
+                  id="manifestoFullTitle"
                   type="text"
                   value={manifesto.fullTitle}
                   onChange={(e) =>
@@ -649,12 +663,14 @@ export default function AdminHakkimizdaPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setEditingPillar(pillar)}
+                      aria-label="Temeli düzenle"
                       className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded"
                     >
                       <Icon name="edit" />
                     </button>
                     <button
                       onClick={() => deletePillar(pillar.id)}
+                      aria-label="Temeli sil"
                       className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded"
                     >
                       <Icon name="delete" />
@@ -673,10 +689,11 @@ export default function AdminHakkimizdaPage() {
                   </h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm text-slate-300 mb-1">
+                      <label htmlFor="pillarIcon" className="block text-sm text-slate-300 mb-1">
                         Icon
                       </label>
                       <input
+                        id="pillarIcon"
                         type="text"
                         value={editingPillar.icon}
                         onChange={(e) =>
@@ -690,10 +707,11 @@ export default function AdminHakkimizdaPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-slate-300 mb-1">
+                      <label htmlFor="pillarTitle" className="block text-sm text-slate-300 mb-1">
                         Başlık
                       </label>
                       <input
+                        id="pillarTitle"
                         type="text"
                         value={editingPillar.title}
                         onChange={(e) =>
@@ -706,10 +724,11 @@ export default function AdminHakkimizdaPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-slate-300 mb-1">
+                      <label htmlFor="pillarDescription" className="block text-sm text-slate-300 mb-1">
                         Açıklama
                       </label>
                       <textarea
+                        id="pillarDescription"
                         value={editingPillar.description}
                         onChange={(e) =>
                           setEditingPillar({
@@ -787,12 +806,14 @@ export default function AdminHakkimizdaPage() {
                   <div className="flex justify-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => setEditingPrinciple(principle)}
+                      aria-label="İlkeyi düzenle"
                       className="p-1 text-slate-400 hover:text-white"
                     >
                       <Icon name="edit" className="text-sm" />
                     </button>
                     <button
                       onClick={() => deletePrinciple(principle.id)}
+                      aria-label="İlkeyi sil"
                       className="p-1 text-slate-400 hover:text-red-400"
                     >
                       <Icon name="delete" className="text-sm" />
@@ -811,10 +832,11 @@ export default function AdminHakkimizdaPage() {
                   </h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm text-slate-300 mb-1">
+                      <label htmlFor="principleIcon" className="block text-sm text-slate-300 mb-1">
                         Icon
                       </label>
                       <input
+                        id="principleIcon"
                         type="text"
                         value={editingPrinciple.icon}
                         onChange={(e) =>
@@ -828,10 +850,11 @@ export default function AdminHakkimizdaPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-slate-300 mb-1">
+                      <label htmlFor="principleTitle" className="block text-sm text-slate-300 mb-1">
                         Başlık
                       </label>
                       <input
+                        id="principleTitle"
                         type="text"
                         value={editingPrinciple.title}
                         onChange={(e) =>

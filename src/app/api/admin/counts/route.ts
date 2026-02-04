@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { appointments, contacts, valuations } from "@/db/schema";
 import { eq, isNull, sql } from "drizzle-orm";
+import { withAdmin } from "@/lib/api-auth";
+
+// Force dynamic rendering (withAdmin uses headers)
+export const dynamic = "force-dynamic";
 
 // Cache configuration: 30 saniye cache (badge için yeterli)
 export const revalidate = 30;
@@ -10,8 +14,9 @@ export const revalidate = 30;
  * GET /api/admin/counts
  * Sidebar badge'leri için yeni/bekleyen kayıt sayıları
  * Performance: Optimized with parallel queries and caching
+ * Security: Admin only
  */
-export async function GET() {
+async function handler() {
   try {
     // Parallel queries for better performance (4.3s → <500ms)
     const [[pendingAppointments], [newMessages], [pendingValuations]] =
@@ -44,3 +49,6 @@ export async function GET() {
     );
   }
 }
+
+// Export with admin protection
+export const GET = withAdmin(handler);

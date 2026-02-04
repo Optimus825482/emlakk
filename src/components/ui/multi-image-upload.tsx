@@ -3,7 +3,11 @@
 import { useState, useCallback } from "react";
 import Image from "next/image";
 import { Icon } from "./icon";
-import { SimpleImageEditor } from "./simple-image-editor";
+import dynamic from "next/dynamic";
+
+const SimpleImageEditor = dynamic(() => import("./simple-image-editor").then(mod => mod.SimpleImageEditor), {
+  ssr: false,
+});
 
 interface MultiImageUploadProps {
   value: string[];

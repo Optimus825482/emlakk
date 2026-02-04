@@ -1,54 +1,52 @@
-# PLAN: Sahibinden Crawler Optimization & Fix
+# Plan: Advanced Voice Mode Enhancement
 
-## 🎯 Objective
+## User Goal
 
-Fix the broken "Live Comparison" feature, optimize database queries, and robustify the crawler architecture by moving scraping logic to the reliable Python service.
+Enhance voice chat with Silence Detection (auto-send), Auto-Mute (while AI speaks), and Realtime Preview.
 
-## 🛑 Current Issues
+## Analysis
 
-1.  **Fragile Scraping**: `sahibinden-counts` tries to scrape `sahibinden.com` directly from Next.js, which gets blocked (403/429).
-2.  **Incorrect Stats**: `new-listings` and `removed-listings` calculate "last 24h" stats in-memory _after_ limiting results to 50. This yields incorrect numbers.
-3.  **Inefficient DB**: API routes create new Supabase clients on every request.
-4.  **Internal API Calls**: `live-comparison` calls `sahibinden-counts` via `fetch(localhost)`, adding latency and fragility.
+- **Current Stack:** Next.js, React, Web Speech API (`VoiceAssistant` class), Tailwind CSS.
+- **Key Files:**
+  - Logic: `src/lib/ai/voice-assistant.ts`
+  - UI: `src/components/admin/DemirAIWidget.tsx`
+  - Visual: `src/components/admin/VoiceVisualizer.tsx`
 
-## 🛠️ Architecture Changes
+## Implementation Steps
 
-- **Mining API (Python)**: Add `/live-counts` endpoint to execute `get_category_counts.py` via Selenium (UC).
-- **Next.js Backend**: Redirect `sahibinden-counts` to use Mining API.
-- **Next.js Backend**: Implement Singleton Supabase client.
-- **Next.js Backend**: Use SQL `count()` queries for accurate statistics.
+### Phase 1: Core Logic Update (`src/lib/ai/voice-assistant.ts`)
 
-## 📋 Implementation Tasks
+1.  **Silence Detection (VAD):**
+    - Add a `silenceTimeout` property.
+    - usage: On every `onresult` (final or interim), clear the timeout. Set a new timeout (e.g., 2000ms).
+    - If timeout triggers -> `stopListening()` and emit a specific "SilenceDetected" or allow the final result to flow through.
+2.  **Realtime Preview:**
+    - Expose `interimResults` properly via a new callback `onInterimResult(text: string)`.
+3.  **Auto-Mute Control:**
+    - Ensure `speak()` method stops recognition before playing audio.
+    - Ensure it restarts recognition after audio ends (if continuous mode is on).
 
-### Phase 1: Python Backend (Mining API)
+### Phase 2: UI Integration (`src/components/admin/DemirAIWidget.tsx`)
 
-- [ ] **Modify `mining_api.py`**:
-  - Add `POST /jobs/live-counts` endpoint.
-  - Implement synchronous execution of `get_category_counts.py` (or wrapper).
-  - Return structured JSON compatible with frontend needs.
+1.  **State Management:**
+    - Add `interimTranscript` state.
+    - Add `isAutoSending` state.
+2.  **Realtime Preview UI:**
+    - Display `interimTranscript` in a floating overlay or ghost text inside the input.
+3.  **Auto-Send Logic:**
+    - When `VoiceAssistant` signals "Final Result" + "Silence" -> Automatically trigger the send function.
+    - Clear input after send.
+4.  **Audio Handling:**
+    - Update `handleAiResponse`: Stop listening (mute mic).
+    - On `speechEnd`: Resume listening (unmute mic).
 
-### Phase 2: Next.js Backend Optimization
+## Verification Strategy
 
-- [ ] **Create `src/lib/supabase/client.ts`**:
-  - Implement Singleton pattern for Supabase client to reuse connections.
-- [ ] **Refactor `sahibinden-counts/route.ts`**:
-  - Call `http://localhost:8765/live-counts` instead of direct fetch.
-  - Map response to expected format.
-- [ ] **Refactor `live-comparison/route.ts`**:
-  - Use Singleton DB client.
-  - Simplify logic (remove huge `Promise.all` loop if API returns all data).
-- [ ] **Fix `new-listings/route.ts` & `removed-listings/route.ts`**:
-  - Remove in-memory filtering.
-  - Use `count` queries (e.g. `head: true`) for accurate total/24h stats.
+- **Manual Test:** Speak -> Pause -> Verify auto-send.
+- **Manual Test:** Listen to AI -> Verify mic icon is off/muted.
+- **Manual Test:** Speak -> Verify text appears in real-time.
 
-### Phase 3: Frontend Enhancement
+---
 
-- [ ] **Update `page.tsx`**:
-  - Improve error handling for "Service Unavailable" (if Python API is down).
-  - Add "Retry" mechanism for live counts specifically.
-
-## 🧪 Verification
-
-- `live-comparison` should return real numbers without 403 errors.
-- "Last 24h" stats should match DB actuals, not just the first 50 items.
-- No "Connection limit exceeded" errors from Supabase.
+**Approval Required:**
+Shall we proceed with this implementation plan?

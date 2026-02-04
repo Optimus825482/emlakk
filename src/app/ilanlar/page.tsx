@@ -86,8 +86,12 @@ export default async function IlanlarPage({ searchParams }: PageProps) {
           <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
             <Suspense fallback={<ListingsGridSkeleton />}>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {listingsData.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} />
+                {listingsData.map((listing, index) => (
+                  <ListingCard 
+                    key={listing.id} 
+                    listing={listing} 
+                    priority={index < 2} 
+                  />
                 ))}
               </div>
             </Suspense>
@@ -155,7 +159,7 @@ interface ListingData {
   createdAt: Date;
 }
 
-function ListingCard({ listing }: { listing: ListingData }) {
+function ListingCard({ listing, priority = false }: { listing: ListingData; priority?: boolean }) {
   const price = parseInt(listing.price) || 0;
   const pricePerSqm = listing.area > 0 ? Math.round(price / listing.area) : 0;
   const isNew =
@@ -174,6 +178,8 @@ function ListingCard({ listing }: { listing: ListingData }) {
           src={imageUrl}
           alt={listing.title}
           fill
+          priority={priority}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-transform duration-500 group-hover:scale-110"
         />
         <div className="absolute top-3 left-3 flex gap-2">

@@ -162,32 +162,37 @@ export default function DegerlemePage() {
   return (
     <>
       <Navbar />
-      
+
       {showDisclaimer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="bg-[var(--demir-charcoal)] border border-white/20 rounded-3xl p-8 max-w-lg w-full shadow-2xl">
             <div className="text-center mb-6">
               <div className="w-16 h-16 mx-auto rounded-full bg-[var(--terracotta)]/20 flex items-center justify-center mb-4">
-                <Icon name="info" className="text-[var(--terracotta)] text-3xl" />
+                <Icon
+                  name="info"
+                  className="text-[var(--terracotta)] text-3xl"
+                />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">
                 Önemli Bilgilendirme
               </h3>
             </div>
-            
+
             <div className="space-y-4 text-gray-300 text-sm leading-relaxed mb-6">
               <p>
-                Özel değerleme algoritmamız ile mülkünüzün bulunduğu konum ve diğer 
-                özellikleri değerlendirilerek oluşturulmuş mülk değerlemesi sunulmaktadır.
+                Özel değerleme algoritmamız ile mülkünüzün bulunduğu konum ve
+                diğer özellikleri değerlendirilerek oluşturulmuş mülk
+                değerlemesi sunulmaktadır.
               </p>
               <p className="bg-white/5 p-4 rounded-xl border border-white/10">
                 <Icon name="gavel" className="text-[var(--terracotta)] mr-2" />
-                <strong>Yasal Uyarı:</strong> Bu değerleme, tamamen bölge dinamikleri ile 
-                matematiksel hesaplama modelleri kullanılarak oluşturulan <strong>tavsiye fiyattır</strong>. 
-                Herhangi bir bağlayıcılığı yoktur ve resmi ekspertiz raporu yerine geçmez.
+                <strong>Yasal Uyarı:</strong> Bu değerleme, tamamen bölge
+                dinamikleri ile matematiksel hesaplama modelleri kullanılarak
+                oluşturulan <strong>tavsiye fiyattır</strong>. Herhangi bir
+                bağlayıcılığı yoktur ve resmi ekspertiz raporu yerine geçmez.
               </p>
             </div>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDisclaimer(false)}
@@ -206,7 +211,7 @@ export default function DegerlemePage() {
           </div>
         </div>
       )}
-      
+
       <main className="min-h-screen bg-gradient-to-br from-[var(--demir-charcoal)] to-[var(--demir-slate)]">
         {/* Background Effects */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -526,8 +531,9 @@ export default function DegerlemePage() {
                     Değerleme Tamamlandı!
                   </h2>
                   <p className="text-gray-400 max-w-md mx-auto">
-                    Özel değerleme algoritmamız ile mülkünüzün bulunduğu konum ve 
-                    diğer özellikleri değerlendirilerek oluşturulmuş tavsiye fiyat
+                    Özel değerleme algoritmamız ile mülkünüzün bulunduğu konum
+                    ve diğer özellikleri değerlendirilerek oluşturulmuş tavsiye
+                    fiyat
                   </p>
                 </div>
 
@@ -542,9 +548,7 @@ export default function DegerlemePage() {
                   </p>
                   <div className="flex items-center justify-center gap-2 text-[var(--terracotta)]">
                     <Icon name="auto_awesome" filled />
-                    <span className="font-semibold">
-                      Demir AI Değerleme
-                    </span>
+                    <span className="font-semibold">Demir AI Değerleme</span>
                   </div>
                 </div>
 
@@ -552,9 +556,11 @@ export default function DegerlemePage() {
                   <div className="flex items-start gap-3">
                     <Icon name="info" className="text-amber-400 mt-0.5" />
                     <p className="text-amber-200 text-sm leading-relaxed">
-                      <strong>Bilgilendirme:</strong> Bu değerleme, tamamen bölge dinamikleri 
-                      ile matematiksel hesaplama modelleri kullanılarak oluşturulan tavsiye fiyattır. 
-                      Herhangi bir bağlayıcılığı yoktur ve resmi ekspertiz raporu yerine geçmez.
+                      <strong>Bilgilendirme:</strong> Bu değerleme, tamamen
+                      bölge dinamikleri ile matematiksel hesaplama modelleri
+                      kullanılarak oluşturulan tavsiye fiyattır. Herhangi bir
+                      bağlayıcılığı yoktur ve resmi ekspertiz raporu yerine
+                      geçmez.
                     </p>
                   </div>
                 </div>
@@ -570,106 +576,185 @@ export default function DegerlemePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <Icon name="directions_bus" className="text-blue-400 text-sm" />
+                        <Icon
+                          name="directions_bus"
+                          className="text-blue-400 text-sm"
+                        />
                         <p className="text-gray-400 text-sm">Ulaşım</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-white/10 rounded-full h-2">
-                          <div 
-                            className="bg-blue-400 h-2 rounded-full" 
-                            style={{ width: `${(result.locationScore.breakdown.transportation / 20) * 100}%` }}
+                          <div
+                            className="bg-blue-400 h-2 rounded-full"
+                            style={{
+                              width: `${(result.locationScore.breakdown.transportation / 20) * 100}%`,
+                            }}
                           />
                         </div>
                       </div>
-                      {result.locationScore.poiDetails?.transportation?.length > 0 && (
+                      {result.locationScore.poiDetails?.transportation?.length >
+                        0 && (
                         <div className="mt-2 space-y-1">
-                          {result.locationScore.poiDetails.transportation.slice(0, 2).map((poi: any, i: number) => (
-                            <p key={i} className="text-gray-500 text-xs flex items-center gap-1">
-                              <Icon name="circle" className="text-[4px]" filled />
-                              {poi.name} - {poi.distance < 1000 ? `${poi.distance}m` : `${(poi.distance / 1000).toFixed(1)}km`}
-                            </p>
-                          ))}
+                          {result.locationScore.poiDetails.transportation
+                            .slice(0, 2)
+                            .map((poi: any, i: number) => (
+                              <p
+                                key={i}
+                                className="text-gray-500 text-xs flex items-center gap-1"
+                              >
+                                <Icon
+                                  name="circle"
+                                  className="text-[4px]"
+                                  filled
+                                />
+                                {poi.name} -{" "}
+                                {poi.distance < 1000
+                                  ? `${poi.distance}m`
+                                  : `${(poi.distance / 1000).toFixed(1)}km`}
+                              </p>
+                            ))}
                         </div>
                       )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <Icon name="school" className="text-purple-400 text-sm" />
+                        <Icon
+                          name="school"
+                          className="text-purple-400 text-sm"
+                        />
                         <p className="text-gray-400 text-sm">Eğitim</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-white/10 rounded-full h-2">
-                          <div 
-                            className="bg-purple-400 h-2 rounded-full" 
-                            style={{ width: `${(result.locationScore.breakdown.education / 15) * 100}%` }}
+                          <div
+                            className="bg-purple-400 h-2 rounded-full"
+                            style={{
+                              width: `${(result.locationScore.breakdown.education / 15) * 100}%`,
+                            }}
                           />
                         </div>
                       </div>
-                      {result.locationScore.poiDetails?.education?.length > 0 && (
+                      {result.locationScore.poiDetails?.education?.length >
+                        0 && (
                         <div className="mt-2 space-y-1">
-                          {result.locationScore.poiDetails.education.slice(0, 2).map((poi: any, i: number) => (
-                            <p key={i} className="text-gray-500 text-xs flex items-center gap-1">
-                              <Icon name="circle" className="text-[4px]" filled />
-                              {poi.name} - {poi.distance < 1000 ? `${poi.distance}m` : `${(poi.distance / 1000).toFixed(1)}km`}
-                            </p>
-                          ))}
+                          {result.locationScore.poiDetails.education
+                            .slice(0, 2)
+                            .map((poi: any, i: number) => (
+                              <p
+                                key={i}
+                                className="text-gray-500 text-xs flex items-center gap-1"
+                              >
+                                <Icon
+                                  name="circle"
+                                  className="text-[4px]"
+                                  filled
+                                />
+                                {poi.name} -{" "}
+                                {poi.distance < 1000
+                                  ? `${poi.distance}m`
+                                  : `${(poi.distance / 1000).toFixed(1)}km`}
+                              </p>
+                            ))}
                         </div>
                       )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <Icon name="shopping_cart" className="text-green-400 text-sm" />
+                        <Icon
+                          name="shopping_cart"
+                          className="text-green-400 text-sm"
+                        />
                         <p className="text-gray-400 text-sm">Sosyal Tesisler</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-white/10 rounded-full h-2">
-                          <div 
-                            className="bg-green-400 h-2 rounded-full" 
-                            style={{ width: `${(result.locationScore.breakdown.amenities / 20) * 100}%` }}
+                          <div
+                            className="bg-green-400 h-2 rounded-full"
+                            style={{
+                              width: `${(result.locationScore.breakdown.amenities / 20) * 100}%`,
+                            }}
                           />
                         </div>
                       </div>
-                      {result.locationScore.poiDetails?.amenities?.length > 0 && (
+                      {result.locationScore.poiDetails?.amenities?.length >
+                        0 && (
                         <div className="mt-2 space-y-1">
-                          {result.locationScore.poiDetails.amenities.slice(0, 3).map((poi: any, i: number) => (
-                            <p key={i} className="text-gray-500 text-xs flex items-center gap-1">
-                              {poi.isChainMarket ? (
-                                <Icon name="verified" className="text-green-500 text-xs" filled />
-                              ) : (
-                                <Icon name="circle" className="text-[4px]" filled />
-                              )}
-                              <span className={poi.isChainMarket ? "text-green-400" : ""}>
-                                {poi.name}
-                              </span>
-                              <span className="text-gray-600">
-                                - {poi.distance < 1000 ? `${poi.distance}m` : `${(poi.distance / 1000).toFixed(1)}km`}
-                              </span>
-                            </p>
-                          ))}
+                          {result.locationScore.poiDetails.amenities
+                            .slice(0, 3)
+                            .map((poi: any, i: number) => (
+                              <p
+                                key={i}
+                                className="text-gray-500 text-xs flex items-center gap-1"
+                              >
+                                {poi.isChainMarket ? (
+                                  <Icon
+                                    name="verified"
+                                    className="text-green-500 text-xs"
+                                    filled
+                                  />
+                                ) : (
+                                  <Icon
+                                    name="circle"
+                                    className="text-[4px]"
+                                    filled
+                                  />
+                                )}
+                                <span
+                                  className={
+                                    poi.isChainMarket ? "text-green-400" : ""
+                                  }
+                                >
+                                  {poi.name}
+                                </span>
+                                <span className="text-gray-600">
+                                  -{" "}
+                                  {poi.distance < 1000
+                                    ? `${poi.distance}m`
+                                    : `${(poi.distance / 1000).toFixed(1)}km`}
+                                </span>
+                              </p>
+                            ))}
                         </div>
                       )}
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <Icon name="local_hospital" className="text-red-400 text-sm" />
+                        <Icon
+                          name="local_hospital"
+                          className="text-red-400 text-sm"
+                        />
                         <p className="text-gray-400 text-sm">Sağlık</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-white/10 rounded-full h-2">
-                          <div 
-                            className="bg-red-400 h-2 rounded-full" 
-                            style={{ width: `${(result.locationScore.breakdown.health / 10) * 100}%` }}
+                          <div
+                            className="bg-red-400 h-2 rounded-full"
+                            style={{
+                              width: `${(result.locationScore.breakdown.health / 10) * 100}%`,
+                            }}
                           />
                         </div>
                       </div>
                       {result.locationScore.poiDetails?.health?.length > 0 && (
                         <div className="mt-2 space-y-1">
-                          {result.locationScore.poiDetails.health.slice(0, 2).map((poi: any, i: number) => (
-                            <p key={i} className="text-gray-500 text-xs flex items-center gap-1">
-                              <Icon name="circle" className="text-[4px]" filled />
-                              {poi.name} - {poi.distance < 1000 ? `${poi.distance}m` : `${(poi.distance / 1000).toFixed(1)}km`}
-                            </p>
-                          ))}
+                          {result.locationScore.poiDetails.health
+                            .slice(0, 2)
+                            .map((poi: any, i: number) => (
+                              <p
+                                key={i}
+                                className="text-gray-500 text-xs flex items-center gap-1"
+                              >
+                                <Icon
+                                  name="circle"
+                                  className="text-[4px]"
+                                  filled
+                                />
+                                {poi.name} -{" "}
+                                {poi.distance < 1000
+                                  ? `${poi.distance}m`
+                                  : `${(poi.distance / 1000).toFixed(1)}km`}
+                              </p>
+                            ))}
                         </div>
                       )}
                     </div>
@@ -700,11 +785,16 @@ export default function DegerlemePage() {
                     Değerlendirme Özeti
                   </h3>
                   <div className="space-y-3">
-                    {result.aiInsights.split('\n\n').map((paragraph: string, i: number) => (
-                      <p key={i} className="text-gray-300 text-sm leading-relaxed">
-                        {paragraph}
-                      </p>
-                    ))}
+                    {result.aiInsights
+                      .split("\n\n")
+                      .map((paragraph: string, i: number) => (
+                        <p
+                          key={i}
+                          className="text-gray-300 text-sm leading-relaxed"
+                        >
+                          {paragraph}
+                        </p>
+                      ))}
                   </div>
                 </div>
 

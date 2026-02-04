@@ -179,9 +179,9 @@ export default function SeoManagementPage() {
     avgScore:
       seoData.length > 0
         ? Math.round(
-            seoData.reduce((acc, d) => acc + (d.seoScore || 0), 0) /
-              seoData.length,
-          )
+          seoData.reduce((acc, d) => acc + (d.seoScore || 0), 0) /
+          seoData.length,
+        )
         : 0,
     aiGenerated: seoData.filter((d) => d.isAiGenerated).length,
   };
@@ -204,7 +204,7 @@ export default function SeoManagementPage() {
             SEO Yönetimi
           </h1>
           <p className="text-slate-400 mt-1">
-            DeepSeek-Reasoner destekli otomatik SEO optimizasyonu
+            Gemini 2.5 Flash destekli otomatik SEO optimizasyonu
           </p>
         </div>
         <button
@@ -622,10 +622,11 @@ function SettingsTab({
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-slate-400 mb-2">
+            <label htmlFor="seoSiteName" className="block text-sm text-slate-400 mb-2">
               Site Adı
             </label>
             <input
+              id="seoSiteName"
               type="text"
               value={settings.siteName}
               onChange={(e) =>
@@ -635,10 +636,11 @@ function SettingsTab({
             />
           </div>
           <div>
-            <label className="block text-sm text-slate-400 mb-2">
+            <label htmlFor="seoTargetRegion" className="block text-sm text-slate-400 mb-2">
               Hedef Bölge
             </label>
             <input
+              id="seoTargetRegion"
               type="text"
               value={settings.targetRegion}
               onChange={(e) =>
@@ -648,10 +650,11 @@ function SettingsTab({
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm text-slate-400 mb-2">
+            <label htmlFor="seoSiteDescription" className="block text-sm text-slate-400 mb-2">
               Site Açıklaması
             </label>
             <textarea
+              id="seoSiteDescription"
               value={settings.siteDescription}
               onChange={(e) =>
                 setSettings({ ...settings, siteDescription: e.target.value })
@@ -757,6 +760,7 @@ function SettingsTab({
               {keyword}
               <button
                 onClick={() => removeKeyword(keyword)}
+                aria-label={`${keyword} anahtar kelimesini kaldır`}
                 className="hover:text-red-400"
               >
                 <Icon name="close" className="text-sm" />
@@ -766,15 +770,18 @@ function SettingsTab({
         </div>
         <div className="flex gap-2">
           <input
+            id="newKeyword"
             type="text"
             value={newKeyword}
             onChange={(e) => setNewKeyword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addKeyword()}
             placeholder="Yeni anahtar kelime..."
+            aria-label="Yeni anahtar kelime"
             className="flex-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:border-emerald-500 focus:outline-none"
           />
           <button
             onClick={addKeyword}
+            aria-label="Anahtar kelime ekle"
             className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors"
           >
             <Icon name="add" />
@@ -955,6 +962,7 @@ function SeoEditModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Kapat"
             className="p-2 hover:bg-slate-700 rounded-lg"
           >
             <Icon name="close" className="text-slate-400" />
@@ -986,7 +994,7 @@ function SeoEditModal({
 
           {/* Meta Title */}
           <div>
-            <label className="flex items-center justify-between text-sm text-slate-400 mb-2">
+            <label htmlFor="seoMetaTitle" className="flex items-center justify-between text-sm text-slate-400 mb-2">
               <span>Meta Title</span>
               <span
                 className={cn(
@@ -999,6 +1007,7 @@ function SeoEditModal({
               </span>
             </label>
             <input
+              id="seoMetaTitle"
               type="text"
               value={editedItem.metaTitle || ""}
               onChange={(e) =>
@@ -1010,7 +1019,7 @@ function SeoEditModal({
 
           {/* Meta Description */}
           <div>
-            <label className="flex items-center justify-between text-sm text-slate-400 mb-2">
+            <label htmlFor="seoMetaDescription" className="flex items-center justify-between text-sm text-slate-400 mb-2">
               <span>Meta Description</span>
               <span
                 className={cn(
@@ -1023,6 +1032,7 @@ function SeoEditModal({
               </span>
             </label>
             <textarea
+              id="seoMetaDescription"
               value={editedItem.metaDescription || ""}
               onChange={(e) =>
                 setEditedItem({
@@ -1037,10 +1047,11 @@ function SeoEditModal({
 
           {/* Focus Keyword */}
           <div>
-            <label className="block text-sm text-slate-400 mb-2">
+            <label htmlFor="seoFocusKeyword" className="block text-sm text-slate-400 mb-2">
               Odak Anahtar Kelime
             </label>
             <input
+              id="seoFocusKeyword"
               type="text"
               value={editedItem.focusKeyword || ""}
               onChange={(e) =>
@@ -1071,6 +1082,7 @@ function SeoEditModal({
                           [],
                       })
                     }
+                    aria-label={`${keyword} anahtar kelimesini kaldır`}
                     className="hover:text-red-400"
                   >
                     <Icon name="close" className="text-sm" />

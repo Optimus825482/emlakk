@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Noto_Sans } from "next/font/google";
+import { Outfit, Noto_Sans } from "next/font/google";
 import { AnalyticsWrapper } from "@/components/analytics/analytics-wrapper";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { CookieBanner } from "@/components/cookie-banner";
@@ -7,10 +7,10 @@ import { db } from "@/db";
 import { siteSettings } from "@/db/schema";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
 
 const notoSans = Noto_Sans({
@@ -110,7 +110,7 @@ export default async function RootLayout({
         )}
       </head>
       <body
-        className={`${spaceGrotesk.variable} ${notoSans.variable} font-sans antialiased`}
+        className={`${outfit.variable} ${notoSans.variable} font-sans antialiased`}
       >
         {children}
         <CookieBanner />

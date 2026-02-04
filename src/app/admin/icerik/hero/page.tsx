@@ -159,11 +159,10 @@ export default function HeroEditPage() {
       {/* Message */}
       {message && (
         <div
-          className={`p-4 rounded-lg flex items-center gap-2 ${
-            message.type === "success"
+          className={`p-4 rounded-lg flex items-center gap-2 ${message.type === "success"
               ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
               : "bg-red-500/20 text-red-400 border border-red-500/30"
-          }`}
+            }`}
         >
           <Icon name={message.type === "success" ? "check_circle" : "error"} />
           {message.text}
@@ -181,10 +180,11 @@ export default function HeroEditPage() {
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-300 mb-1">
+                <label htmlFor="heroBadge" className="block text-sm text-slate-300 mb-1">
                   Badge (Üst Etiket)
                 </label>
                 <input
+                  id="heroBadge"
                   type="text"
                   value={data.badge}
                   onChange={(e) => updateField("badge", e.target.value)}
@@ -192,10 +192,11 @@ export default function HeroEditPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-1">
+                <label htmlFor="heroTitle" className="block text-sm text-slate-300 mb-1">
                   Ana Başlık
                 </label>
                 <input
+                  id="heroTitle"
                   type="text"
                   value={data.title}
                   onChange={(e) => updateField("title", e.target.value)}
@@ -204,10 +205,11 @@ export default function HeroEditPage() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">
+                  <label htmlFor="titleHighlight" className="block text-xs text-slate-400 mb-1">
                     Vurgu 1
                   </label>
                   <input
+                    id="titleHighlight"
                     type="text"
                     value={data.titleHighlight}
                     onChange={(e) =>
@@ -217,10 +219,11 @@ export default function HeroEditPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">
+                  <label htmlFor="titleAccent" className="block text-xs text-slate-400 mb-1">
                     Vurgu 2
                   </label>
                   <input
+                    id="titleAccent"
                     type="text"
                     value={data.titleAccent}
                     onChange={(e) => updateField("titleAccent", e.target.value)}
@@ -228,10 +231,11 @@ export default function HeroEditPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">
+                  <label htmlFor="titleEnd" className="block text-xs text-slate-400 mb-1">
                     Son Kısım
                   </label>
                   <input
+                    id="titleEnd"
                     type="text"
                     value={data.titleEnd}
                     onChange={(e) => updateField("titleEnd", e.target.value)}
@@ -240,10 +244,11 @@ export default function HeroEditPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-1">
+                <label htmlFor="heroDescription" className="block text-sm text-slate-300 mb-1">
                   Açıklama
                 </label>
                 <textarea
+                  id="heroDescription"
                   value={data.description}
                   onChange={(e) => updateField("description", e.target.value)}
                   rows={3}

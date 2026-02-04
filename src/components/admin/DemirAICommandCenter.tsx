@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bot,
@@ -13,13 +13,33 @@ import {
   VolumeX,
   StopCircle,
   RefreshCw,
+  Radio,
+  Heart,
+  Smile,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { usePathname } from "next/navigation";
 import { AgentProcessLog, AgentLog } from "./AgentProcessLog";
 import { VoiceVisualizer } from "./VoiceVisualizer";
+import { SpeakingVisualizer } from "./SpeakingVisualizer";
 import { playSound } from "@/lib/audio";
+import { VoiceAssistant } from "@/lib/ai/voice-assistant";
+import {
+  EmotionalVoiceAssistant,
+  getEmotionalVoiceAssistant,
+  EmotionalVoiceState
+} from "@/lib/ai/emotional-voice-assistant";
+import {
+  EmotionType,
+  EmotionResult,
+  getEmotionDetector
+} from "@/lib/ai/emotion-detector";
+import {
+  EmotionIndicator,
+  MoodIndicator,
+  EmotionPulse
+} from "@/components/ui/emotion-indicator";
 
 interface Message {
   id: string;
@@ -27,6 +47,7 @@ interface Message {
   content: string;
   timestamp: Date;
   isThinking?: boolean;
+  emotion?: EmotionType;
 }
 
 export function DemirAICommandCenter() {
@@ -37,26 +58,50 @@ export function DemirAICommandCenter() {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState<AgentLog[]>([]);
+  const [thinkingStatus, setThinkingStatus] = useState<string>("Düşünüyorum...");
 
   // Voice State
   const [isAutoSpeakEnabled, setIsAutoSpeakEnabled] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(
     null,
   );
+
+  // Emotional Voice State
+  const [currentEmotion, setCurrentEmotion] = useState<EmotionType>("neutral");
+  const [emotionConfidence, setEmotionConfidence] = useState(0);
+  const [conversationMood, setConversationMood] = useState<'positive' | 'negative' | 'neutral'>('neutral');
+  const [isEmotionalModeEnabled, setIsEmotionalModeEnabled] = useState(true);
+  const [emotionHistory, setEmotionHistory] = useState<EmotionResult[]>([]);
+  const emotionalVoiceRef = useRef<EmotionalVoiceAssistant | null>(null);
+  const emotionDetectorRef = useRef(getEmotionDetector());
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isVoiceChatMode, setIsVoiceChatMode] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const voiceAssistantRef = useRef<VoiceAssistant | null>(null);
 
-  // RAW SpeechRecognition Ref
-  const recognitionRef = useRef<any>(null);
+  // Refs to track current values for async callbacks
+  const isAutoSpeakEnabledRef = useRef(isAutoSpeakEnabled);
+  const isVoiceChatModeRef = useRef(isVoiceChatMode);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    isAutoSpeakEnabledRef.current = isAutoSpeakEnabled;
+  }, [isAutoSpeakEnabled]);
+
+  useEffect(() => {
+    isVoiceChatModeRef.current = isVoiceChatMode;
+  }, [isVoiceChatMode]);
 
   // Auto-scroll logic
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isOpen, logs]);
+  }, [messages, isOpen, logs, interimTranscript]);
 
   // Initial Message
   useEffect(() => {
@@ -78,7 +123,6 @@ export function DemirAICommandCenter() {
     return {
       url: window.location.href,
       title: document.title,
-      // Try to get main content, fallback to body, truncate to avoid massive payload
       content: (
         document.querySelector("main")?.innerText ||
         document.body.innerText ||
@@ -90,110 +134,176 @@ export function DemirAICommandCenter() {
     };
   };
 
-  // Initialize Raw Voice API
+  // Initialize Voice Assistant Class
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    const assistant = new VoiceAssistant({
+      language: "tr-TR",
+      voiceRate: 1.1,
+      voicePitch: 0.9,
+    });
 
-    // TypeScript hack for Web Speech API
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      toast.error("Tarayıcınız sesli komutları desteklemiyor.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "tr-TR";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      console.log("[RawSpeech] onstart");
+    assistant.onStart(() => {
       setIsRecording(true);
       setPermissionError(false);
-      toast.info("Dinliyorum... (Parmağınızı basılı tutun)");
-    };
+      toast.info("Dinliyorum...");
+    });
 
-    recognition.onend = () => {
-      console.log("[RawSpeech] onend");
+    assistant.onEnd(() => {
       setIsRecording(false);
-    };
+    });
 
-    recognition.onerror = (event: any) => {
-      // Ignore not-allowed error as it is handled in UI
+    assistant.onError((err) => {
+      console.error("Voice Error:", err);
       if (
-        event.error === "not-allowed" ||
-        event.error === "permission-denied" ||
-        event.error === "service-not-allowed"
+        err === "not-allowed" ||
+        err === "permission-denied" ||
+        err === "service-not-allowed"
       ) {
-        console.warn("[RawSpeech] Microphone permission denied");
         setPermissionError(true);
         toast.error("Mikrofon izni reddedildi.");
-      } else {
-        console.error("[RawSpeech] onerror", event.error);
       }
       setIsRecording(false);
-    };
+      setInterimTranscript("");
+    });
 
-    recognition.onresult = (event: any) => {
-      let finalTranscript = "";
-      let interimTranscript = "";
+    assistant.onResult((cmd) => {
+      setInputValue(cmd.transcript);
+      setInterimTranscript("");
+    });
 
-      // Fix: Iterate from 0 to capture full history, not just the new chunk
-      for (let i = 0; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript + " ";
+    assistant.onInterimResult((text) => {
+      setInterimTranscript(text);
+    });
+
+    assistant.onSilenceDetected((text) => {
+      console.log("[CommandCenter] Silence detected, sending:", text);
+      const trimmedText = text.trim().toLowerCase();
+
+      // Sesli komutları kontrol et
+      const closeCommands = [
+        "sohbeti kapat",
+        "sohbeti sonlandır",
+        "kapat",
+        "çık",
+        "görüşürüz",
+        "hoşça kal",
+        "bye",
+        "kapan",
+        "modal kapat"
+      ];
+
+      const isCloseCommand = closeCommands.some(cmd =>
+        trimmedText.includes(cmd) || trimmedText === cmd
+      );
+
+      if (isCloseCommand) {
+        console.log("[CommandCenter] Close command detected, closing modal");
+        // Sesli sohbeti kapat
+        voiceAssistantRef.current?.disableVoiceChatMode();
+        setIsVoiceChatMode(false);
+        setIsAutoSpeakEnabled(false);
+        setInterimTranscript("");
+        // Veda mesajı söyle ve kapat
+        if (window.speechSynthesis) {
+          const utterance = new SpeechSynthesisUtterance("Görüşmek üzere!");
+          utterance.lang = "tr-TR";
+          utterance.onend = () => setIsOpen(false);
+          window.speechSynthesis.speak(utterance);
         } else {
-          interimTranscript += transcript;
+          setIsOpen(false);
         }
+        return;
       }
 
-      setInputValue(finalTranscript + interimTranscript);
-    };
+      if (trimmedText) {
+        handleSendMessage(text);
+      }
+    });
 
-    recognitionRef.current = recognition;
+    voiceAssistantRef.current = assistant;
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
+      assistant.destroy();
     };
-  }, []);
+  }, []); // Remove dependencies to avoid re-init
 
-  const toggleRecording = () => {
-    if (!recognitionRef.current) {
-      toast.error("Ses sistemi hazır değil.");
-      playSound("error");
-      return;
+  // Manage Recording State Sync
+  useEffect(() => {
+    // Only used if external logic triggers startListening/stopListening?
+    // Actually, we control it via toggleRecording below.
+  }, [isRecording]);
+
+  // Helper function to generate user-friendly thinking status messages
+  const getThinkingStatusMessage = (agent: string, content: string): string => {
+    const lowerContent = content.toLowerCase();
+
+    // SQL / Database queries
+    if (lowerContent.includes("sql") || lowerContent.includes("sorgu") || lowerContent.includes("veritabanı")) {
+      return "🔍 Veritabanını sorguluyorum...";
     }
 
-    if (permissionError) {
-      toast.error("Mikrofon izni reddedildi.");
-      playSound("error");
-      return;
+    // Web research
+    if (lowerContent.includes("web") || lowerContent.includes("araştır") || lowerContent.includes("internet")) {
+      return "🌐 Web'de araştırma yapıyorum...";
     }
 
-    if (isRecording) {
-      // STOP
-      playSound("stop");
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {
-        console.log("Stop error:", e);
-      }
-    } else {
-      // START
-      playSound("start");
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.log("Start error:", e);
-      }
+    // Law / Regulations
+    if (lowerContent.includes("mevzuat") || lowerContent.includes("kanun") || lowerContent.includes("yönetmelik") || lowerContent.includes("hukuk")) {
+      return "📜 Mevzuatları inceliyorum...";
     }
+
+    // Memory operations
+    if (lowerContent.includes("hafıza") || lowerContent.includes("hatır") || lowerContent.includes("memory")) {
+      return "🧠 Hafızamı kontrol ediyorum...";
+    }
+
+    // Navigation
+    if (lowerContent.includes("navigasyon") || lowerContent.includes("yönlendir") || lowerContent.includes("sayfa")) {
+      return "📍 Yönlendirme hazırlanıyor...";
+    }
+
+    // Client/Contact info
+    if (lowerContent.includes("müşteri") || lowerContent.includes("iletişim") || lowerContent.includes("client")) {
+      return "👤 Müşteri bilgilerini getiriyorum...";
+    }
+
+    // Listing search
+    if (lowerContent.includes("ilan") || lowerContent.includes("listing") || lowerContent.includes("portföy")) {
+      return "🏠 İlanları tarıyorum...";
+    }
+
+    // Agent delegation
+    if (agent === "Miner Agent" || lowerContent.includes("miner") || lowerContent.includes("analiz")) {
+      return "⛏️ Pazar verilerini analiz ediyorum...";
+    }
+
+    if (agent === "Content Agent" || lowerContent.includes("content") || lowerContent.includes("içerik")) {
+      return "✍️ İçerik hazırlanıyor...";
+    }
+
+    // Emotion detection
+    if (agent === "EmotionAI" || lowerContent.includes("duygu") || lowerContent.includes("empat")) {
+      return "💭 Empatik yanıt hazırlıyorum...";
+    }
+
+    // Default thinking states
+    if (lowerContent.includes("düşün")) {
+      return "🤔 Düşünüyorum...";
+    }
+
+    if (lowerContent.includes("hazır") || lowerContent.includes("yanıt")) {
+      return "✨ Yanıt hazırlanıyor...";
+    }
+
+    // Agent-based defaults
+    if (agent === "Maestro") {
+      return "🎯 İşleniyor...";
+    }
+
+    return "💡 Analiz ediyorum...";
   };
+
+  // Clean text function preserved below...
 
   const cleanTextForSpeech = (text: string) => {
     return (
@@ -221,57 +331,183 @@ export function DemirAICommandCenter() {
     );
   };
 
-  const handleSpeakMessage = async (msg: Message) => {
-    // Basic speech synthesis without class
+  const handleSpeakMessage = async (msg: Message, emotionOverride?: EmotionType) => {
+    if (!voiceAssistantRef.current) return;
+
+    // Stop if already speaking this message
     if (speakingMessageId === msg.id) {
-      window.speechSynthesis.cancel();
+      voiceAssistantRef.current.stopSpeaking();
       setSpeakingMessageId(null);
+      setIsSpeaking(false);
       return;
     }
 
-    window.speechSynthesis.cancel();
+    // Stop any other current speech and listening during speech
+    voiceAssistantRef.current.stopSpeaking();
+    voiceAssistantRef.current.stopListening();
     setSpeakingMessageId(msg.id);
+    setIsSpeaking(true);
 
     // Clean text for natural reading
     const spokenText = cleanTextForSpeech(msg.content);
 
-    const utterance = new SpeechSynthesisUtterance(spokenText);
-    utterance.lang = "tr-TR";
-    utterance.rate = 1.1;
-    utterance.pitch = 0.9;
+    // Get emotional voice settings
+    const emotion = emotionOverride || msg.emotion || currentEmotion;
+    const emotionSettings = isEmotionalModeEnabled
+      ? emotionDetectorRef.current.getEmpatheticResponse(emotion)
+      : null;
 
-    // Find voice
-    const voices = window.speechSynthesis.getVoices();
-    const trVoice = voices.find(
-      (v) => v.lang.startsWith("tr") || v.name.includes("Turkish"),
-    );
-    if (trVoice) utterance.voice = trVoice;
+    // Helper function to restart listening after speech ends
+    const restartListeningIfNeeded = () => {
+      // Use refs to get current values (not stale state)
+      if (isVoiceChatModeRef.current) {
+        console.log('[DemirAI] Restarting microphone after speech ended');
+        setTimeout(() => {
+          if (voiceAssistantRef.current && !voiceAssistantRef.current.getIsSpeaking()) {
+            voiceAssistantRef.current.startListening();
+          }
+        }, 400);
+      }
+    };
 
-    utterance.onend = () => setSpeakingMessageId(null);
-    utterance.onerror = () => setSpeakingMessageId(null);
+    try {
+      if (emotionSettings && window.speechSynthesis) {
+        // Use emotional voice settings
+        const utterance = new SpeechSynthesisUtterance(spokenText);
+        utterance.lang = "tr-TR";
+        utterance.rate = emotionSettings.voiceSettings.rate;
+        utterance.pitch = emotionSettings.voiceSettings.pitch;
+        utterance.volume = emotionSettings.voiceSettings.volume;
 
-    window.speechSynthesis.speak(utterance);
+        // Get Turkish voice
+        const voices = window.speechSynthesis.getVoices();
+        const trVoice = voices.find(v => v.lang.startsWith('tr'));
+        if (trVoice) utterance.voice = trVoice;
+
+        window.speechSynthesis.cancel();
+
+        await new Promise<void>((resolve) => {
+          utterance.onend = () => {
+            setSpeakingMessageId(null);
+            setIsSpeaking(false);
+            restartListeningIfNeeded();
+            resolve();
+          };
+          utterance.onerror = () => {
+            setSpeakingMessageId(null);
+            setIsSpeaking(false);
+            restartListeningIfNeeded();
+            resolve();
+          };
+          window.speechSynthesis.speak(utterance);
+        });
+      } else {
+        // Use voice assistant's speak method (also handles restart internally)
+        await voiceAssistantRef.current.speak(spokenText);
+        setSpeakingMessageId(null);
+        setIsSpeaking(false);
+        restartListeningIfNeeded();
+      }
+    } catch (e) {
+      console.error("Speech error:", e);
+      setSpeakingMessageId(null);
+      setIsSpeaking(false);
+      restartListeningIfNeeded();
+    }
   };
 
-  // Clear logs when new message starts
-  const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+  // Toggle voice chat mode (continuous listening)
+  const toggleVoiceChatMode = useCallback(() => {
+    if (isVoiceChatMode) {
+      // Turning off voice chat mode
+      setIsVoiceChatMode(false);
+      setIsAutoSpeakEnabled(false);
+      voiceAssistantRef.current?.disableVoiceChatMode();
+      voiceAssistantRef.current?.stopSpeaking();
+      toast.info("Sesli sohbet modu kapatıldı");
+    } else {
+      // Turning on voice chat mode
+      setIsVoiceChatMode(true);
+      setIsAutoSpeakEnabled(true);
+      voiceAssistantRef.current?.enableVoiceChatMode();
+      toast.success("🎤 Sesli sohbet modu aktif! Konuşmaya başlayın...");
+    }
+  }, [isVoiceChatMode]);
+
+  // Mikrofon butonu - basınca voice chat mode aktif olsun
+  const toggleRecording = () => {
+    if (!voiceAssistantRef.current) return;
+
+    if (isRecording) {
+      // Kapatırken voice chat mode'u da kapat
+      voiceAssistantRef.current.disableVoiceChatMode();
+      setIsVoiceChatMode(false);
+      setIsAutoSpeakEnabled(false);
+    } else {
+      // Açarken voice chat mode'u da aç
+      voiceAssistantRef.current.enableVoiceChatMode();
+      setIsVoiceChatMode(true);
+      setIsAutoSpeakEnabled(true);
+      toast.success("🎤 Sesli sohbet aktif! Konuşmaya başlayın...");
+    }
+  };
+
+  const handleSendMessage = async (
+    textOverride?: string | React.MouseEvent,
+  ) => {
+    // Handle both direct text call and event click
+    const textToSend =
+      typeof textOverride === "string" ? textOverride : inputValue;
+
+    if (!textToSend.trim()) return;
+
+    // Detect emotion from user message
+    let detectedEmotion: EmotionType = "neutral";
+    if (isEmotionalModeEnabled) {
+      const emotionResult = emotionDetectorRef.current.analyzeText(textToSend);
+      detectedEmotion = emotionResult.primary;
+      setCurrentEmotion(detectedEmotion);
+      setEmotionConfidence(emotionResult.confidence);
+      setEmotionHistory(prev => [...prev.slice(-9), emotionResult]);
+
+      // Update conversation mood
+      if (emotionResult.valence > 0.2) {
+        setConversationMood('positive');
+      } else if (emotionResult.valence < -0.2) {
+        setConversationMood('negative');
+      } else {
+        setConversationMood('neutral');
+      }
+    }
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: inputValue,
+      content: textToSend,
       timestamp: new Date(),
+      emotion: detectedEmotion,
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInputValue("");
+    setInterimTranscript(""); // Clear interim
     setIsProcessing(true);
+    setThinkingStatus("🤔 Düşünüyorum..."); // Reset thinking status
     setLogs([]); // Reset logs
     playSound("processing");
 
+    // Force scroll to bottom immediately
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+
     try {
       const pageInfo = getPageContext();
+
+      // Get empathetic system prompt based on detected emotion
+      const emotionPrompt = isEmotionalModeEnabled
+        ? emotionDetectorRef.current.getEmpatheticResponse(detectedEmotion)
+        : null;
 
       const response = await fetch("/api/ai/command-center", {
         method: "POST",
@@ -287,6 +523,10 @@ export function DemirAICommandCenter() {
             pageUrl: pageInfo.url,
             pageContent: pageInfo.content,
             timestamp: new Date().toISOString(),
+            // Emotion context for empathetic responses
+            userEmotion: isEmotionalModeEnabled ? detectedEmotion : undefined,
+            emotionTone: emotionPrompt?.tone,
+            conversationMood,
           },
         }),
       });
@@ -314,6 +554,10 @@ export function DemirAICommandCenter() {
             const data = JSON.parse(line);
 
             if (data.type === "log") {
+              // Update thinking status based on action type
+              const statusMessage = getThinkingStatusMessage(data.agent, data.content);
+              setThinkingStatus(statusMessage);
+
               setLogs((prev) => [
                 ...prev,
                 {
@@ -337,16 +581,29 @@ export function DemirAICommandCenter() {
 
       if (finalContent) {
         playSound("success");
+
+        // Detect emotion in AI response for adaptive voice
+        let responseEmotion: EmotionType = "neutral";
+        if (isEmotionalModeEnabled) {
+          const responseEmotionResult = emotionDetectorRef.current.analyzeText(finalContent);
+          responseEmotion = responseEmotionResult.primary;
+        }
+
         const botMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
           content: finalContent,
           timestamp: new Date(),
+          emotion: responseEmotion,
         };
         setMessages((prev) => [...prev, botMsg]);
 
-        if (isAutoSpeakEnabled) {
-          handleSpeakMessage(botMsg);
+        // Sesli sohbet modunda veya otomatik okuma açıksa seslendir
+        // Ref kullan çünkü async callback'te state eski kalabilir
+        console.log('[DemirAI] Auto-speak check:', { isAutoSpeakEnabled: isAutoSpeakEnabledRef.current, isVoiceChatMode: isVoiceChatModeRef.current, emotion: responseEmotion });
+        if (isAutoSpeakEnabledRef.current || isVoiceChatModeRef.current) {
+          // Use emotional voice settings based on the response emotion
+          handleSpeakMessage(botMsg, responseEmotion);
         }
       }
     } catch (error) {
@@ -377,18 +634,86 @@ export function DemirAICommandCenter() {
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs md:text-sm tracking-widest text-yellow-100/90 font-mono">
-                    DEMIR AI
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-xs md:text-sm tracking-widest text-yellow-100/90 font-mono">
+                      DEMIR AI
+                    </h3>
+                    {/* Emotion Indicator in Header */}
+                    {isEmotionalModeEnabled && currentEmotion !== 'neutral' && (
+                      <EmotionIndicator
+                        emotion={currentEmotion}
+                        confidence={emotionConfidence}
+                        valence={0}
+                        arousal={0}
+                        size="sm"
+                      />
+                    )}
+                  </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-yellow-500/50" />
-                    <span className="text-[9px] md:text-[10px] text-yellow-600/80 font-mono tracking-widest">
-                      ONLINE
-                    </span>
+                    {isSpeaking ? (
+                      <>
+                        <SpeakingVisualizer isSpeaking={isSpeaking} size="sm" />
+                        <span className="text-[9px] md:text-[10px] text-yellow-400 font-mono tracking-widest animate-pulse">
+                          KONUŞUYOR
+                        </span>
+                      </>
+                    ) : isRecording ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                        <span className="text-[9px] md:text-[10px] text-red-400 font-mono tracking-widest animate-pulse">
+                          DİNLİYOR
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="w-1 h-1 rounded-full bg-yellow-500/50" />
+                        <span className="text-[9px] md:text-[10px] text-yellow-600/80 font-mono tracking-widest">
+                          {isEmotionalModeEnabled ? 'EMPATİK MOD' : 'ONLINE'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-0.5 md:gap-1">
+                {/* Emotional Mode Toggle */}
+                <button
+                  onClick={() => {
+                    setIsEmotionalModeEnabled(!isEmotionalModeEnabled);
+                    toast.info(isEmotionalModeEnabled ? "Empatik mod kapatıldı" : "Empatik mod açıldı! 💕");
+                  }}
+                  className={cn(
+                    "p-1.5 md:p-2 rounded-lg transition-all mr-0.5 md:mr-1 touch-manipulation relative",
+                    isEmotionalModeEnabled
+                      ? "text-pink-400 bg-pink-500/20 hover:bg-pink-500/30"
+                      : "text-zinc-400 hover:bg-zinc-700 hover:text-white",
+                  )}
+                  title={isEmotionalModeEnabled ? "Empatik Mod Açık" : "Empatik Mod Kapalı"}
+                  aria-label={isEmotionalModeEnabled ? "Empatik modu kapat" : "Empatik modu aç"}
+                  aria-pressed={isEmotionalModeEnabled || undefined}
+                >
+                  <Heart className={cn("w-3.5 h-3.5 md:w-4 md:h-4", isEmotionalModeEnabled && "fill-pink-400")} />
+                </button>
+
+                {/* Voice Chat Mode Toggle */}
+                <button
+                  onClick={toggleVoiceChatMode}
+                  className={cn(
+                    "p-1.5 md:p-2 rounded-lg transition-all mr-0.5 md:mr-1 touch-manipulation relative",
+                    isVoiceChatMode
+                      ? "text-yellow-400 bg-yellow-500/20 hover:bg-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.3)]"
+                      : "text-zinc-400 hover:bg-zinc-700 hover:text-white",
+                  )}
+                  title={isVoiceChatMode ? "Sesli Sohbeti Kapat" : "Sesli Sohbet Başlat"}
+                  aria-label={isVoiceChatMode ? "Sesli sohbeti kapat" : "Sesli sohbet başlat"}
+                  aria-pressed={isVoiceChatMode || undefined}
+                >
+                  <Radio className={cn("w-3.5 h-3.5 md:w-4 md:h-4", isVoiceChatMode && "animate-pulse")} />
+                  {isVoiceChatMode && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-yellow-500 rounded-full animate-ping" />
+                  )}
+                </button>
+
                 {/* Auto Speak Toggle */}
                 <button
                   onClick={() => setIsAutoSpeakEnabled(!isAutoSpeakEnabled)}
@@ -403,6 +728,8 @@ export function DemirAICommandCenter() {
                       ? "Otomatik Okuma Açık"
                       : "Otomatik Okuma Kapalı"
                   }
+                  aria-label={isAutoSpeakEnabled ? "Otomatik okumayı kapat" : "Otomatik okumayı aç"}
+                  aria-pressed={isAutoSpeakEnabled || undefined}
                 >
                   {isAutoSpeakEnabled ? (
                     <Volume2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
@@ -415,10 +742,15 @@ export function DemirAICommandCenter() {
                 <button
                   onClick={() => {
                     setMessages([]);
+                    setEmotionHistory([]);
+                    emotionDetectorRef.current.reset();
+                    setCurrentEmotion('neutral');
+                    setConversationMood('neutral');
                     toast.success("Sohbet temizlendi.");
                   }}
                   className="p-1.5 md:p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors touch-manipulation"
                   title="Sohbeti Temizle"
+                  aria-label="Sohbeti temizle"
                 >
                   <RefreshCw className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
@@ -426,12 +758,14 @@ export function DemirAICommandCenter() {
                 <button
                   onClick={() => setIsMinimized(true)}
                   className="p-1.5 md:p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition-colors touch-manipulation"
+                  aria-label="Sohbeti küçült"
                 >
                   <Minimize2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
                 <button
                   onClick={() => setIsOpen(false)}
                   className="p-1.5 md:p-2 hover:bg-red-900/20 rounded-lg text-zinc-400 hover:text-red-400 transition-colors touch-manipulation"
+                  aria-label="Sohbeti kapat"
                 >
                   <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </button>
@@ -508,18 +842,43 @@ export function DemirAICommandCenter() {
                   >
                     <div
                       className={cn(
-                        "max-w-[90%] md:max-w-[85%] rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm leading-relaxed shadow-lg backdrop-blur-sm",
+                        "max-w-[90%] md:max-w-[85%] rounded-2xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm leading-relaxed shadow-lg backdrop-blur-sm relative",
                         msg.role === "user"
                           ? "bg-yellow-600/90 text-white rounded-br-none border border-yellow-500/20"
                           : "bg-zinc-900/90 text-zinc-200 border border-zinc-800 rounded-bl-none",
                       )}
                     >
+                      {/* Emotion badge for user messages */}
+                      {isEmotionalModeEnabled && msg.role === "user" && msg.emotion && msg.emotion !== 'neutral' && (
+                        <div className="absolute -top-2 -right-2">
+                          <EmotionIndicator
+                            emotion={msg.emotion}
+                            confidence={1}
+                            valence={0}
+                            arousal={0}
+                            size="sm"
+                          />
+                        </div>
+                      )}
+
                       {msg.role === "assistant" && (
                         <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
                           <Sparkles className="w-3 h-3 text-yellow-500" />
                           <span className="text-[9px] md:text-[10px] uppercase tracking-widest text-zinc-500">
-                            System Response
+                            {isEmotionalModeEnabled && msg.emotion && msg.emotion !== 'neutral'
+                              ? `Empathetic Response`
+                              : 'System Response'}
                           </span>
+                          {/* AI response emotion indicator */}
+                          {isEmotionalModeEnabled && msg.emotion && msg.emotion !== 'neutral' && (
+                            <EmotionIndicator
+                              emotion={msg.emotion}
+                              confidence={1}
+                              valence={0}
+                              arousal={0}
+                              size="sm"
+                            />
+                          )}
                         </div>
                       )}
                       <div className="break-words">{msg.content}</div>
@@ -550,6 +909,7 @@ export function DemirAICommandCenter() {
                                 : "text-zinc-400 hover:bg-zinc-700",
                             )}
                             title="Seslendir"
+                            aria-label={speakingMessageId === msg.id ? "Seslendirmeyi durdur" : "Mesajı seslendir"}
                           >
                             {speakingMessageId === msg.id ? (
                               <StopCircle className="w-3 h-3 animate-pulse" />
@@ -564,36 +924,100 @@ export function DemirAICommandCenter() {
                 ))}
 
                 {isProcessing && (
-                  <div className="flex justify-start">
-                    <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl rounded-bl-none px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-1">
-                      <span className="text-[10px] md:text-xs text-zinc-500 animate-pulse mr-2">
-                        ANALYZING
-                      </span>
-                      <span className="w-1 h-1 bg-yellow-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                      <span className="w-1 h-1 bg-yellow-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                      <span className="w-1 h-1 bg-yellow-500 rounded-full animate-bounce" />
+                  <motion.div
+                    className="flex justify-start"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="bg-zinc-900/70 border border-yellow-600/30 rounded-2xl rounded-bl-none px-3 md:px-4 py-2.5 md:py-3 flex items-center gap-2 backdrop-blur-sm shadow-lg">
+                      <div className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                        <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                        <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-bounce" />
+                      </div>
+                      <motion.span
+                        key={thinkingStatus}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="text-[11px] md:text-xs text-yellow-200/90 font-medium"
+                      >
+                        {thinkingStatus}
+                      </motion.span>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
               </div>
             </div>
 
             {/* Input Area */}
-            <div className="p-3 md:p-4 bg-zinc-900 border-t border-yellow-600/10 shrink-0 backdrop-blur-md relative z-[100]">
+            <div className={cn(
+              "p-3 md:p-4 border-t shrink-0 backdrop-blur-md relative z-[100] transition-colors",
+              isVoiceChatMode
+                ? "bg-yellow-900/20 border-yellow-600/30"
+                : "bg-zinc-900 border-yellow-600/10"
+            )}>
+              {/* Voice Chat Mode Active Banner - Animasyon üstte */}
+              {isVoiceChatMode && (isRecording || isSpeaking) && (
+                <div className="mb-3 relative">
+                  <div className="flex items-center justify-center gap-3 py-2 px-4 bg-zinc-900/80 border border-yellow-500/30 rounded-xl overflow-hidden">
+                    {/* Arka plan animasyonu */}
+                    <div className="absolute inset-0 z-0">
+                      <VoiceVisualizer isRecording={isRecording && !isSpeaking} />
+                    </div>
+
+                    {/* İçerik */}
+                    <div className="relative z-10 flex items-center gap-2">
+                      {isSpeaking ? (
+                        <>
+                          <SpeakingVisualizer isSpeaking={isSpeaking} size="md" />
+                          <span className="text-sm text-yellow-400 font-mono uppercase tracking-widest animate-pulse">
+                            AI KONUŞUYOR
+                          </span>
+                          <SpeakingVisualizer isSpeaking={isSpeaking} size="md" />
+                        </>
+                      ) : isRecording ? (
+                        <>
+                          <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.8)]" />
+                          <span className="text-sm text-red-400 font-mono uppercase tracking-widest">
+                            DİNLİYORUM
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sesli sohbet banner (dinleme/konuşma yokken) */}
+              {isVoiceChatMode && !isRecording && !isSpeaking && (
+                <div className="mb-2 flex items-center justify-center gap-2 py-1.5 px-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <Radio className="w-3 h-3 text-yellow-400 animate-pulse" />
+                  <span className="text-[10px] text-yellow-400 font-mono uppercase tracking-widest">
+                    Sesli Sohbet Aktif
+                  </span>
+                </div>
+              )}
+
               <div className="relative flex items-center gap-1.5 md:gap-2">
                 <button
-                  onClick={toggleRecording}
+                  onClick={isVoiceChatMode ? toggleVoiceChatMode : toggleRecording}
                   className={cn(
                     "p-2.5 md:p-3 rounded-xl transition-all duration-300 relative group overflow-hidden pointer-events-auto cursor-pointer select-none touch-manipulation",
-                    isRecording
-                      ? "bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)] scale-105 active:scale-95"
-                      : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-zinc-700 active:scale-95",
+                    isVoiceChatMode
+                      ? "bg-yellow-500 hover:bg-yellow-600 text-white shadow-[0_0_20px_rgba(234,179,8,0.5)] scale-105 active:scale-95"
+                      : isRecording
+                        ? "bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)] scale-105 active:scale-95"
+                        : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-zinc-700 active:scale-95",
                   )}
-                  title={isRecording ? "Durdur" : "Konuş"}
+                  title={isVoiceChatMode ? "Sesli Sohbeti Kapat" : isRecording ? "Durdur" : "Konuş"}
                   type="button"
                   disabled={isProcessing}
+                  aria-label={isVoiceChatMode ? "Sesli sohbeti kapat" : isRecording ? "Ses kaydını durdur" : "Sesli komut ver"}
+                  aria-pressed={isRecording || isVoiceChatMode || undefined}
                 >
-                  {isRecording ? (
+                  {isVoiceChatMode ? (
+                    <Radio className="w-4 h-4 md:w-5 md:h-5 relative z-10 animate-pulse" />
+                  ) : isRecording ? (
                     <StopCircle className="w-4 h-4 md:w-5 md:h-5 relative z-10 animate-pulse" />
                   ) : (
                     <Mic className="w-4 h-4 md:w-5 md:h-5 relative z-10" />
@@ -601,28 +1025,25 @@ export function DemirAICommandCenter() {
                 </button>
 
                 <div className="flex-1 relative">
-                  {isRecording && (
-                    <div className="absolute inset-0 z-20 bg-zinc-950 rounded-xl overflow-hidden flex items-center justify-center border border-yellow-600/30">
-                      <VoiceVisualizer isRecording={isRecording} />
-                      <div className="absolute inset-0 flex items-center justify-center gap-2">
-                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]" />
-                        <span className="text-[10px] md:text-xs text-yellow-500 font-mono tracking-[0.2em] font-bold drop-shadow-md">
-                          DINLIYORUM...
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                  {/* Input - konuşurken anlık önizleme göster */}
                   <input
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
+                    value={isRecording && interimTranscript ? interimTranscript : inputValue}
+                    onChange={(e) => !isRecording && setInputValue(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         handleSendMessage();
                       }
                     }}
-                    placeholder="Komut Girin..."
-                    className="w-full bg-zinc-950 border border-zinc-800 focus:border-yellow-600/40 rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm text-white shadow-inner focus:ring-1 focus:ring-yellow-600/20 focus:outline-none placeholder:text-zinc-700 font-medium z-10"
+                    placeholder={isRecording ? "Konuşun..." : "Komut Girin..."}
+                    readOnly={isRecording}
+                    className={cn(
+                      "w-full rounded-xl px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm shadow-inner focus:ring-1 focus:outline-none font-medium z-10 transition-all",
+                      isRecording
+                        ? "bg-zinc-900 border-2 border-yellow-500/50 text-yellow-300 italic animate-pulse placeholder:text-yellow-600/50"
+                        : "bg-zinc-950 border border-zinc-800 focus:border-yellow-600/40 text-white focus:ring-yellow-600/20 placeholder:text-zinc-700"
+                    )}
+                    aria-label="AI komut girişi"
                   />
                 </div>
 
@@ -631,6 +1052,7 @@ export function DemirAICommandCenter() {
                   disabled={!inputValue.trim() || isProcessing}
                   className="p-2.5 md:p-3 bg-gradient-to-br from-yellow-600 to-yellow-700 hover:from-yellow-500 hover:to-yellow-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-yellow-900/20 active:scale-95 pointer-events-auto cursor-pointer z-10 touch-manipulation"
                   type="button"
+                  aria-label="Mesaj gönder"
                 >
                   <Send className="w-4 h-4 md:w-5 md:h-5 pointer-events-none" />
                 </button>
@@ -653,6 +1075,8 @@ export function DemirAICommandCenter() {
             ? "w-0 h-0 p-0 opacity-0"
             : "w-14 h-14 md:w-16 md:h-16 bg-zinc-900 text-yellow-500 hover:scale-110 hover:shadow-yellow-500/20 hover:border-yellow-500/50 active:scale-95",
         )}
+        aria-label="Demir AI asistanı aç"
+        aria-expanded={isOpen && !isMinimized}
       >
         <div className="absolute inset-0 bg-gradient-to-tr from-yellow-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 

@@ -145,11 +145,10 @@ export default function AdminRandevularPage() {
             <button
               key={status}
               onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === status
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === status
                   ? "bg-emerald-500 text-slate-900"
                   : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700"
-              }`}
+                }`}
             >
               {status === "all" ? "Tümü" : appointmentStatusLabels[status]}
             </button>
@@ -168,11 +167,10 @@ export default function AdminRandevularPage() {
           {filteredAppointments.map((appointment) => (
             <div
               key={appointment.id}
-              className={`bg-slate-800 border rounded-lg p-5 transition-all cursor-pointer ${
-                selectedAppointment === appointment.id
+              className={`bg-slate-800 border rounded-lg p-5 transition-all cursor-pointer ${selectedAppointment === appointment.id
                   ? "border-emerald-500 ring-1 ring-emerald-500/20"
                   : "border-slate-700 hover:border-slate-600"
-              }`}
+                }`}
               onClick={() =>
                 setSelectedAppointment(
                   selectedAppointment === appointment.id ? null : appointment.id
@@ -198,9 +196,8 @@ export default function AdminRandevularPage() {
                   </div>
                 </div>
                 <span
-                  className={`text-xs px-2 py-1 rounded border ${
-                    statusColors[appointment.status]
-                  }`}
+                  className={`text-xs px-2 py-1 rounded border ${statusColors[appointment.status]
+                    }`}
                 >
                   {appointmentStatusLabels[appointment.status]}
                 </span>
@@ -278,6 +275,7 @@ export default function AdminRandevularPage() {
                             handleStatusChange(appointment.id, "cancelled");
                           }}
                           disabled={updating === appointment.id}
+                          aria-label="Randevuyu iptal et"
                           className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
                         >
                           <Icon name="close" />
@@ -306,6 +304,7 @@ export default function AdminRandevularPage() {
                         e.stopPropagation();
                         handleDelete(appointment.id);
                       }}
+                      aria-label="Randevuyu sil"
                       className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-red-600 text-white px-3 py-2 rounded text-sm font-medium transition-colors"
                     >
                       <Icon name="delete" />

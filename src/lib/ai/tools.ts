@@ -144,61 +144,190 @@ export class AdminTools {
   }
 
   /**
-   * Law Search (RAG Stub)
+   * Law Search (Enhanced with RAG + Knowledge Base)
    */
   async searchLaws(query: string): Promise<ToolResult> {
-    // In future: Use vector search on 'ai_memory' where type='law_reference'
-    // For now: Return general advice based on keywords
-
-    if (query.includes("komisyon")) {
-      return {
-        success: true,
-        message:
-          "Taşınmaz Ticareti Yönetmeliği'ne göre alım satım işlemlerinde hizmet bedeli, satış bedelinin KDV hariç %4'ünden fazla olamaz. (Yüzde 2 satıcı, yüzde 2 alıcı şeklinde uygulanır).",
-      };
-    }
-
-    if (query.includes("yetki") || query.includes("sözleşme")) {
-      return {
-        success: true,
-        message:
-          "Taşınmaz gösteren veya pazarlayan işletmelerin Yetki Belgesi alması zorunludur. Sözleşmeler yazılı yapılmalı ve bir nüshası müşteriye verilmelidir.",
-      };
-    }
-
-    return {
-      success: true,
-      message:
-        "Bu konuda mevzuatta özel bir madde bulamadım ancak Borçlar Kanunu genel hükümlerine bakılabilir.",
-    };
-  }
-
-  /**
-   * Search Long Term Memory
-   */
-  async searchMemories(query: string): Promise<ToolResult> {
     try {
-      const results = await db
+      // 1. First check ai_memory for stored law references
+      const memoryResults = await db
         .select()
         .from(aiMemory)
         .where(
           and(
-            eq(aiMemory.memoryType, "long_term"),
+            eq(aiMemory.memoryType, "law_reference"),
             ilike(aiMemory.content, `%${query}%`),
           ),
         )
         .limit(3);
 
-      if (results.length === 0)
-        return { success: true, message: "İlgili bir hatıra bulunamadı." };
+      if (memoryResults.length > 0) {
+        const summary = memoryResults
+          .map((r) => `📜 ${r.content}`)
+          .join("\n\n");
+        return {
+          success: true,
+          data: memoryResults,
+          message: `Bilgi Tabanından Mevzuat:\n${summary}`,
+        };
+      }
 
-      const summary = results
-        .map((r) => `- ${r.content} (${r.category})`)
-        .join("\n");
+      // 2. Keyword-based law reference (built-in knowledge)
+      const lawKnowledge: Record<string, string> = {
+        komisyon: `📜 **Taşınmaz Ticareti Yönetmeliği (Madde 20)**
+Alım satım işlemlerinde hizmet bedeli, satış bedelinin KDV hariç %4'ünden fazla olamaz.
+- Satıcıdan: %2
+- Alıcıdan: %2
+- Bu oran tarafların anlaşmasıyla azaltılabilir ancak artırılamaz.`,
+
+        yetki: `📜 **Taşınmaz Ticareti Yönetmeliği (Madde 6)**
+Taşınmaz ticareti yapan işletmelerin Yetki Belgesi alması zorunludur.
+- Yetki belgesi 5 yıl geçerlidir.
+- Belgesiz faaliyet cezai yaptırım gerektirir.`,
+
+        sözleşme: `📜 **Taşınmaz Ticareti Yönetmeliği (Madde 11-13)**
+- Sözleşmeler yazılı yapılmalıdır.
+- En az 2 nüsha düzenlenmeli, bir nüshası müşteriye verilmelidir.
+- Sözleşmede taşınmazın tüm özellikleri ve bedeli açıkça belirtilmelidir.`,
+
+        tapu: `📜 **Tapu Kanunu (Madde 26)**
+Tapu sicili alenidir. Herkes tapu kütüğünü inceleyebilir.
+- Tapu harçları alım satım bedelinin %4'üdür (alıcı ve satıcıdan %2'şer).
+- 2024 itibariyle konut satışlarında %2 tapu harcı uygulanmaktadır.`,
+
+        kira: `📜 **Türk Borçlar Kanunu (Madde 339-356)**
+- Kira sözleşmeleri yazılı yapılmalıdır.
+- Depozito en fazla 3 aylık kira tutarı olabilir.
+- Kira artışı bir önceki yılın TÜFE oranını geçemez (konut için).
+- Kiracı, kira bedelini ödemezse en az 30 gün süre verilerek ihtar çekilmelidir.`,
+
+        imar: `📜 **İmar Kanunu (3194 Sayılı)**
+- Yapı ruhsatı olmadan inşaat yapılamaz.
+- İmar planına aykırı yapılar yıkım kararına tabidir.
+- Kat karşılığı inşaat sözleşmeleri noterde yapılmalıdır.`,
+
+        vergi: `📜 **Emlak Vergisi Kanunu**
+- Konutlar için binde 1 (büyükşehirlerde binde 2)
+- Arsalar için binde 3 (büyükşehirlerde binde 6)
+- İşyerleri için binde 2 (büyükşehirlerde binde 4)
+Vergi, taşınmazın emlak beyan değeri üzerinden hesaplanır.`,
+
+        vekalet: `📜 **Noterlik Kanunu**
+Gayrimenkul alım satımı için verilen vekaletnameler:
+- Noterde düzenlenmelidir.
+- Özel yetki içermelidir.
+- Taşınmazın ada/parsel bilgileri belirtilmelidir.`,
+
+        kat: `📜 **Kat Mülkiyeti Kanunu (634 Sayılı)**
+- Ortak alanların kullanımı tüm kat maliklerinin rızasına tabidir.
+- Aidat ödemeyenler aleyhine icra takibi başlatılabilir.
+- Yönetim planı değişikliği 4/5 çoğunluk gerektirir.`,
+
+        miras: `📜 **Türk Medeni Kanunu - Miras Hukuku (Madde 495-682)**
+**Yasal Mirasçılar:**
+- 1. Zümre: Altsoy (çocuklar, torunlar)
+- 2. Zümre: Ana-baba ve kardeşler
+- 3. Zümre: Büyükanne-büyükbaba
+
+**Saklı Pay Oranları:**
+- Altsoy için: Yasal miras payının 1/2'si
+- Ana-baba için: Yasal miras payının 1/4'ü
+- Sağ kalan eş için: Yasal miras payının tamamı
+
+**Eşin Miras Payı:**
+- Altsoy ile birlikte: 1/4
+- Ana-baba zümresi ile: 1/2
+- Büyükanne-büyükbaba zümresi ile: 3/4
+- Hiç mirasçı yoksa: Tamamı
+
+**Gayrimenkul Mirası:**
+- Tapu intikali için veraset ilamı gerekir.
+- Veraset ve intikal vergisi ödenir.
+- Mirasçılar anlaşamazsa ortaklığın giderilmesi davası açılabilir.`,
+
+        medeni: `📜 **Türk Medeni Kanunu (4721 Sayılı)**
+**Gayrimenkul ile İlgili Hükümler:**
+
+**Ayni Haklar (Madde 683-778):**
+- Mülkiyet hakkı tapu siciline tescil ile kazanılır.
+- İntifa hakkı, oturma hakkı, üst hakkı gibi sınırlı ayni haklar kurulabilir.
+
+**Eşler Arası Mal Rejimi (Madde 202-281):**
+- Edinilmiş mallara katılma rejimi (yasal rejim)
+- Evlilik birliği içinde edinilen taşınmazlar ortak maldır.
+- Boşanmada değer artış payı hesaplanır.
+
+**Vesayet ve Kayyımlık:**
+- Kısıtlı kişilerin taşınmazları için mahkeme izni gerekir.
+- Kayyım atanan kişilerin gayrimenkulleri satılamaz (izinsiz).
+
+**Vakıf ve Dernek Taşınmazları:**
+- Vakıf taşınmazlarının satışı özel kurallara tabidir.
+- Dernek taşınmazları yönetim kurulu kararıyla işlem görür.`,
+
+        veraset: `📜 **Veraset ve İntikal Vergisi Kanunu**
+**Vergi Oranları (2024):**
+- İlk 1.100.000 TL için: %1
+- Sonraki 2.600.000 TL için: %3
+- Sonraki 5.500.000 TL için: %5
+- Sonraki 10.900.000 TL için: %7
+- Fazlası için: %10
+
+**İstisnalar:**
+- Eş ve çocuklara intikal eden konutun 1.100.000 TL'si vergiden muaf.
+- İvazsız intikallerde (bağış) oran 2 kat uygulanır.
+
+**Süre:**
+- Beyanname ölümden itibaren 4 ay içinde verilmelidir.
+- Yurt dışında ölüm halinde 6 ay.`,
+
+        ortaklık: `📜 **Ortaklığın Giderilmesi (İzale-i Şüyu)**
+**Türk Medeni Kanunu (Madde 698-699)**
+- Paydaşlardan her biri ortaklığın giderilmesini isteyebilir.
+- Mahkeme, malın aynen taksimini tercih eder.
+- Aynen taksim mümkün değilse satış yoluyla ortaklık giderilir.
+
+**Satış Yöntemi:**
+- Açık artırma ile satış yapılır.
+- Paydaşlar da ihaleye katılabilir.
+- Satış bedeli paylar oranında dağıtılır.
+
+**Önemli Notlar:**
+- Elbirliği mülkiyetinde tüm mirasçıların davaya dahil edilmesi gerekir.
+- Hisse satışı diğer paydaşlara önalım hakkı doğurur.`,
+      };
+
+      // Find matching law
+      const queryLower = query.toLowerCase();
+      for (const [keyword, lawText] of Object.entries(lawKnowledge)) {
+        if (queryLower.includes(keyword)) {
+          // Store in memory for future reference
+          await this.addMemory(lawText, "law_reference");
+          return {
+            success: true,
+            message: lawText,
+          };
+        }
+      }
+
+      // 3. If no match, try web research for legal info
+      const webResult = await this.webResearch(
+        `Türkiye emlak mevzuat ${query} kanun yönetmelik`,
+      );
+      if (webResult.success && webResult.message) {
+        return {
+          success: true,
+          message: `Web Araştırması Sonucu:\n${webResult.message}\n\n⚠️ Bu bilgi güncel mevzuatla doğrulanmalıdır.`,
+        };
+      }
+
       return {
         success: true,
-        data: results,
-        message: `Hatırladıklarım:\n${summary}`,
+        message: `Bu konuda hazır mevzuat bilgisi bulunamadı. Genel hükümler için:
+- Borçlar Kanunu (Kira, Satış sözleşmeleri)
+- Taşınmaz Ticareti Yönetmeliği
+- İmar Kanunu
+- Kat Mülkiyeti Kanunu
+incelenebilir.`,
       };
     } catch (e: any) {
       return { success: false, error: e.message };
@@ -206,19 +335,148 @@ export class AdminTools {
   }
 
   /**
-   * Add to Memory
+   * Search Long Term Memory (Enhanced with categories)
+   */
+  async searchMemories(query: string, category?: string): Promise<ToolResult> {
+    try {
+      // Build query conditions
+      const conditions = [ilike(aiMemory.content, `%${query}%`)];
+
+      if (category) {
+        conditions.push(eq(aiMemory.category, category));
+      }
+
+      const results = await db
+        .select()
+        .from(aiMemory)
+        .where(and(...conditions))
+        .orderBy(desc(aiMemory.importanceScore), desc(aiMemory.createdAt))
+        .limit(5);
+
+      if (results.length === 0) {
+        return {
+          success: true,
+          message: "İlgili bir hafıza kaydı bulunamadı.",
+        };
+      }
+
+      const summary = results
+        .map(
+          (r) =>
+            `📝 [${r.category || "genel"}] ${r.content}${r.tags && r.tags.length > 0 ? ` (Etiketler: ${r.tags.join(", ")})` : ""}`,
+        )
+        .join("\n\n");
+
+      // Update access count
+      for (const r of results) {
+        await db
+          .update(aiMemory)
+          .set({
+            accessCount: (r.accessCount || 0) + 1,
+            lastAccessedAt: new Date(),
+          })
+          .where(eq(aiMemory.id, r.id));
+      }
+
+      return {
+        success: true,
+        data: results,
+        message: `Hafızadan ${results.length} kayıt bulundu:\n\n${summary}`,
+      };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Add to Memory (Enhanced with metadata)
    */
   async addMemory(
     content: string,
     category: string = "general",
+    tags: string[] = [],
+    importanceScore: number = 50,
   ): Promise<ToolResult> {
     try {
+      // Check for duplicate
+      const existing = await db
+        .select()
+        .from(aiMemory)
+        .where(eq(aiMemory.content, content))
+        .limit(1);
+
+      if (existing.length > 0) {
+        // Update importance if already exists
+        await db
+          .update(aiMemory)
+          .set({
+            importanceScore: Math.min(
+              100,
+              (existing[0].importanceScore || 50) + 10,
+            ),
+            accessCount: (existing[0].accessCount || 0) + 1,
+            lastAccessedAt: new Date(),
+          })
+          .where(eq(aiMemory.id, existing[0].id));
+
+        return {
+          success: true,
+          message: "Bu bilgi zaten hafızada var, önemi artırıldı.",
+        };
+      }
+
+      // Determine memory type based on category
+      let memoryType = "long_term";
+      if (category === "law_reference") memoryType = "law_reference";
+      else if (category === "client_preference")
+        memoryType = "client_preference";
+      else if (category === "market_insight") memoryType = "market_insight";
+
       await db.insert(aiMemory).values({
-        memoryType: "long_term",
+        memoryType,
         category,
         content,
+        tags,
+        importanceScore,
       });
-      return { success: true, message: "Bilgi hafızaya kaydedildi." };
+
+      return {
+        success: true,
+        message: `✅ Bilgi hafızaya kaydedildi. Kategori: ${category}, Önem: ${importanceScore}/100`,
+      };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  /**
+   * Get memories by category
+   */
+  async getMemoriesByCategory(category: string): Promise<ToolResult> {
+    try {
+      const results = await db
+        .select()
+        .from(aiMemory)
+        .where(eq(aiMemory.category, category))
+        .orderBy(desc(aiMemory.importanceScore))
+        .limit(10);
+
+      if (results.length === 0) {
+        return {
+          success: true,
+          message: `"${category}" kategorisinde kayıt bulunamadı.`,
+        };
+      }
+
+      const summary = results
+        .map((r) => `- ${r.content.substring(0, 100)}...`)
+        .join("\n");
+
+      return {
+        success: true,
+        data: results,
+        message: `${category} kategorisinde ${results.length} kayıt:\n${summary}`,
+      };
     } catch (e: any) {
       return { success: false, error: e.message };
     }

@@ -119,11 +119,10 @@ export default function IlanAnalitikDetayPage({
           </h2>
           <div className="flex items-center gap-3 mt-2">
             <span
-              className={`text-xs px-2 py-1 rounded ${
-                listing.status === "active"
+              className={`text-xs px-2 py-1 rounded ${listing.status === "active"
                   ? "bg-emerald-500/20 text-emerald-400"
                   : "bg-slate-600/50 text-slate-400"
-              }`}
+                }`}
             >
               {listing.status === "active" ? "Aktif" : "Pasif"}
             </span>
@@ -139,6 +138,7 @@ export default function IlanAnalitikDetayPage({
         <select
           value={days}
           onChange={(e) => setDays(parseInt(e.target.value))}
+          aria-label="Tarih aralığı seçin"
           className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm"
         >
           <option value={7}>Son 7 gün</option>

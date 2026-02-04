@@ -244,9 +244,8 @@ export default function AdminKullanicilarPage() {
                   </td>
                   <td className="px-4 py-4">
                     <span
-                      className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${
-                        roleColors[user.role] || roleColors.user
-                      }`}
+                      className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium border ${roleColors[user.role] || roleColors.user
+                        }`}
                     >
                       {roleLabels[user.role] || user.role}
                     </span>
@@ -254,14 +253,12 @@ export default function AdminKullanicilarPage() {
                   <td className="px-4 py-4">
                     <button
                       onClick={() => toggleUserStatus(user)}
-                      className={`inline-flex items-center gap-1 text-sm ${
-                        user.isActive ? "text-emerald-400" : "text-slate-500"
-                      }`}
+                      className={`inline-flex items-center gap-1 text-sm ${user.isActive ? "text-emerald-400" : "text-slate-500"
+                        }`}
                     >
                       <span
-                        className={`w-2 h-2 rounded-full ${
-                          user.isActive ? "bg-emerald-400" : "bg-slate-500"
-                        }`}
+                        className={`w-2 h-2 rounded-full ${user.isActive ? "bg-emerald-400" : "bg-slate-500"
+                          }`}
                       />
                       {user.isActive ? "Aktif" : "Pasif"}
                     </button>
@@ -304,6 +301,7 @@ export default function AdminKullanicilarPage() {
               </h3>
               <button
                 onClick={() => setShowModal(false)}
+                aria-label="Kapat"
                 className="text-slate-400 hover:text-white"
               >
                 <Icon name="close" />
@@ -311,10 +309,11 @@ export default function AdminKullanicilarPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="userName" className="block text-sm font-medium text-slate-300 mb-2">
                   Ad Soyad *
                 </label>
                 <input
+                  id="userName"
                   type="text"
                   value={formData.name}
                   onChange={(e) =>
@@ -324,10 +323,11 @@ export default function AdminKullanicilarPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="userEmail" className="block text-sm font-medium text-slate-300 mb-2">
                   E-posta *
                 </label>
                 <input
+                  id="userEmail"
                   type="email"
                   value={formData.email}
                   onChange={(e) =>
@@ -367,10 +367,11 @@ export default function AdminKullanicilarPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="userRole" className="block text-sm font-medium text-slate-300 mb-2">
                   Rol
                 </label>
                 <select
+                  id="userRole"
                   value={formData.role}
                   onChange={(e) =>
                     setFormData({ ...formData, role: e.target.value })
@@ -399,8 +400,8 @@ export default function AdminKullanicilarPage() {
                 {saving
                   ? "Kaydediliyor..."
                   : editingUser
-                  ? "Güncelle"
-                  : "Kullanıcı Ekle"}
+                    ? "Güncelle"
+                    : "Kullanıcı Ekle"}
               </button>
             </div>
           </div>

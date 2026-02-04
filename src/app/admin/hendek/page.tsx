@@ -199,22 +199,20 @@ export default function HendekYonetimiPage() {
       <div className="flex gap-2 border-b border-slate-700 pb-2">
         <button
           onClick={() => setActiveTab("stats")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === "stats"
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === "stats"
               ? "bg-emerald-500/20 text-emerald-400"
               : "text-slate-400 hover:text-white hover:bg-slate-700"
-          }`}
+            }`}
         >
           <Icon name="analytics" className="mr-2" />
           İstatistikler ({stats.length})
         </button>
         <button
           onClick={() => setActiveTab("population")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === "population"
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === "population"
               ? "bg-emerald-500/20 text-emerald-400"
               : "text-slate-400 hover:text-white hover:bg-slate-700"
-          }`}
+            }`}
         >
           <Icon name="groups" className="mr-2" />
           Nüfus Geçmişi ({population.length})
@@ -254,15 +252,14 @@ export default function HendekYonetimiPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        stat.color === "blue"
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.color === "blue"
                           ? "bg-blue-500/20 text-blue-400"
                           : stat.color === "forest"
-                          ? "bg-green-500/20 text-green-400"
-                          : stat.color === "purple"
-                          ? "bg-purple-500/20 text-purple-400"
-                          : "bg-[var(--terracotta)]/20 text-[var(--terracotta)]"
-                      }`}
+                            ? "bg-green-500/20 text-green-400"
+                            : stat.color === "purple"
+                              ? "bg-purple-500/20 text-purple-400"
+                              : "bg-[var(--terracotta)]/20 text-[var(--terracotta)]"
+                        }`}
                     >
                       <Icon
                         name={stat.icon || "analytics"}
@@ -300,6 +297,7 @@ export default function HendekYonetimiPage() {
                     </span>
                     <button
                       onClick={() => openModal(stat)}
+                      aria-label="İstatistiği düzenle"
                       className="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-700 rounded transition-colors"
                     >
                       <Icon name="edit" />
@@ -348,13 +346,12 @@ export default function HendekYonetimiPage() {
                   <td className="px-4 py-3 text-right">
                     {pop.growthRate && (
                       <span
-                        className={`font-mono font-bold ${
-                          parseFloat(pop.growthRate) > 0
+                        className={`font-mono font-bold ${parseFloat(pop.growthRate) > 0
                             ? "text-green-400"
                             : parseFloat(pop.growthRate) < 0
-                            ? "text-red-400"
-                            : "text-slate-400"
-                        }`}
+                              ? "text-red-400"
+                              : "text-slate-400"
+                          }`}
                       >
                         {parseFloat(pop.growthRate) > 0 ? "+" : ""}
                         {pop.growthRate}%
@@ -378,6 +375,7 @@ export default function HendekYonetimiPage() {
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Kapat"
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
               >
                 <Icon name="close" />
@@ -482,10 +480,11 @@ export default function HendekYonetimiPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="statIcon" className="block text-sm font-medium text-slate-300 mb-2">
                     İkon
                   </label>
                   <select
+                    id="statIcon"
                     value={formData.icon}
                     onChange={(e) =>
                       setFormData({ ...formData, icon: e.target.value })
@@ -500,10 +499,11 @@ export default function HendekYonetimiPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="statColor" className="block text-sm font-medium text-slate-300 mb-2">
                     Renk
                   </label>
                   <select
+                    id="statColor"
                     value={formData.color}
                     onChange={(e) =>
                       setFormData({ ...formData, color: e.target.value })
@@ -563,8 +563,9 @@ export default function HendekYonetimiPage() {
                   <span className="text-sm text-slate-300">Aktif</span>
                 </label>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-slate-300">Sıra:</label>
+                  <label htmlFor="statSortOrder" className="text-sm text-slate-300">Sıra:</label>
                   <input
+                    id="statSortOrder"
                     type="number"
                     value={formData.sortOrder}
                     onChange={(e) =>

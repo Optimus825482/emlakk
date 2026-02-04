@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { contacts } from "@/db/schema";
 import { updateContactSchema } from "@/lib/validations";
 import { eq } from "drizzle-orm";
+import { withAdmin } from "@/lib/api-auth";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -10,7 +11,7 @@ type RouteParams = { params: Promise<{ id: string }> };
  * GET /api/contacts/[id]
  * Get a single contact message
  */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export const GET = withAdmin(async (request: NextRequest, { params }) => {
   try {
     const { id } = await params;
 
@@ -29,16 +30,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     console.error("Contact GET error:", error);
     return NextResponse.json(
       { error: "Mesaj yüklenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-}
+});
 
 /**
  * PATCH /api/contacts/[id]
  * Update contact status, add notes or reply
  */
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export const PATCH = withAdmin(async (request: NextRequest, { params }) => {
   try {
     const { id } = await params;
     const body = await request.json();
@@ -47,7 +48,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Geçersiz veri", details: validation.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -83,16 +84,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     console.error("Contact PATCH error:", error);
     return NextResponse.json(
       { error: "Mesaj güncellenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-}
+});
 
 /**
  * DELETE /api/contacts/[id]
  * Delete a contact message
  */
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export const DELETE = withAdmin(async (request: NextRequest, { params }) => {
   try {
     const { id } = await params;
 
@@ -112,7 +113,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     console.error("Contact DELETE error:", error);
     return NextResponse.json(
       { error: "Mesaj silinirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
-}
+});

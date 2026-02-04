@@ -4,7 +4,12 @@ import { siteSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { withAdmin } from "@/lib/api-auth";
 
-export async function GET() {
+/**
+ * GET /api/settings
+ * Get site settings
+ * Security: Admin only (contains sensitive info like emails, phones)
+ */
+async function getHandler() {
   try {
     let [settings] = await db.select().from(siteSettings).limit(1);
 
@@ -44,6 +49,9 @@ export async function GET() {
   }
 }
 
+// Export GET with admin protection
+export const GET = withAdmin(getHandler);
+
 export const PATCH = withAdmin(async (request: NextRequest) => {
   try {
     const body = await request.json();
@@ -61,12 +69,34 @@ export const PATCH = withAdmin(async (request: NextRequest) => {
 
     console.log("PATCH /api/settings - Mevcut ayarlar:", existing);
 
+    // Whitelist: Only allow specific fields to be updated
+    const allowedFields = [
+      "siteName",
+      "siteTagline",
+      "phone",
+      "email",
+      "whatsapp",
+      "address",
+      "socialMedia",
+      "workingHours",
+      "footerText",
+      "copyrightText",
+    ];
+
+    // Filter body to only include allowed fields
+    const updateData: Record<string, any> = {};
+    for (const field of allowedFields) {
+      if (field in body) {
+        updateData[field] = body[field];
+      }
+    }
+
+    // Add updatedAt timestamp
+    updateData.updatedAt = new Date();
+
     const [updated] = await db
       .update(siteSettings)
-      .set({
-        ...body,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(siteSettings.id, existing.id))
       .returning();
 

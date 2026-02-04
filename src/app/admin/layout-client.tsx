@@ -26,7 +26,11 @@ export function AdminLayoutClient({ children, user }: AdminLayoutClientProps) {
       <AdminHeader user={user} onMenuClick={openMobileMenu} />
       <div className="flex flex-1 overflow-hidden">
         <AdminSidebar />
-        <MobileSidebar isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+        <MobileSidebar 
+          isOpen={isMobileMenuOpen} 
+          onClose={closeMobileMenu} 
+          user={user}
+        />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {children}
         </main>

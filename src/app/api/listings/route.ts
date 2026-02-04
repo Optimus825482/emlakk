@@ -1,17 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { listings, type ListingType, type ListingStatus } from "@/db/schema";
-import {
-  createListingSchema,
-  listingQuerySchema,
-  type CreateListing,
-} from "@/lib/validations";
+import { createListingSchema, listingQuerySchema } from "@/lib/validations";
 import { slugify, calculatePricePerSqm } from "@/lib/utils";
 import { eq, and, gte, lte, sql, desc, asc } from "drizzle-orm";
 import { triggerListingDescription } from "@/lib/workflow-trigger";
 import { triggerSeoGeneration } from "@/lib/seo-trigger";
 import { log, captureError } from "@/lib/monitoring";
 import { withAdmin } from "@/lib/api-auth";
+import { successResponse, errors, createPagination } from "@/lib/api-utils";
 
 const SORTABLE_COLUMNS = {
   createdAt: listings.createdAt,
@@ -28,13 +25,7 @@ export async function GET(request: NextRequest) {
 
     const query = listingQuerySchema.safeParse(params);
     if (!query.success) {
-      return NextResponse.json(
-        {
-          error: "Geçersiz sorgu parametreleri",
-          details: query.error.flatten(),
-        },
-        { status: 400 },
-      );
+      return errors.validation(query.error.flatten());
     }
 
     const {
@@ -69,10 +60,12 @@ export async function GET(request: NextRequest) {
     if (isFeatured !== undefined)
       conditions.push(eq(listings.isFeatured, isFeatured));
     if (search) {
+      // Sanitize search input to prevent SQL injection via ILIKE wildcards
+      const sanitizedSearch = search.replace(/[%_]/g, "\\$&");
       conditions.push(
-        sql`(${listings.title} ILIKE ${`%${search}%`} OR ${
+        sql`(${listings.title} ILIKE ${`%${sanitizedSearch}%`} OR ${
           listings.address
-        } ILIKE ${`%${search}%`})`,
+        } ILIKE ${`%${sanitizedSearch}%`})`,
       );
     }
 
@@ -96,24 +89,14 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .offset(offset);
 
-    return NextResponse.json({
-      data: results,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasMore: offset + results.length < total,
-      },
+    return successResponse(results, {
+      pagination: createPagination(page, limit, total),
     });
   } catch (error) {
     if (error instanceof Error) {
       await captureError(error, { module: "listings-api", method: "GET" });
     }
-    return NextResponse.json(
-      { error: "İlanlar yüklenirken bir hata oluştu" },
-      { status: 500 },
-    );
+    return errors.serverError("İlanlar yüklenirken bir hata oluştu");
   }
 }
 
@@ -123,10 +106,7 @@ export const POST = withAdmin(async (request: NextRequest) => {
 
     const validation = createListingSchema.safeParse(body);
     if (!validation.success) {
-      return NextResponse.json(
-        { error: "Gecersiz veri", details: validation.error.flatten() },
-        { status: 400 },
-      );
+      return errors.validation(validation.error.flatten());
     }
 
     const data = validation.data;
@@ -201,17 +181,14 @@ export const POST = withAdmin(async (request: NextRequest) => {
       listingId: newListing.id,
     });
 
-    return NextResponse.json(
-      { data: newListing, message: "Ilan basariyla olusturuldu" },
-      { status: 201 },
-    );
+    return successResponse(newListing, {
+      message: "İlan başarıyla oluşturuldu",
+      status: 201,
+    });
   } catch (error) {
     if (error instanceof Error) {
       await captureError(error, { module: "listings-api", method: "POST" });
     }
-    return NextResponse.json(
-      { error: "Ilan olusturulurken bir hata olustu" },
-      { status: 500 },
-    );
+    return errors.serverError("İlan oluşturulurken bir hata oluştu");
   }
 });

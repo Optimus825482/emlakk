@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
@@ -191,7 +191,7 @@ function SectionHeader({
   );
 }
 
-function SanayiCard({ listing }: { listing: Listing }) {
+const SanayiCard = memo(({ listing }: { listing: Listing }) => {
   return (
     <Link
       href={`/ilanlar/${listing.slug}`}
@@ -202,6 +202,7 @@ function SanayiCard({ listing }: { listing: Listing }) {
           src={listing.images?.[0] || "/placeholder.jpg"}
           alt={listing.title}
           fill
+          sizes="300px"
           className="object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-3 left-3">
@@ -233,9 +234,11 @@ function SanayiCard({ listing }: { listing: Listing }) {
       </div>
     </Link>
   );
-}
+});
 
-function TarimCard({ listing }: { listing: Listing }) {
+SanayiCard.displayName = "SanayiCard";
+
+const TarimCard = memo(({ listing }: { listing: Listing }) => {
   return (
     <Link
       href={`/ilanlar/${listing.slug}`}
@@ -246,6 +249,7 @@ function TarimCard({ listing }: { listing: Listing }) {
           src={listing.images?.[0] || "/placeholder.jpg"}
           alt={listing.title}
           fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           className="object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-3 left-3">
@@ -272,9 +276,11 @@ function TarimCard({ listing }: { listing: Listing }) {
       </div>
     </Link>
   );
-}
+});
 
-function KonutCard({ listing }: { listing: Listing }) {
+TarimCard.displayName = "TarimCard";
+
+const KonutCard = memo(({ listing }: { listing: Listing }) => {
   return (
     <Link
       href={`/ilanlar/${listing.slug}`}
@@ -285,6 +291,7 @@ function KonutCard({ listing }: { listing: Listing }) {
           src={listing.images?.[0] || "/placeholder.jpg"}
           alt={listing.title}
           fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           className="object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-3 left-3">
@@ -313,4 +320,6 @@ function KonutCard({ listing }: { listing: Listing }) {
       </div>
     </Link>
   );
-}
+});
+
+KonutCard.displayName = "KonutCard";

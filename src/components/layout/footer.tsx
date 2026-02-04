@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 
@@ -37,7 +37,7 @@ const defaultSettings: SiteSettings = {
   copyrightText: "© 2026 Demir Gayrimenkul. Tüm hakları saklıdır.",
 };
 
-export function Footer() {
+export const Footer = memo(() => {
   const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
 
   useEffect(() => {
@@ -302,4 +302,6 @@ export function Footer() {
       </div>
     </footer>
   );
-}
+});
+
+Footer.displayName = "Footer";

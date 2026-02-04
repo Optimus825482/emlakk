@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
@@ -114,6 +114,8 @@ export function FeaturedListings() {
                         src={mainListing.images?.[0] || "/placeholder.jpg"}
                         alt={mainListing.title}
                         fill
+                        priority={true}
+                        sizes="(max-width: 1024px) 100vw, 66vw"
                         className="object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                       <div className="absolute top-4 left-4 z-20 flex gap-2">
@@ -232,7 +234,7 @@ function FilterButtons({
   );
 }
 
-function SideListingCard({ listing }: { listing: Listing }) {
+const SideListingCard = memo(({ listing }: { listing: Listing }) => {
   const typeColors: Record<string, string> = {
     tarim: "bg-[var(--forest)]",
     konut: "bg-[var(--terracotta)]",
@@ -250,6 +252,7 @@ function SideListingCard({ listing }: { listing: Listing }) {
           src={listing.images?.[0] || "/placeholder.jpg"}
           alt={listing.title}
           fill
+          sizes="(max-width: 1024px) 100vw, 33vw"
           className="object-cover transition-transform duration-500 group-hover:scale-110"
         />
         <div className="absolute top-3 left-3">
@@ -277,7 +280,9 @@ function SideListingCard({ listing }: { listing: Listing }) {
       </div>
     </Link>
   );
-}
+});
+
+SideListingCard.displayName = "SideListingCard";
 
 function getTypeLabel(type: string): string {
   const labels: Record<string, string> = {

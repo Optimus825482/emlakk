@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
@@ -19,10 +19,10 @@ const STORAGE_KEYS = {
   IS_OPEN: "demir-ai-is-open",
 };
 
-export function ListingAIAssistant({
+export const ListingAIAssistant = memo(({
   listingData,
   onUpdateField,
-}: ListingAIAssistantProps) {
+}: ListingAIAssistantProps) => {
   // Load saved state from localStorage
   const [isOpen, setIsOpen] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -418,4 +418,6 @@ export function ListingAIAssistant({
       )}
     </>
   );
-}
+});
+
+ListingAIAssistant.displayName = "ListingAIAssistant";

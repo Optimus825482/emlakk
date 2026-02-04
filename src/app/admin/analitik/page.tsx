@@ -188,6 +188,7 @@ export default function AdminAnalitikPage() {
           <select
             value={dateRange}
             onChange={(e) => setDateRange(parseInt(e.target.value))}
+            aria-label="Tarih aralığı seçin"
             className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm"
           >
             <option value={0.04}>Son 60 Dakika</option>

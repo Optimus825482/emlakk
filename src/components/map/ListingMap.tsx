@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const MapComponent = dynamic(() => import("./MapComponent"), {
+const MapComponent = dynamic(() => import("./map-view"), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-slate-100 dark:bg-slate-900 animate-pulse flex items-center justify-center rounded-[2rem]">
@@ -15,6 +15,13 @@ const MapComponent = dynamic(() => import("./MapComponent"), {
     </div>
   ),
 });
+
+const DEFAULT_SETTINGS = {
+  mapType: "roadmap" as const,
+  showClusters: true,
+  showTraffic: false,
+  showLabels: true,
+};
 
 export default function ListingMap() {
   const [listings, setListings] = useState([]);
@@ -27,7 +34,21 @@ export default function ListingMap() {
         const response = await fetch("/api/listings?limit=100&status=active");
         const result = await response.json();
         if (result.data) {
-          setListings(result.data.filter((l: any) => l.latitude && l.longitude));
+          setListings(result.data
+            .filter((l: any) => l.features?.latitude && l.features?.longitude)
+            .map((l: any) => ({
+              id: l.id,
+              latitude: Number(l.features.latitude),
+              longitude: Number(l.features.longitude),
+              title: l.title,
+              price: l.price,
+              category: l.category,
+              type: l.transactionType,
+              slug: l.slug,
+              thumbnail: l.thumbnail,
+              isExact: true
+            }))
+          );
         }
       } catch (error) {
         console.error("Listings fetch error:", error);
@@ -40,7 +61,7 @@ export default function ListingMap() {
 
   const filteredListings = filter === "all" 
     ? listings 
-    : listings.filter((l: any) => l.type === filter);
+    : listings.filter((l: any) => l.category === filter);
 
   return (
     <div className="flex flex-col gap-6 h-[calc(100vh-200px)] min-h-[600px]">
@@ -50,7 +71,7 @@ export default function ListingMap() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-premium ${
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                 filter === f 
                   ? "bg-primary-600 text-white shadow-lg shadow-primary-500/30" 
                   : "text-slate-500 hover:bg-white dark:hover:bg-slate-800"
@@ -70,7 +91,11 @@ export default function ListingMap() {
 
       <div className="flex-1 relative">
         {filteredListings.length > 0 ? (
-          <MapComponent listings={filteredListings} />
+          <MapComponent 
+            listings={filteredListings} 
+            settings={DEFAULT_SETTINGS}
+            onSettingsChange={() => {}}
+          />
         ) : !loading ? (
           <div className="w-full h-full bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center p-12 text-center">
             <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">

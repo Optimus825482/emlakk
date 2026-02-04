@@ -261,6 +261,7 @@ export default function AIKnowledgePage() {
                       type="file"
                       accept=".pdf,.md,.txt"
                       onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      aria-label="Dosya yükle (PDF, MD veya TXT)"
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                     />
                     <div className="p-4 bg-slate-800 rounded-full group-hover:scale-110 transition-transform">
@@ -306,10 +307,11 @@ export default function AIKnowledgePage() {
 
               <div className="pt-4 border-t border-slate-700/50 space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                  <label htmlFor="aiCategory" className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
                     Kategori
                   </label>
                   <select
+                    id="aiCategory"
                     value={formData.category}
                     onChange={(e) =>
                       setFormData({ ...formData, category: e.target.value })
@@ -327,10 +329,11 @@ export default function AIKnowledgePage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
+                    <label htmlFor="importanceScore" className="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">
                       Önem Puanı
                     </label>
                     <input
+                      id="importanceScore"
                       type="number"
                       min="0"
                       max="100"
@@ -391,11 +394,13 @@ export default function AIKnowledgePage() {
                   <input
                     type="text"
                     placeholder="Ara..."
+                    aria-label="Bilgi tabanında ara"
                     className="bg-slate-900 border-none rounded-full pl-9 pr-4 py-1.5 text-sm text-white w-48 focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
                 <button
                   onClick={fetchItems}
+                  aria-label="Yenile"
                   className="p-2 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors"
                 >
                   <RefreshCw

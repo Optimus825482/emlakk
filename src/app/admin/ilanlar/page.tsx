@@ -171,41 +171,47 @@ export default function AdminIlanlarPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <select
-          value={filters.type}
-          onChange={(e) => {
-            setFilters((f) => ({ ...f, type: e.target.value }));
-            setCurrentPage(1);
-          }}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        >
-          <option value="">Tüm Tipler</option>
-          <option value="sanayi">Sanayi</option>
-          <option value="tarim">Tarım</option>
-          <option value="konut">Konut</option>
-          <option value="ticari">Ticari</option>
-          <option value="arsa">Arsa</option>
-        </select>
-        <select
-          value={filters.status}
-          onChange={(e) => {
-            setFilters((f) => ({ ...f, status: e.target.value }));
-            setCurrentPage(1);
-          }}
-          className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        >
-          <option value="">Tüm Durumlar</option>
-          <option value="active">Aktif</option>
-          <option value="pending">Beklemede</option>
-          <option value="sold">Satıldı</option>
-          <option value="draft">Taslak</option>
-        </select>
-        <div className="flex-1 min-w-[200px]">
-          <div className="relative">
+      <div className="grid grid-cols-2 md:flex md:flex-wrap gap-3">
+        <div className="col-span-1">
+          <select
+            value={filters.type}
+            onChange={(e) => {
+              setFilters((f) => ({ ...f, type: e.target.value }));
+              setCurrentPage(1);
+            }}
+            aria-label="İlan tipi filtresi"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
+          >
+            <option value="">TÜM TİPLER</option>
+            <option value="sanayi">SANAYİ</option>
+            <option value="tarim">TARIM</option>
+            <option value="konut">KONUT</option>
+            <option value="ticari">TİCARİ</option>
+            <option value="arsa">ARSA</option>
+          </select>
+        </div>
+        <div className="col-span-1">
+          <select
+            value={filters.status}
+            onChange={(e) => {
+              setFilters((f) => ({ ...f, status: e.target.value }));
+              setCurrentPage(1);
+            }}
+            aria-label="İlan durumu filtresi"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
+          >
+            <option value="">TÜM DURUMLAR</option>
+            <option value="active">AKTİF</option>
+            <option value="pending">BEKLEMEDE</option>
+            <option value="sold">SATILDI</option>
+            <option value="draft">TASLAK</option>
+          </select>
+        </div>
+        <div className="col-span-2 md:flex-1 md:min-w-[200px]">
+          <div className="relative group">
             <Icon
               name="search"
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors"
             />
             <input
               type="text"
@@ -214,13 +220,13 @@ export default function AdminIlanlarPage() {
               onChange={(e) =>
                 setFilters((f) => ({ ...f, search: e.target.value }))
               }
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
             />
           </div>
         </div>
       </div>
 
-      {/* Listings Table */}
+      {/* Listings Container */}
       <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -250,7 +256,91 @@ export default function AdminIlanlarPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Mobile Card View (Visible only on small screens) */}
+            <div className="grid grid-cols-1 divide-y divide-slate-700 md:hidden">
+              {listings.map((listing) => (
+                <div key={listing.id} className="p-4 space-y-4">
+                  <div className="flex gap-4">
+                    <div className="relative w-24 h-20 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+                      {listing.thumbnail || listing.images?.[0] ? (
+                        <Image
+                          src={listing.thumbnail || listing.images[0]}
+                          alt={listing.title}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Icon name="image" className="text-slate-500" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className="text-white font-medium text-sm line-clamp-2">
+                          {listing.title}
+                        </h4>
+                        {listing.isFeatured && (
+                          <Icon name="star" className="text-amber-400 text-sm" filled />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold text-white ${typeColors[listing.type]}`}>
+                          {typeLabels[listing.type]}
+                        </span>
+                        <span className="text-slate-500 text-xs">
+                          {listing.area.toLocaleString("tr-TR")}m²
+                        </span>
+                      </div>
+                      <p className="text-emerald-400 font-mono text-sm font-bold mt-1">
+                        ₺{(parseFloat(listing.price) / 1000000).toFixed(1)}M
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3 pt-2">
+                    <div className="flex-1">
+                      <select
+                        value={listing.status}
+                        onChange={(e) => handleStatusChange(listing.id, e.target.value)}
+                        aria-label={`${listing.title} durumunu değiştir`}
+                        className={`w-full px-3 py-2 rounded-lg text-xs font-bold border bg-slate-900/50 cursor-pointer ${statusColors[listing.status]}`}
+                      >
+                        <option value="draft">TASLAK</option>
+                        <option value="pending">BEKLEMEDE</option>
+                        <option value="active">AKTİF</option>
+                        <option value="sold">SATILDI</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Link
+                        href={`/admin/ilanlar/${listing.id}`}
+                        className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-all active:scale-90"
+                      >
+                        <Icon name="edit" />
+                      </Link>
+                      <Link
+                        href={`/ilanlar/${listing.slug}`}
+                        target="_blank"
+                        className="p-2.5 text-slate-400 hover:text-emerald-400 hover:bg-slate-700 rounded-xl transition-all active:scale-90"
+                      >
+                        <Icon name="open_in_new" />
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(listing.id)}
+                        aria-label="İlanı sil"
+                        className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-xl transition-all active:scale-90"
+                      >
+                        <Icon name="delete" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View (Hidden on small screens) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-700 bg-slate-900/50">
@@ -308,9 +398,8 @@ export default function AdminIlanlarPage() {
                       </td>
                       <td className="px-4 py-4">
                         <span
-                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium text-white ${
-                            typeColors[listing.type]
-                          }`}
+                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium text-white ${typeColors[listing.type]
+                            }`}
                         >
                           {typeLabels[listing.type]}
                         </span>
@@ -321,9 +410,9 @@ export default function AdminIlanlarPage() {
                           onChange={(e) =>
                             handleStatusChange(listing.id, e.target.value)
                           }
-                          className={`px-2 py-1 rounded text-xs font-medium border bg-transparent cursor-pointer ${
-                            statusColors[listing.status]
-                          }`}
+                          aria-label="Durum değiştir"
+                          className={`px-2 py-1 rounded text-xs font-medium border bg-transparent cursor-pointer ${statusColors[listing.status]
+                            }`}
                         >
                           <option
                             value="draft"
@@ -397,23 +486,21 @@ export default function AdminIlanlarPage() {
 
             {/* Pagination */}
             {pagination && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700">
-                <p className="text-slate-400 text-sm">
-                  {(currentPage - 1) * pagination.limit + 1}-
-                  {Math.min(currentPage * pagination.limit, pagination.total)} /{" "}
-                  {pagination.total} ilan
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-4 border-t border-slate-700 bg-slate-900/30">
+                <p className="text-slate-500 text-xs font-mono uppercase tracking-widest">
+                  GÖSTERİLEN: <span className="text-slate-300">{(currentPage - 1) * pagination.limit + 1}-{Math.min(currentPage * pagination.limit, pagination.total)}</span> / <span className="text-emerald-500">{pagination.total}</span> İLAN
                 </p>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex-1 sm:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed transition-all border border-slate-700 active:scale-95"
                   >
                     Önceki
                   </button>
-                  <span className="px-3 py-1 text-slate-400 text-sm">
+                  <div className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono text-emerald-400 font-bold">
                     {currentPage} / {pagination.totalPages}
-                  </span>
+                  </div>
                   <button
                     onClick={() =>
                       setCurrentPage((p) =>
@@ -421,7 +508,7 @@ export default function AdminIlanlarPage() {
                       )
                     }
                     disabled={currentPage === pagination.totalPages}
-                    className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex-1 sm:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed transition-all border border-slate-700 active:scale-95"
                   >
                     Sonraki
                   </button>

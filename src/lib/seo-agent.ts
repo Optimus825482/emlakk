@@ -1,5 +1,5 @@
 /**
- * SEO Agent - DeepSeek-Reasoner ile Otomatik SEO Optimizasyonu
+ * SEO Agent - DeepSeek ile Otomatik SEO Optimizasyonu
  *
  * Bu agent, içerik eklendiğinde veya güncellendiğinde otomatik olarak:
  * - Meta title ve description oluşturur
@@ -174,7 +174,7 @@ function generateFallbackSeo(input: SeoInput): SeoOutput {
       strengths: ["Temel SEO meta verileri oluşturuldu"],
       weaknesses: ["AI optimizasyonu yapılamadı"],
       suggestions: [
-        "DeepSeek API anahtarını kontrol edin",
+        "AI API anahtarını kontrol edin",
         "Manuel SEO düzenlemesi yapın",
       ],
     },

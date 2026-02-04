@@ -67,6 +67,9 @@ const DEFAULT_MODELS: Record<AIProvider, string[]> = {
     "claude-3-opus-20240229",
   ],
   "google-gemini": [
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-2.0-flash",
     "gemini-2.0-flash-exp",
     "gemini-1.5-pro",
     "gemini-1.5-flash",
@@ -97,7 +100,7 @@ export default function AdminAyarlarPage() {
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] =
     useState<AIProvider>("deepseek");
-  const [selectedModel, setSelectedModel] = useState("deepseek-chat");
+  const [selectedModel, setSelectedModel] = useState("deepseek-reasoner");
 
   // SMTP Settings State
   const [smtpSettings, setSmtpSettings] = useState({
@@ -142,7 +145,7 @@ export default function AdminAyarlarPage() {
         setSystemSettings(result.data);
         const provider = (result.data.aiProvider || "deepseek") as AIProvider;
         setSelectedProvider(provider);
-        setSelectedModel(result.data.aiModel || "deepseek-chat");
+        setSelectedModel(result.data.aiModel || "deepseek-reasoner");
         // Load default models for current provider
         setAvailableModels(DEFAULT_MODELS[provider] || []);
       }
@@ -409,11 +412,10 @@ export default function AdminAyarlarPage() {
       {/* Message */}
       {message && (
         <div
-          className={`p-4 rounded-lg flex items-center gap-3 ${
-            message.type === "success"
+          className={`p-4 rounded-lg flex items-center gap-3 ${message.type === "success"
               ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
               : "bg-red-500/10 border border-red-500/20 text-red-400"
-          }`}
+            }`}
         >
           <Icon name={message.type === "success" ? "check_circle" : "error"} />
           {message.text}
@@ -426,11 +428,10 @@ export default function AdminAyarlarPage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-              activeTab === tab.key
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.key
                 ? "bg-emerald-500 text-slate-900"
                 : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"
-            }`}
+              }`}
           >
             <Icon name={tab.icon} className="text-lg" />
             {tab.label}
@@ -445,10 +446,11 @@ export default function AdminAyarlarPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="siteName" className="block text-sm font-medium text-slate-300 mb-2">
                   Site Adı
                 </label>
                 <input
+                  id="siteName"
                   type="text"
                   value={settings.siteName || ""}
                   onChange={(e) => updateSettings("siteName", e.target.value)}
@@ -456,10 +458,11 @@ export default function AdminAyarlarPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="siteTagline" className="block text-sm font-medium text-slate-300 mb-2">
                   Slogan
                 </label>
                 <input
+                  id="siteTagline"
                   type="text"
                   value={settings.siteTagline || ""}
                   onChange={(e) =>
@@ -470,10 +473,11 @@ export default function AdminAyarlarPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="footerText" className="block text-sm font-medium text-slate-300 mb-2">
                 Footer Metni
               </label>
               <textarea
+                id="footerText"
                 value={settings.footerText || ""}
                 onChange={(e) => updateSettings("footerText", e.target.value)}
                 rows={3}
@@ -481,10 +485,11 @@ export default function AdminAyarlarPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="copyrightText" className="block text-sm font-medium text-slate-300 mb-2">
                 Copyright Metni
               </label>
               <input
+                id="copyrightText"
                 type="text"
                 value={settings.copyrightText || ""}
                 onChange={(e) =>
@@ -501,10 +506,11 @@ export default function AdminAyarlarPage() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="phone" className="block text-sm font-medium text-slate-300 mb-2">
                   Telefon
                 </label>
                 <input
+                  id="phone"
                   type="text"
                   value={settings.phone || ""}
                   onChange={(e) => updateSettings("phone", e.target.value)}
@@ -512,10 +518,11 @@ export default function AdminAyarlarPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label htmlFor="whatsapp" className="block text-sm font-medium text-slate-300 mb-2">
                   WhatsApp
                 </label>
                 <input
+                  id="whatsapp"
                   type="text"
                   value={settings.whatsapp || ""}
                   onChange={(e) => updateSettings("whatsapp", e.target.value)}
@@ -524,10 +531,11 @@ export default function AdminAyarlarPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
                 E-posta
               </label>
               <input
+                id="email"
                 type="email"
                 value={settings.email || ""}
                 onChange={(e) => updateSettings("email", e.target.value)}
@@ -535,10 +543,11 @@ export default function AdminAyarlarPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="address" className="block text-sm font-medium text-slate-300 mb-2">
                 Adres
               </label>
               <textarea
+                id="address"
                 value={settings.address || ""}
                 onChange={(e) => updateSettings("address", e.target.value)}
                 rows={2}
@@ -547,10 +556,11 @@ export default function AdminAyarlarPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="mapEmbedUrl" className="block text-sm font-medium text-slate-300 mb-2">
                 Google Maps Embed URL
               </label>
               <input
+                id="mapEmbedUrl"
                 type="url"
                 value={settings.mapEmbedUrl || ""}
                 onChange={(e) => updateSettings("mapEmbedUrl", e.target.value)}
@@ -558,8 +568,8 @@ export default function AdminAyarlarPage() {
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-mono text-sm"
               />
               <p className="text-xs text-slate-500 mt-2">
-                Google Maps'te konumunuzu bulun → Paylaş → Haritayı yerleştir →
-                HTML kodunu kopyalayın → src="..." kısmındaki URL'yi buraya
+                Google Maps&apos;te konumunuzu bulun → Paylaş → Haritayı yerleştir →
+                HTML kodunu kopyalayın → src=&quot;...&quot; kısmındaki URL&apos;yi buraya
                 yapıştırın
               </p>
             </div>
@@ -569,10 +579,11 @@ export default function AdminAyarlarPage() {
               </label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label htmlFor="weekdays" className="block text-xs text-slate-500 mb-1">
                     Hafta İçi
                   </label>
                   <input
+                    id="weekdays"
                     type="text"
                     value={settings.workingHours?.weekdays || ""}
                     onChange={(e) =>
@@ -587,13 +598,13 @@ export default function AdminAyarlarPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label htmlFor="saturday" className="block text-xs text-slate-500 mb-1">
                     Cumartesi
                   </label>
                   <input
+                    id="saturday"
                     type="text"
-                    value={settings.workingHours?.saturday || ""}
-                    onChange={(e) =>
+                    value={settings.workingHours?.saturday || ""} onChange={(e) =>
                       updateNestedSettings(
                         "workingHours",
                         "saturday",
@@ -605,10 +616,11 @@ export default function AdminAyarlarPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-500 mb-1">
+                  <label htmlFor="sunday" className="block text-xs text-slate-500 mb-1">
                     Pazar
                   </label>
                   <input
+                    id="sunday"
                     type="text"
                     value={settings.workingHours?.sunday || ""}
                     onChange={(e) =>
@@ -941,10 +953,11 @@ export default function AdminAyarlarPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="smtpEncryption" className="block text-sm font-medium text-slate-300 mb-2">
                     Şifreleme
                   </label>
                   <select
+                    id="smtpEncryption"
                     value={smtpSettings.smtpEncryption}
                     onChange={(e) =>
                       setSmtpSettings({
@@ -1191,11 +1204,10 @@ export default function AdminAyarlarPage() {
                       }
                       setNewApiKey("");
                     }}
-                    className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
-                      selectedProvider === provider.value
+                    className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${selectedProvider === provider.value
                         ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
                         : "border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-600"
-                    }`}
+                      }`}
                   >
                     <Icon name={provider.icon} className="text-xl" />
                     <span className="font-medium">{provider.label}</span>
@@ -1215,11 +1227,10 @@ export default function AdminAyarlarPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span
-                        className={`w-3 h-3 rounded-full ${
-                          systemSettings.aiApiKeyValid
+                        className={`w-3 h-3 rounded-full ${systemSettings.aiApiKeyValid
                             ? "bg-emerald-400"
                             : "bg-yellow-400"
-                        }`}
+                          }`}
                       />
                       <span className="text-sm text-slate-300">
                         {systemSettings.aiApiKeyValid
@@ -1311,9 +1322,12 @@ export default function AdminAyarlarPage() {
                 </div>
 
                 <div className="space-y-4">
+                  <label htmlFor="aiModel" className="sr-only">AI Model Seçimi</label>
                   <select
+                    id="aiModel"
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
+                    aria-label="AI Model Seçimi"
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   >
                     {availableModels.length > 0 ? (

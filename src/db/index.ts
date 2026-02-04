@@ -29,6 +29,7 @@ if (env.NODE_ENV !== "production") {
 }
 
 // Graceful shutdown - only in Node.js runtime (not Edge)
+// Graceful shutdown - only in Node.js runtime (not Edge)
 if (typeof process !== "undefined" && process.on) {
   const shutdown = async () => {
     if (globalForDb.queryClient) {
@@ -37,8 +38,12 @@ if (typeof process !== "undefined" && process.on) {
     }
   };
 
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
+  // Prevent adding multiple listeners during hot reload (dev mode)
+  if (!(globalForDb as any).shutdownRegistered) {
+    process.on("SIGTERM", shutdown);
+    process.on("SIGINT", shutdown);
+    (globalForDb as any).shutdownRegistered = true;
+  }
 }
 
 export const db = drizzle(queryClient, { schema });

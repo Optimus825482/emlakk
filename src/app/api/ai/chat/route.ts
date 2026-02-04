@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrchestrator } from "@/lib/ai/orchestrator";
-import { DeepSeekMessage } from "@/lib/ai/deepseek";
+import { GeminiMessage } from "@/lib/ai/gemini";
+import { withRateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/ai/chat
  * Demir Agent ile müşteri chat - Lead scoring özellikli
+ * Security: Rate limited (10 req/min per IP to prevent API abuse)
  */
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     const body = await request.json();
     const { message, chatHistory = [], visitorInfo } = body;
@@ -14,24 +16,24 @@ export async function POST(request: NextRequest) {
     if (!message || typeof message !== "string") {
       return NextResponse.json(
         { error: "Mesaj alanı zorunludur" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const orchestrator = getOrchestrator();
 
     // Chat history'yi doğru formata çevir
-    const formattedHistory: DeepSeekMessage[] = chatHistory.map(
+    const formattedHistory: GeminiMessage[] = chatHistory.map(
       (msg: { role: string; content: string }) => ({
         role: msg.role as "user" | "assistant" | "system",
         content: msg.content,
-      })
+      }),
     );
 
     const result = await orchestrator.demirAgentChat(
       message,
       formattedHistory,
-      visitorInfo
+      visitorInfo,
     );
 
     return NextResponse.json({
@@ -49,13 +51,19 @@ export async function POST(request: NextRequest) {
     if (errorMessage.includes("DEEPSEEK_API_KEY")) {
       return NextResponse.json(
         { error: "AI servisi yapılandırılmamış. DEEPSEEK_API_KEY gerekli." },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
     return NextResponse.json(
       { error: `Chat hatası: ${errorMessage}` },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
+
+// Export with rate limiting (10 requests per minute)
+export const POST = withRateLimit(handler, {
+  limit: 10,
+  window: 60,
+});

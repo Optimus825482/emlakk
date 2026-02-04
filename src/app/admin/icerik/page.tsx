@@ -94,7 +94,7 @@ export default function IcerikYonetimiPage() {
             İçerik Yönetimi
           </h1>
           <p className="text-slate-400 mt-1 max-w-xl">
-            Web sitesi içeriklerini yönetin ve DeepSeek AI ile etkileşim
+            Web sitesi içeriklerini yönetin ve Gemini AI ile etkileşim
             oranlarını artırmak için optimize edin.
           </p>
         </div>

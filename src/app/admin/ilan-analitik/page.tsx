@@ -73,9 +73,9 @@ export default function IlanAnalitikPage() {
   const avgConversion =
     listings.length > 0
       ? (
-          listings.reduce((sum, l) => sum + l.conversionRate, 0) /
-          listings.length
-        ).toFixed(1)
+        listings.reduce((sum, l) => sum + l.conversionRate, 0) /
+        listings.length
+      ).toFixed(1)
       : "0";
 
   return (
@@ -94,6 +94,7 @@ export default function IlanAnalitikPage() {
           <select
             value={days}
             onChange={(e) => setDays(parseInt(e.target.value))}
+            aria-label="Tarih aralığı seçin"
             className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white text-sm"
           >
             <option value={7}>Son 7 gün</option>
@@ -240,11 +241,10 @@ export default function IlanAnalitikPage() {
                         {listing.title}
                       </Link>
                       <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          listing.status === "active"
+                        className={`text-[10px] px-1.5 py-0.5 rounded ${listing.status === "active"
                             ? "bg-emerald-500/20 text-emerald-400"
                             : "bg-slate-600/50 text-slate-400"
-                        }`}
+                          }`}
                       >
                         {listing.status === "active" ? "Aktif" : "Pasif"}
                       </span>
@@ -281,13 +281,12 @@ export default function IlanAnalitikPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span
-                        className={`font-mono ${
-                          listing.conversionRate > 5
+                        className={`font-mono ${listing.conversionRate > 5
                             ? "text-emerald-400"
                             : listing.conversionRate > 2
-                            ? "text-yellow-400"
-                            : "text-slate-400"
-                        }`}
+                              ? "text-yellow-400"
+                              : "text-slate-400"
+                          }`}
                       >
                         {listing.conversionRate.toFixed(1)}%
                       </span>
@@ -365,9 +364,8 @@ function SortableHeader({
       onClick={() => onSort(column)}
     >
       <div
-        className={`flex items-center gap-1 ${
-          className === "text-left" ? "" : "justify-center"
-        }`}
+        className={`flex items-center gap-1 ${className === "text-left" ? "" : "justify-center"
+          }`}
       >
         {label}
         {isActive && (

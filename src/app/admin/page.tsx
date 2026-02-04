@@ -3,11 +3,8 @@ import Link from "next/link";
 import { db } from "@/db";
 import { listings, appointments, contacts, valuations } from "@/db/schema";
 import { eq, sql, or, isNull, desc, gte } from "drizzle-orm";
-import { AnalyticsWidget } from "@/components/admin/analytics-widget";
-import { ListingAnalyticsWidget } from "@/components/admin/listing-analytics-widget";
-import { SahibindenLiveComparison } from "@/components/admin/sahibinden-live-comparison";
-import { SahibindenStatsClient } from "@/components/admin/sahibinden-stats-client";
 import { auth } from "@/lib/auth";
+import { AdminDashboardWidgets } from "@/components/admin/admin-dashboard-widgets";
 
 // Dashboard istatistikleri
 async function getDashboardStats() {
@@ -305,14 +302,8 @@ export default async function AdminDashboardPage() {
         ))}
       </div>
 
-      {/* Sahibinden.com Stats Widget */}
-      <SahibindenStatsClient />
-
-      {/* Analytics Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AnalyticsWidget />
-        <ListingAnalyticsWidget />
-      </div>
+      {/* Sahibinden.com Stats Widget & Analytics Row */}
+      <AdminDashboardWidgets />
 
       {/* Middle Section - 3 Column */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -215,11 +215,10 @@ export default function EkipYonetimiPage() {
           {members.map((member) => (
             <div
               key={member.id}
-              className={`bg-slate-800 border rounded-xl overflow-hidden transition-all ${
-                member.isActive
+              className={`bg-slate-800 border rounded-xl overflow-hidden transition-all ${member.isActive
                   ? "border-slate-700 hover:border-emerald-500/50"
                   : "border-red-500/30 opacity-60"
-              }`}
+                }`}
             >
               {/* Image */}
               <div className="relative h-48 bg-slate-900">
@@ -309,11 +308,10 @@ export default function EkipYonetimiPage() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => toggleActive(member)}
-                      className={`p-2 rounded transition-colors ${
-                        member.isActive
+                      className={`p-2 rounded transition-colors ${member.isActive
                           ? "text-slate-400 hover:text-amber-400 hover:bg-slate-700"
                           : "text-emerald-400 hover:text-emerald-300 hover:bg-slate-700"
-                      }`}
+                        }`}
                       title={member.isActive ? "Pasif Yap" : "Aktif Yap"}
                     >
                       <Icon
@@ -352,6 +350,7 @@ export default function EkipYonetimiPage() {
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Kapat"
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
               >
                 <Icon name="close" />
@@ -361,10 +360,11 @@ export default function EkipYonetimiPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="memberName" className="block text-sm font-medium text-slate-300 mb-2">
                     Ad Soyad *
                   </label>
                   <input
+                    id="memberName"
                     type="text"
                     value={formData.name}
                     onChange={(e) =>
@@ -516,8 +516,9 @@ export default function EkipYonetimiPage() {
                   <span className="text-sm text-slate-300">Aktif</span>
                 </label>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm text-slate-300">Sıra:</label>
+                  <label htmlFor="sortOrder" className="text-sm text-slate-300">Sıra:</label>
                   <input
+                    id="sortOrder"
                     type="number"
                     value={formData.sortOrder}
                     onChange={(e) =>

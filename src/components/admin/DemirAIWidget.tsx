@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { usePathname, useRouter } from "next/navigation";
 import { VoiceAssistant } from "@/lib/ai/voice-assistant";
+import { VoiceVisualizer } from "./VoiceVisualizer";
 
 // Types
 interface Message {
@@ -36,6 +37,8 @@ export function DemirAIWidget() {
   const [inputValue, setInputValue] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const [isAutoSending, setIsAutoSending] = useState(false); // Track auto-send state
 
   // Voice Settings
   const [isAutoSpeakEnabled, setIsAutoSpeakEnabled] = useState(false);
@@ -58,7 +61,19 @@ export function DemirAIWidget() {
 
     assistant.onResult((cmd) => {
       setInputValue(cmd.transcript);
-      // Auto send if final and silence? Maybe just let user click send for now.
+      setInterimTranscript(""); // Clear interim on final
+    });
+
+    assistant.onInterimResult((text) => {
+      setInterimTranscript(text);
+    });
+
+    assistant.onSilenceDetected((text) => {
+      // Trigger auto send directly with the text
+      console.log("[Widget] Silence detected. Senging:", text);
+      if (text.trim()) {
+        handleSendMessage(text);
+      }
     });
 
     assistant.onError((err) => {
@@ -70,6 +85,7 @@ export function DemirAIWidget() {
         toast.error("Ses hatası: " + err);
       }
       setIsRecording(false);
+      setInterimTranscript("");
     });
 
     voiceAssistantRef.current = assistant;
@@ -85,6 +101,7 @@ export function DemirAIWidget() {
       voiceAssistantRef.current?.startListening();
     } else {
       voiceAssistantRef.current?.stopListening();
+      setInterimTranscript("");
     }
   }, [isRecording]);
 
@@ -116,7 +133,7 @@ export function DemirAIWidget() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, interimTranscript]);
 
   // Initial Greeting
   useEffect(() => {
@@ -133,18 +150,20 @@ export function DemirAIWidget() {
     }
   }, [isOpen, messages.length]);
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+  const handleSendMessage = async (textOverride?: string) => {
+    const textToSend = textOverride || inputValue;
+    if (!textToSend.trim()) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: inputValue,
+      content: textToSend,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInputValue("");
+    setInterimTranscript("");
     setIsProcessing(true);
     setIsRecording(false); // Stop recording on send
 
@@ -258,7 +277,6 @@ export function DemirAIWidget() {
                 </button>
               </div>
             </div>
-
             {/* Chat Area */}
             <div
               ref={scrollRef}
@@ -324,6 +342,15 @@ export function DemirAIWidget() {
                 </div>
               ))}
 
+              {/* Interim Realtime Transcript */}
+              {isRecording && interimTranscript && (
+                <div className="flex w-full mb-4 justify-end">
+                  <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed bg-yellow-600/50 text-white/70 italic border border-yellow-500/30 animate-pulse">
+                    {interimTranscript}...
+                  </div>
+                </div>
+              )}
+
               {isProcessing && (
                 <div className="flex justify-start">
                   <div className="bg-zinc-800 border border-zinc-700 rounded-2xl rounded-bl-none px-4 py-3 flex items-center gap-2">
@@ -348,21 +375,37 @@ export function DemirAIWidget() {
                   onClick={() => setIsRecording(!isRecording)}
                   title="Sesli Komut"
                 >
-                  <Mic className="w-5 h-5" />
+                  {isRecording ? (
+                    <StopCircle className="w-5 h-5" />
+                  ) : (
+                    <Mic className="w-5 h-5" />
+                  )}
                 </button>
 
-                <textarea
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Bir komut verin..."
-                  className="flex-1 bg-zinc-900 border-zinc-700 focus:border-yellow-600/50 rounded-xl px-4 py-3 text-sm text-white resize-none h-[46px] max-h-[100px] scrollbar-hide focus:ring-0 focus:outline-none placeholder:text-zinc-600"
-                  rows={1}
-                />
+                {isRecording ? (
+                  <div className="flex-1 h-[46px] bg-zinc-900 border border-yellow-500/30 rounded-xl overflow-hidden flex items-center justify-center relative">
+                    <div className="absolute inset-0 bg-yellow-900/10" />
+                    <VoiceVisualizer isRecording={isRecording} />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-yellow-500 font-mono animate-pulse">
+                      Dinliyor...
+                    </div>
+                  </div>
+                ) : (
+                  <textarea
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Bir komut verin..."
+                    className="flex-1 bg-zinc-900 border-zinc-700 focus:border-yellow-600/50 rounded-xl px-4 py-3 text-sm text-white resize-none h-[46px] max-h-[100px] scrollbar-hide focus:ring-0 focus:outline-none placeholder:text-zinc-600"
+                    rows={1}
+                  />
+                )}
 
                 <button
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isProcessing}
+                  onClick={() => handleSendMessage()}
+                  disabled={
+                    (!inputValue.trim() && !isRecording) || isProcessing
+                  }
                   className="p-3 bg-yellow-600 hover:bg-yellow-500 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-yellow-900/20"
                 >
                   <Send className="w-5 h-5" />

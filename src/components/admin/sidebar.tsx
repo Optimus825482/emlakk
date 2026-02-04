@@ -2,121 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
-
-interface BadgeCounts {
-  appointments: number;
-  messages: number;
-  valuations: number;
-}
-
-const coreModules = [
-  {
-    href: "/admin",
-    icon: "dashboard",
-    label: "Kontrol Paneli",
-    badgeKey: null,
-  },
-  {
-    href: "/admin/ilanlar",
-    icon: "real_estate_agent",
-    label: "İlan Yönetimi",
-    badgeKey: null,
-  },
-  {
-    href: "/admin/emlak-haritasi",
-    icon: "map",
-    label: "Emlak Haritası",
-    badgeKey: null,
-  },
-  {
-    href: "/admin/randevular",
-    icon: "calendar_month",
-    label: "Randevular",
-    badgeKey: "appointments",
-  },
-  {
-    href: "/admin/degerlemeler",
-    icon: "calculate",
-    label: "Değerleme Raporları",
-    badgeKey: "valuations",
-  },
-  {
-    href: "/admin/mesajlar",
-    icon: "mail",
-    label: "Mesajlar",
-    badgeKey: "messages",
-  },
-];
-
-const contentModules = [
-  {
-    href: "/admin/sayfalar",
-    icon: "web_stories",
-    label: "Web Sitesi Sayfa Yönetimi",
-  },
-  {
-    href: "/admin/seo",
-    icon: "travel_explore",
-    label: "SEO Yönetimi",
-  },
-  {
-    href: "/admin/sosyal-medya",
-    icon: "share",
-    label: "Sosyal Medya",
-  },
-];
-
-const tools = [
-  {
-    href: "/admin/sahibinden-inceleme",
-    icon: "search",
-    label: "Sahibinden İnceleme",
-  },
-  {
-    href: "/admin/ilan-analitik",
-    icon: "insights",
-    label: "İlan Analitikleri",
-  },
-  { href: "/admin/analitik", icon: "analytics", label: "Site Analitik" },
-  { href: "/admin/kullanicilar", icon: "group", label: "Kullanıcılar" },
-  {
-    href: "/admin/ai-bilgi-tabani",
-    icon: "psychology",
-    label: "AI Bilgi Tabanı",
-  },
-  { href: "/admin/ayarlar", icon: "settings", label: "Ayarlar" },
-];
+import { coreModules, contentModules, tools } from "@/constants/admin-navigation";
+import { useAdminCounts } from "@/hooks/use-admin-counts";
 
 export function AdminSidebar() {
   const pathname = usePathname();
-  const [counts, setCounts] = useState<BadgeCounts>({
-    appointments: 0,
-    messages: 0,
-    valuations: 0,
-  });
-
-  useEffect(() => {
-    fetchCounts();
-    const interval = setInterval(fetchCounts, 30000); // 30 saniyede bir güncelle
-    return () => clearInterval(interval);
-  }, []);
-
-  async function fetchCounts() {
-    try {
-      const res = await fetch("/api/admin/counts");
-      const data = await res.json();
-      setCounts(data);
-    } catch {
-      // Sessizce başarısız ol
-    }
-  }
+  const { counts } = useAdminCounts();
 
   function getBadgeCount(badgeKey: string | null): number {
     if (!badgeKey) return 0;
-    return counts[badgeKey as keyof BadgeCounts] || 0;
+    return counts[badgeKey as keyof typeof counts] || 0;
   }
 
   return (
@@ -127,7 +24,7 @@ export function AdminSidebar() {
           <h3 className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 font-mono">
             Ana Modüller
           </h3>
-          <nav className="space-y-1">
+          <nav className="space-y-1" role="navigation" aria-label="Ana modüller navigasyonu">
             {coreModules.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -138,6 +35,7 @@ export function AdminSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors",
                     isActive
@@ -165,7 +63,7 @@ export function AdminSidebar() {
           <h3 className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 font-mono">
             İçerik
           </h3>
-          <nav className="space-y-1">
+          <nav className="space-y-1" role="navigation" aria-label="İçerik yönetimi navigasyonu">
             {contentModules.map((item) => {
               const isActive = pathname.startsWith(item.href);
 
@@ -193,7 +91,7 @@ export function AdminSidebar() {
           <h3 className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 font-mono">
             Araçlar
           </h3>
-          <nav className="space-y-1">
+          <nav className="space-y-1" role="navigation" aria-label="Araçlar navigasyonu">
             {tools.map((item) => {
               const isActive = pathname.startsWith(item.href);
 
@@ -201,6 +99,7 @@ export function AdminSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors",
                     isActive

@@ -154,6 +154,7 @@ export default function IlanIcerikPage() {
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as any)}
+                aria-label="İlan filtresi"
                 className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-purple-500"
               >
                 <option value="all">Tümü</option>
@@ -186,11 +187,10 @@ export default function IlanIcerikPage() {
                       setSelectedListing(listing);
                       setGeneratedContent(null);
                     }}
-                    className={`w-full p-4 text-left hover:bg-slate-700/50 transition-colors ${
-                      selectedListing?.id === listing.id
+                    className={`w-full p-4 text-left hover:bg-slate-700/50 transition-colors ${selectedListing?.id === listing.id
                         ? "bg-purple-500/20 border-l-4 border-purple-500"
                         : ""
-                    }`}
+                      }`}
                   >
                     <div className="flex gap-3">
                       <div className="w-16 h-16 bg-slate-700 rounded-lg overflow-hidden flex-shrink-0">
@@ -356,7 +356,9 @@ export default function IlanIcerikPage() {
                       <Icon name="schedule" />
                       Planla
                     </button>
-                    <button className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-lg flex items-center justify-center gap-2 transition-colors">
+                    <button
+                      aria-label="İçeriği kopyala"
+                      className="py-2 px-4 bg-slate-600 hover:bg-slate-500 text-white rounded-lg flex items-center justify-center gap-2 transition-colors">
                       <Icon name="content_copy" />
                     </button>
                   </div>

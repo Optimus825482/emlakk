@@ -1,12 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { Icon } from "@/components/ui/icon";
+import { cn } from "@/lib/utils";
 import { MultiImageUpload } from "@/components/ui/multi-image-upload";
-import { ListingAIAssistant } from "@/components/admin/ListingAIAssistant";
-import { ListingType, TransactionType, ListingFormData } from "./_types";
+import dynamic from "next/dynamic";
+
+const ListingAIAssistant = dynamic(() => import("@/components/admin/ListingAIAssistant").then(mod => mod.ListingAIAssistant), {
+  ssr: false,
+});
+
+import { ListingType, TransactionType, ListingFormData } from "../_types";
+import { createListingSchema } from "@/lib/validations";
+import { apiFetch } from "@/lib/api-client";
 import {
   DISTRICTS,
   HEATING_OPTIONS,
@@ -16,17 +27,17 @@ import {
   DEED_STATUS,
   SOIL_TYPES,
   CROP_TYPES,
-} from "./_constants";
+} from "../_constants";
 import {
   InputField,
   SelectField,
   CheckboxField,
-} from "./_components/FormFields";
-import { KonutFormSection } from "./_components/KonutFormSection";
-import { SanayiFormSection } from "./_components/SanayiFormSection";
-import { TarimFormSection } from "./_components/TarimFormSection";
-import { TicariFormSection } from "./_components/TicariFormSection";
-import { ArsaFormSection } from "./_components/ArsaFormSection";
+} from "../_components/FormFields";
+import { KonutFormSection } from "../_components/KonutFormSection";
+import { SanayiFormSection } from "../_components/SanayiFormSection";
+import { TarimFormSection } from "../_components/TarimFormSection";
+import { TicariFormSection } from "../_components/TicariFormSection";
+import { ArsaFormSection } from "../_components/ArsaFormSection";
 
 const DRAFT_STORAGE_KEY = "listing-draft";
 const DRAFT_IMAGES_KEY = "listing-draft-images";
@@ -39,250 +50,80 @@ export default function YeniIlanPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
 
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    control,
+    formState: { errors },
+  } = useForm<ListingFormData>({
+    resolver: zodResolver(createListingSchema) as any,
+    defaultValues: {
+      title: "",
+      description: "",
+      type: "konut",
+      transactionType: "sale",
+      status: "active",
+      address: "",
+      district: "Hendek",
+      neighborhood: "",
+      area: "",
+      price: "",
+      isFeatured: false,
+      // ... default values for all other fields could be added here
+    },
+  });
+
+  const formData = watch();
+
+  const handleUpdateField = useCallback((name: string, value: string) => {
+    setValue(name as any, value);
+  }, [setValue]);
+
   // Load draft from localStorage on mount
   useEffect(() => {
+    // Client-side only check
+    if (typeof window === "undefined") return;
+
     const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
     const savedImages = localStorage.getItem(DRAFT_IMAGES_KEY);
 
     if (savedDraft) {
       setHasDraft(true);
-      const shouldRestore = confirm(
-        "Kaydedilmemiş bir taslak bulundu. Kaldığınız yerden devam etmek ister misiniz?",
-      );
-
-      if (shouldRestore) {
-        try {
-          const draft = JSON.parse(savedDraft);
-          setFormData(draft);
-          if (savedImages) {
-            setImages(JSON.parse(savedImages));
-          }
-          setLastSaved(new Date());
-        } catch (error) {
-          console.error("Taslak yüklenemedi:", error);
-        }
-      } else {
-        // Clear draft if user doesn't want to restore
-        localStorage.removeItem(DRAFT_STORAGE_KEY);
-        localStorage.removeItem(DRAFT_IMAGES_KEY);
-      }
+      toast.info("Kaydedilmemiş taslak bulundu", {
+        description: "Kaldığınız yerden devam etmek ister misiniz?",
+        action: {
+          label: "Evet, Yükle",
+          onClick: () => {
+            try {
+              const draft = JSON.parse(savedDraft);
+              reset(draft);
+              if (savedImages) {
+                setImages(JSON.parse(savedImages));
+              }
+              setLastSaved(new Date());
+              toast.success("Taslak yüklendi");
+            } catch (error) {
+              console.error("Taslak yüklenemedi:", error);
+              toast.error("Taslak yüklenirken hata oluştu");
+            }
+          },
+        },
+        cancel: {
+          label: "Hayır, Sil",
+          onClick: () => {
+            localStorage.removeItem(DRAFT_STORAGE_KEY);
+            localStorage.removeItem(DRAFT_IMAGES_KEY);
+            setHasDraft(false);
+            toast.dismiss();
+          },
+        },
+        duration: 8000,
+      });
     }
-  }, []);
-
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    type: "konut" as ListingType,
-    transactionType: "sale" as TransactionType,
-    status: "active" as string,
-    address: "",
-    district: "Hendek",
-    neighborhood: "",
-    area: "",
-    price: "",
-    zoningStatus: "",
-    deedStatus: "",
-    parcelNo: "",
-    blockNo: "",
-    rooms: "",
-    livingRooms: "",
-    bathrooms: "",
-    balconies: "",
-    floorNumber: "",
-    totalFloors: "",
-    buildingAge: "",
-    grossArea: "",
-    netArea: "",
-    heating: "",
-    facade: "",
-    floorType: "",
-    furnished: false,
-    parking: false,
-    parkingCount: "",
-    garden: false,
-    gardenArea: "",
-    pool: false,
-    elevator: false,
-    security: false,
-    doorman: false,
-    intercom: false,
-    satellite: false,
-    cableTV: false,
-    internet: false,
-    airConditioning: false,
-    fireplace: false,
-    jacuzzi: false,
-    sauna: false,
-    gym: false,
-    playroom: false,
-    cellar: false,
-    terrace: false,
-    balcony: false,
-    dressing: false,
-    laundryRoom: false,
-    parentBathroom: false,
-    kitchenType: "",
-    windowType: "",
-    // Yeni özellikler (OZZ.HTML'den)
-    // Cephe
-    facadeWest: false,
-    facadeEast: false,
-    facadeSouth: false,
-    facadeNorth: false,
-    // İç Özellikler
-    aluminumFrames: false,
-    americanDoor: false,
-    builtInOven: false,
-    barbecue: false,
-    whiteGoods: false,
-    painted: false,
-    dishwasher: false,
-    refrigerator: false,
-    dryingMachine: false,
-    washingMachine: false,
-    steelDoor: false,
-    showerCabin: false,
-    wallpaper: false,
-    oven: false,
-    builtInWardrobe: false,
-    videoIntercom: false,
-    intercomSystem: false,
-    doubleGlazing: false,
-    molding: false,
-    pantry: false,
-    bathtub: false,
-    laminateFlooring: false,
-    furniture: false,
-    builtInKitchen: false,
-    laminateKitchen: false,
-    kitchenGas: false,
-    blinds: false,
-    parquetFlooring: false,
-    pvcFrames: false,
-    ceramicFlooring: false,
-    cooktop: false,
-    spotLighting: false,
-    waterHeater: false,
-    thermosiphon: false,
-    // Dış Özellikler
-    chargingStation: false,
-    security24: false,
-    buildingAttendant: false,
-    playground: false,
-    thermalInsulation: false,
-    generator: false,
-    privatePool: false,
-    siding: false,
-    sportsArea: false,
-    waterTank: false,
-    fireEscape: false,
-    outdoorPool: false,
-    indoorPool: false,
-    // Muhit
-    shoppingMall: false,
-    municipality: false,
-    mosque: false,
-    cemevi: false,
-    beachfront: false,
-    pharmacy: false,
-    entertainmentCenter: false,
-    hospital: false,
-    primarySchool: false,
-    fireStation: false,
-    highSchool: false,
-    market: false,
-    park: false,
-    policeStation: false,
-    healthCenter: false,
-    weeklyMarket: false,
-    sportsCenter: false,
-    cityCenter: false,
-    university: false,
-    // Ulaşım
-    mainRoad: false,
-    avenue: false,
-    dolmus: false,
-    e5: false,
-    minibus: false,
-    busStop: false,
-    tem: false,
-    // Konut Tipi
-    duplex: false,
-    topFloor: false,
-    middleFloor: false,
-    middleFloorDuplex: false,
-    gardenDuplex: false,
-    roofDuplex: false,
-    fourplex: false,
-    reverseDuplex: false,
-    triplex: false,
-    // Mevcut özellikler devam ediyor...
-    infrastructure: false,
-    electricity: false,
-    electricityPower: "",
-    threePhase: false,
-    water: false,
-    naturalGas: false,
-    sewage: false,
-    roadAccess: "",
-    roadType: "",
-    ceilingHeight: "",
-    loadingRamp: false,
-    craneSystem: false,
-    craneCapacity: "",
-    officeArea: "",
-    openArea: "",
-    closedArea: "",
-    securityRoom: false,
-    fireSystem: false,
-    treeCount: "",
-    treeAge: "",
-    cropType: "",
-    irrigation: false,
-    irrigationType: "",
-    waterSource: "",
-    organic: false,
-    organicCertificate: "",
-    soilType: "",
-    slope: "",
-    fenced: false,
-    warehouse: false,
-    warehouseArea: "",
-    well: false,
-    wellDepth: "",
-    annualYield: "",
-    shopWidth: "",
-    shopDepth: "",
-    showcaseCount: "",
-    cornerShop: false,
-    mainStreet: false,
-    mallLocation: false,
-    suitableFor: "",
-    currentTenant: "",
-    monthlyRent: "",
-    depositAmount: "",
-    // Arsa özellikleri
-    landTopography: "",
-    landShape: "",
-    frontage: "",
-    depth: "",
-    cornerPlot: false,
-    splitAllowed: false,
-    buildingPermit: false,
-    projectReady: false,
-    electricityNearby: false,
-    waterNearby: false,
-    gasNearby: false,
-    sewerNearby: false,
-    viewType: "",
-    distanceToCenter: "",
-    distanceToHighway: "",
-    distanceToSchool: "",
-    distanceToHospital: "",
-    metaTitle: "",
-    metaDescription: "",
-    isFeatured: false,
-  });
+  }, [reset]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -290,35 +131,36 @@ export default function YeniIlanPage() {
     >,
   ) => {
     const { name, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
-    }));
+    setValue(name as any, type === "checkbox" ? (e.target as HTMLInputElement).checked : value, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true
+    });
   };
 
   // Auto-save draft to localStorage
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Only save if there's meaningful data
-      if (formData.title || formData.description || formData.price) {
-        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
+      // Only save if there's meaningful data and form is dirty
+      const currentValues = watch();
+      if (currentValues.title || currentValues.description || currentValues.price) {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(currentValues));
         localStorage.setItem(DRAFT_IMAGES_KEY, JSON.stringify(images));
         setLastSaved(new Date());
       }
-    }, 2000); // Save 2 seconds after last change
+    }, 2000);
 
     return () => clearTimeout(timer);
-  }, [formData, images]);
+  }, [formData, images, watch]);
 
   const generateAIDescription = async () => {
     if (!formData.title || !formData.area || !formData.price) {
-      alert("AI açıklama üretmek için başlık, alan ve fiyat gereklidir.");
+      toast.error("Eksik bilgi", { description: "AI açıklama üretmek için başlık, alan ve fiyat gereklidir." });
       return;
     }
     setIsGeneratingAI(true);
     try {
-      const response = await fetch("/api/ai/generate-description", {
+      const response = await apiFetch("/api/ai/generate-description", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -327,329 +169,323 @@ export default function YeniIlanPage() {
           price: parseInt(formData.price),
         }),
       });
-      if (!response.ok) throw new Error("AI açıklama üretilemedi");
-      const data = await response.json();
-      setFormData((prev) => ({ ...prev, description: data.description }));
-    } catch (error) {
+      if (!response.success) throw new Error(response.error?.message || "AI hatası");
+      const data = response.data as any;
+      setValue("description", data.description, { shouldValidate: true });
+      toast.success("AI açıklama üretildi");
+    } catch (error: any) {
+      if (error.message === "RATE_LIMIT_EXCEEDED") return;
       console.error("AI hatası:", error);
-      alert("AI açıklama üretilirken hata oluştu.");
+      toast.error("AI hatası", { description: "Açıklama üretilirken bir hata oluştu." });
     } finally {
       setIsGeneratingAI(false);
     }
   };
 
-  const buildFeatures = () => {
+  const buildFeatures = (data: ListingFormData) => {
     const features: Record<string, unknown> = {
-      zoningStatus: formData.zoningStatus || undefined,
-      deedStatus: formData.deedStatus || undefined,
-      parcelNo: formData.parcelNo || undefined,
-      blockNo: formData.blockNo || undefined,
+      zoningStatus: data.zoningStatus || undefined,
+      deedStatus: data.deedStatus || undefined,
+      parcelNo: data.parcelNo || undefined,
+      blockNo: data.blockNo || undefined,
     };
-    if (formData.type === "konut") {
+    if (data.type === "konut") {
       Object.assign(features, {
-        rooms: formData.rooms || undefined,
-        livingRooms: formData.livingRooms
-          ? parseInt(formData.livingRooms)
+        rooms: data.rooms || undefined,
+        livingRooms: data.livingRooms
+          ? parseInt(data.livingRooms)
           : undefined,
-        bathrooms: formData.bathrooms
-          ? parseInt(formData.bathrooms)
+        bathrooms: data.bathrooms
+          ? parseInt(data.bathrooms)
           : undefined,
-        balconies: formData.balconies
-          ? parseInt(formData.balconies)
+        balconies: data.balconies
+          ? parseInt(data.balconies)
           : undefined,
-        floorNumber: formData.floorNumber
-          ? parseInt(formData.floorNumber)
+        floorNumber: data.floorNumber
+          ? parseInt(data.floorNumber)
           : undefined,
-        totalFloors: formData.totalFloors
-          ? parseInt(formData.totalFloors)
+        totalFloors: data.totalFloors
+          ? parseInt(data.totalFloors)
           : undefined,
-        buildingAge: formData.buildingAge
-          ? parseInt(formData.buildingAge)
+        buildingAge: data.buildingAge
+          ? parseInt(data.buildingAge)
           : undefined,
-        grossArea: formData.grossArea
-          ? parseInt(formData.grossArea)
+        grossArea: data.grossArea
+          ? parseInt(data.grossArea)
           : undefined,
-        netArea: formData.netArea ? parseInt(formData.netArea) : undefined,
-        heating: formData.heating || undefined,
-        facade: formData.facade || undefined,
-        floorType: formData.floorType || undefined,
-        kitchenType: formData.kitchenType || undefined,
-        windowType: formData.windowType || undefined,
-        furnished: formData.furnished,
-        parking: formData.parking,
-        parkingCount: formData.parkingCount
-          ? parseInt(formData.parkingCount)
+        netArea: data.netArea ? parseInt(data.netArea) : undefined,
+        heating: data.heating || undefined,
+        facade: data.facade || undefined,
+        floorType: data.floorType || undefined,
+        kitchenType: data.kitchenType || undefined,
+        windowType: data.windowType || undefined,
+        furnished: data.furnished,
+        parking: data.parking,
+        parkingCount: data.parkingCount
+          ? parseInt(data.parkingCount)
           : undefined,
-        garden: formData.garden,
-        gardenArea: formData.gardenArea
-          ? parseInt(formData.gardenArea)
+        garden: data.garden,
+        gardenArea: data.gardenArea
+          ? parseInt(data.gardenArea)
           : undefined,
-        pool: formData.pool,
-        elevator: formData.elevator,
-        security: formData.security,
-        doorman: formData.doorman,
-        intercom: formData.intercom,
-        satellite: formData.satellite,
-        cableTV: formData.cableTV,
-        internet: formData.internet,
-        airConditioning: formData.airConditioning,
-        fireplace: formData.fireplace,
-        jacuzzi: formData.jacuzzi,
-        sauna: formData.sauna,
-        gym: formData.gym,
-        playroom: formData.playroom,
-        cellar: formData.cellar,
-        terrace: formData.terrace,
-        balcony: formData.balcony,
-        dressing: formData.dressing,
-        laundryRoom: formData.laundryRoom,
-        parentBathroom: formData.parentBathroom,
+        pool: data.pool,
+        elevator: data.elevator,
+        security: data.security,
+        doorman: data.doorman,
+        intercom: data.intercom,
+        satellite: data.satellite,
+        cableTV: data.cableTV,
+        internet: data.internet,
+        airConditioning: data.airConditioning,
+        fireplace: data.fireplace,
+        jacuzzi: data.jacuzzi,
+        sauna: data.sauna,
+        gym: data.gym,
+        playroom: data.playroom,
+        cellar: data.cellar,
+        terrace: data.terrace,
+        balcony: data.balcony,
+        dressing: data.dressing,
+        laundryRoom: data.laundryRoom,
+        parentBathroom: data.parentBathroom,
         // Yeni özellikler
-        facadeWest: formData.facadeWest,
-        facadeEast: formData.facadeEast,
-        facadeSouth: formData.facadeSouth,
-        facadeNorth: formData.facadeNorth,
-        aluminumFrames: formData.aluminumFrames,
-        americanDoor: formData.americanDoor,
-        builtInOven: formData.builtInOven,
-        barbecue: formData.barbecue,
-        whiteGoods: formData.whiteGoods,
-        painted: formData.painted,
-        dishwasher: formData.dishwasher,
-        refrigerator: formData.refrigerator,
-        dryingMachine: formData.dryingMachine,
-        washingMachine: formData.washingMachine,
-        steelDoor: formData.steelDoor,
-        showerCabin: formData.showerCabin,
-        wallpaper: formData.wallpaper,
-        oven: formData.oven,
-        builtInWardrobe: formData.builtInWardrobe,
-        videoIntercom: formData.videoIntercom,
-        intercomSystem: formData.intercomSystem,
-        doubleGlazing: formData.doubleGlazing,
-        molding: formData.molding,
-        pantry: formData.pantry,
-        bathtub: formData.bathtub,
-        laminateFlooring: formData.laminateFlooring,
-        furniture: formData.furniture,
-        builtInKitchen: formData.builtInKitchen,
-        laminateKitchen: formData.laminateKitchen,
-        kitchenGas: formData.kitchenGas,
-        blinds: formData.blinds,
-        parquetFlooring: formData.parquetFlooring,
-        pvcFrames: formData.pvcFrames,
-        ceramicFlooring: formData.ceramicFlooring,
-        cooktop: formData.cooktop,
-        spotLighting: formData.spotLighting,
-        waterHeater: formData.waterHeater,
-        thermosiphon: formData.thermosiphon,
-        chargingStation: formData.chargingStation,
-        security24: formData.security24,
-        buildingAttendant: formData.buildingAttendant,
-        playground: formData.playground,
-        thermalInsulation: formData.thermalInsulation,
-        generator: formData.generator,
-        privatePool: formData.privatePool,
-        siding: formData.siding,
-        sportsArea: formData.sportsArea,
-        waterTank: formData.waterTank,
-        fireEscape: formData.fireEscape,
-        outdoorPool: formData.outdoorPool,
-        indoorPool: formData.indoorPool,
-        shoppingMall: formData.shoppingMall,
-        municipality: formData.municipality,
-        mosque: formData.mosque,
-        cemevi: formData.cemevi,
-        beachfront: formData.beachfront,
-        pharmacy: formData.pharmacy,
-        entertainmentCenter: formData.entertainmentCenter,
-        hospital: formData.hospital,
-        primarySchool: formData.primarySchool,
-        fireStation: formData.fireStation,
-        highSchool: formData.highSchool,
-        market: formData.market,
-        park: formData.park,
-        policeStation: formData.policeStation,
-        healthCenter: formData.healthCenter,
-        weeklyMarket: formData.weeklyMarket,
-        sportsCenter: formData.sportsCenter,
-        cityCenter: formData.cityCenter,
-        university: formData.university,
-        mainRoad: formData.mainRoad,
-        avenue: formData.avenue,
-        dolmus: formData.dolmus,
-        e5: formData.e5,
-        minibus: formData.minibus,
-        busStop: formData.busStop,
-        tem: formData.tem,
-        duplex: formData.duplex,
-        topFloor: formData.topFloor,
-        middleFloor: formData.middleFloor,
-        middleFloorDuplex: formData.middleFloorDuplex,
-        gardenDuplex: formData.gardenDuplex,
-        roofDuplex: formData.roofDuplex,
-        fourplex: formData.fourplex,
-        reverseDuplex: formData.reverseDuplex,
-        triplex: formData.triplex,
+        facadeWest: data.facadeWest,
+        facadeEast: data.facadeEast,
+        facadeSouth: data.facadeSouth,
+        facadeNorth: data.facadeNorth,
+        aluminumFrames: data.aluminumFrames,
+        americanDoor: data.americanDoor,
+        builtInOven: data.builtInOven,
+        barbecue: data.barbecue,
+        whiteGoods: data.whiteGoods,
+        painted: data.painted,
+        dishwasher: data.dishwasher,
+        refrigerator: data.refrigerator,
+        dryingMachine: data.dryingMachine,
+        washingMachine: data.washingMachine,
+        steelDoor: data.steelDoor,
+        showerCabin: data.showerCabin,
+        wallpaper: data.wallpaper,
+        oven: data.oven,
+        builtInWardrobe: data.builtInWardrobe,
+        videoIntercom: data.videoIntercom,
+        intercomSystem: data.intercomSystem,
+        doubleGlazing: data.doubleGlazing,
+        molding: data.molding,
+        pantry: data.pantry,
+        bathtub: data.bathtub,
+        laminateFlooring: data.laminateFlooring,
+        furniture: data.furniture,
+        builtInKitchen: data.builtInKitchen,
+        laminateKitchen: data.laminateKitchen,
+        kitchenGas: data.kitchenGas,
+        blinds: data.blinds,
+        parquetFlooring: data.parquetFlooring,
+        pvcFrames: data.pvcFrames,
+        ceramicFlooring: data.ceramicFlooring,
+        cooktop: data.cooktop,
+        spotLighting: data.spotLighting,
+        waterHeater: data.waterHeater,
+        thermosiphon: data.thermosiphon,
+        chargingStation: data.chargingStation,
+        security24: data.security24,
+        buildingAttendant: data.buildingAttendant,
+        playground: data.playground,
+        thermalInsulation: data.thermalInsulation,
+        generator: data.generator,
+        privatePool: data.privatePool,
+        siding: data.siding,
+        sportsArea: data.sportsArea,
+        waterTank: data.waterTank,
+        fireEscape: data.fireEscape,
+        outdoorPool: data.outdoorPool,
+        indoorPool: data.indoorPool,
+        shoppingMall: data.shoppingMall,
+        municipality: data.municipality,
+        mosque: data.mosque,
+        cemevi: data.cemevi,
+        beachfront: data.beachfront,
+        pharmacy: data.pharmacy,
+        entertainmentCenter: data.entertainmentCenter,
+        hospital: data.hospital,
+        primarySchool: data.primarySchool,
+        fireStation: data.fireStation,
+        highSchool: data.highSchool,
+        market: data.market,
+        park: data.park,
+        policeStation: data.policeStation,
+        healthCenter: data.healthCenter,
+        weeklyMarket: data.weeklyMarket,
+        sportsCenter: data.sportsCenter,
+        cityCenter: data.cityCenter,
+        university: data.university,
+        mainRoad: data.mainRoad,
+        avenue: data.avenue,
+        dolmus: data.dolmus,
+        e5: data.e5,
+        minibus: data.minibus,
+        busStop: data.busStop,
+        tem: data.tem,
+        duplex: data.duplex,
+        topFloor: data.topFloor,
+        middleFloor: data.middleFloor,
+        middleFloorDuplex: data.middleFloorDuplex,
+        gardenDuplex: data.gardenDuplex,
+        roofDuplex: data.roofDuplex,
+        fourplex: data.fourplex,
+        reverseDuplex: data.reverseDuplex,
+        triplex: data.triplex,
       });
-    } else if (formData.type === "sanayi") {
+    } else if (data.type === "sanayi") {
       Object.assign(features, {
-        infrastructure: formData.infrastructure,
-        electricity: formData.electricity,
-        electricityPower: formData.electricityPower || undefined,
-        threePhase: formData.threePhase,
-        water: formData.water,
-        naturalGas: formData.naturalGas,
-        sewage: formData.sewage,
-        roadAccess: formData.roadAccess || undefined,
-        roadType: formData.roadType || undefined,
-        ceilingHeight: formData.ceilingHeight
-          ? parseFloat(formData.ceilingHeight)
+        infrastructure: data.infrastructure,
+        electricity: data.electricity,
+        electricityPower: data.electricityPower || undefined,
+        threePhase: data.threePhase,
+        water: data.water,
+        naturalGas: data.naturalGas,
+        sewage: data.sewage,
+        roadAccess: data.roadAccess || undefined,
+        roadType: data.roadType || undefined,
+        ceilingHeight: data.ceilingHeight
+          ? parseFloat(data.ceilingHeight)
           : undefined,
-        loadingRamp: formData.loadingRamp,
-        craneSystem: formData.craneSystem,
-        craneCapacity: formData.craneCapacity || undefined,
-        officeArea: formData.officeArea
-          ? parseInt(formData.officeArea)
+        loadingRamp: data.loadingRamp,
+        craneSystem: data.craneSystem,
+        craneCapacity: data.craneCapacity || undefined,
+        officeArea: data.officeArea
+          ? parseInt(data.officeArea)
           : undefined,
-        openArea: formData.openArea ? parseInt(formData.openArea) : undefined,
-        closedArea: formData.closedArea
-          ? parseInt(formData.closedArea)
+        openArea: data.openArea ? parseInt(data.openArea) : undefined,
+        closedArea: data.closedArea
+          ? parseInt(data.closedArea)
           : undefined,
-        securityRoom: formData.securityRoom,
-        fireSystem: formData.fireSystem,
+        securityRoom: data.securityRoom,
+        fireSystem: data.fireSystem,
       });
-    } else if (formData.type === "tarim") {
+    } else if (data.type === "tarim") {
       Object.assign(features, {
-        treeCount: formData.treeCount
-          ? parseInt(formData.treeCount)
+        treeCount: data.treeCount
+          ? parseInt(data.treeCount)
           : undefined,
-        treeAge: formData.treeAge ? parseInt(formData.treeAge) : undefined,
-        cropType: formData.cropType || undefined,
-        irrigation: formData.irrigation,
-        irrigationType: formData.irrigationType || undefined,
-        waterSource: formData.waterSource || undefined,
-        organic: formData.organic,
-        organicCertificate: formData.organicCertificate || undefined,
-        soilType: formData.soilType || undefined,
-        slope: formData.slope || undefined,
-        fenced: formData.fenced,
-        warehouse: formData.warehouse,
-        warehouseArea: formData.warehouseArea
-          ? parseInt(formData.warehouseArea)
+        treeAge: data.treeAge ? parseInt(data.treeAge) : undefined,
+        cropType: data.cropType || undefined,
+        irrigation: data.irrigation,
+        irrigationType: data.irrigationType || undefined,
+        waterSource: data.waterSource || undefined,
+        organic: data.organic,
+        organicCertificate: data.organicCertificate || undefined,
+        soilType: data.soilType || undefined,
+        slope: data.slope || undefined,
+        fenced: data.fenced,
+        warehouse: data.warehouse,
+        warehouseArea: data.warehouseArea
+          ? parseInt(data.warehouseArea)
           : undefined,
-        well: formData.well,
-        wellDepth: formData.wellDepth
-          ? parseInt(formData.wellDepth)
+        well: data.well,
+        wellDepth: data.wellDepth
+          ? parseInt(data.wellDepth)
           : undefined,
-        annualYield: formData.annualYield || undefined,
+        annualYield: data.annualYield || undefined,
       });
-    } else if (formData.type === "ticari") {
+    } else if (data.type === "ticari") {
       Object.assign(features, {
-        shopWidth: formData.shopWidth
-          ? parseFloat(formData.shopWidth)
+        shopWidth: data.shopWidth
+          ? parseFloat(data.shopWidth)
           : undefined,
-        shopDepth: formData.shopDepth
-          ? parseFloat(formData.shopDepth)
+        shopDepth: data.shopDepth
+          ? parseFloat(data.shopDepth)
           : undefined,
-        showcaseCount: formData.showcaseCount
-          ? parseInt(formData.showcaseCount)
+        showcaseCount: data.showcaseCount
+          ? parseInt(data.showcaseCount)
           : undefined,
-        cornerShop: formData.cornerShop,
-        mainStreet: formData.mainStreet,
-        mallLocation: formData.mallLocation,
-        suitableFor: formData.suitableFor || undefined,
-        currentTenant: formData.currentTenant || undefined,
-        monthlyRent: formData.monthlyRent || undefined,
-        depositAmount: formData.depositAmount || undefined,
-        parking: formData.parking,
-        elevator: formData.elevator,
-        security: formData.security,
-        totalFloors: formData.totalFloors
-          ? parseInt(formData.totalFloors)
+        cornerShop: data.cornerShop,
+        mainStreet: data.mainStreet,
+        mallLocation: data.mallLocation,
+        suitableFor: data.suitableFor || undefined,
+        currentTenant: data.currentTenant || undefined,
+        monthlyRent: data.monthlyRent || undefined,
+        depositAmount: data.depositAmount || undefined,
+        parking: data.parking,
+        elevator: data.elevator,
+        security: data.security,
+        totalFloors: data.totalFloors
+          ? parseInt(data.totalFloors)
           : undefined,
-        floorNumber: formData.floorNumber
-          ? parseInt(formData.floorNumber)
+        floorNumber: data.floorNumber
+          ? parseInt(data.floorNumber)
           : undefined,
       });
-    } else if (formData.type === "arsa") {
+    } else if (data.type === "arsa") {
       Object.assign(features, {
-        landTopography: formData.landTopography || undefined,
-        landShape: formData.landShape || undefined,
-        frontage: formData.frontage ? parseFloat(formData.frontage) : undefined,
-        depth: formData.depth ? parseFloat(formData.depth) : undefined,
-        cornerPlot: formData.cornerPlot,
-        splitAllowed: formData.splitAllowed,
-        buildingPermit: formData.buildingPermit,
-        projectReady: formData.projectReady,
-        electricityNearby: formData.electricityNearby,
-        waterNearby: formData.waterNearby,
-        gasNearby: formData.gasNearby,
-        sewerNearby: formData.sewerNearby,
-        viewType: formData.viewType || undefined,
-        distanceToCenter: formData.distanceToCenter || undefined,
-        distanceToHighway: formData.distanceToHighway || undefined,
-        distanceToSchool: formData.distanceToSchool || undefined,
-        distanceToHospital: formData.distanceToHospital || undefined,
-        roadAccess: formData.roadAccess || undefined,
-        roadType: formData.roadType || undefined,
+        landTopography: data.landTopography || undefined,
+        landShape: data.landShape || undefined,
+        frontage: data.frontage ? parseFloat(data.frontage) : undefined,
+        depth: data.depth ? parseFloat(data.depth) : undefined,
+        cornerPlot: data.cornerPlot,
+        splitAllowed: data.splitAllowed,
+        buildingPermit: data.buildingPermit,
+        projectReady: data.projectReady,
+        electricityNearby: data.electricityNearby,
+        waterNearby: data.waterNearby,
+        gasNearby: data.gasNearby,
+        sewerNearby: data.sewerNearby,
+        viewType: data.viewType || undefined,
+        distanceToCenter: data.distanceToCenter || undefined,
+        distanceToHighway: data.distanceToHighway || undefined,
+        distanceToSchool: data.distanceToSchool || undefined,
+        distanceToHospital: data.distanceToHospital || undefined,
+        roadAccess: data.roadAccess || undefined,
+        roadType: data.roadType || undefined,
       });
     }
     return features;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onFormSubmit = async (data: ListingFormData) => {
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/listings", {
+      const response = await apiFetch("/api/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          type: formData.type,
-          transactionType: formData.transactionType,
-          address: formData.address,
-          district: formData.district,
-          neighborhood: formData.neighborhood,
-          area: parseInt(formData.area),
-          price: formData.price,
+          title: data.title,
+          description: data.description,
+          type: data.type,
+          transactionType: data.transactionType,
+          address: data.address,
+          district: data.district,
+          neighborhood: data.neighborhood,
+          area: parseInt(data.area),
+          price: data.price,
           images,
           thumbnail: images[0] || null,
-          status: formData.status,
-          metaTitle: formData.metaTitle || formData.title,
+          status: data.status,
+          metaTitle: data.metaTitle || data.title,
           metaDescription:
-            formData.metaDescription || formData.description?.slice(0, 160),
-          isFeatured: formData.isFeatured,
-          features: buildFeatures(),
+            data.metaDescription || data.description?.slice(0, 160),
+          isFeatured: data.isFeatured,
+          features: buildFeatures(data),
         }),
       });
-      if (response.ok) {
-        // Clear draft after successful submission
-        localStorage.removeItem(DRAFT_STORAGE_KEY);
-        localStorage.removeItem(DRAFT_IMAGES_KEY);
-        router.push("/admin/ilanlar");
-      } else {
-        const error = await response.json();
-        console.error("Validation error:", error);
 
-        // Validation hatalarını kullanıcıya göster
-        if (error.details?.fieldErrors) {
-          const fieldErrors = Object.entries(error.details.fieldErrors)
-            .map(
-              ([field, errors]) =>
-                `${field}: ${(errors as string[]).join(", ")}`,
-            )
-            .join("\n");
-          alert(`Geçersiz veri:\n\n${fieldErrors}`);
-        } else {
-          alert(error.error || "İlan oluşturulurken hata oluştu");
-        }
-      }
-    } catch (error) {
+      toast.success("İlan başarıyla oluşturuldu");
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      localStorage.removeItem(DRAFT_IMAGES_KEY);
+      router.push("/admin/ilanlar");
+    } catch (error: any) {
+      if (error.message === "RATE_LIMIT_EXCEEDED") return;
+
       console.error("İlan oluşturma hatası:", error);
-      alert("İlan oluşturulurken hata oluştu");
+
+      if (error.details?.fieldErrors) {
+        const fieldErrors = Object.entries(error.details.fieldErrors)
+          .map(([field, errors]) => `${field}: ${(errors as string[]).join(", ")}`)
+          .join("\n");
+        toast.error("Geçersiz veri", { description: fieldErrors });
+      } else {
+        toast.error(error.error || "İlan oluşturulurken hata oluştu");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -657,6 +493,7 @@ export default function YeniIlanPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* ... header remains similar ... */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
@@ -690,9 +527,9 @@ export default function YeniIlanPage() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
         {/* Görseller */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <Icon name="photo_library" className="text-emerald-400" /> İlan
             Görselleri
@@ -707,124 +544,112 @@ export default function YeniIlanPage() {
         </div>
 
         {/* Temel Bilgiler */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <Icon name="info" className="text-emerald-400" /> Temel Bilgiler
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
               <InputField
                 label="İlan Başlığı"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
+                {...register("title")}
+                error={errors.title?.message}
                 required
                 placeholder="Örn: Hendek OSB Sanayi Arsası"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                İlan Tipi *
-              </label>
-              <select
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="konut">🏠 Konut</option>
-                <option value="sanayi">🏭 Sanayi</option>
-                <option value="tarim">🌾 Tarım</option>
-                <option value="ticari">🏢 Ticari</option>
-                <option value="arsa">📐 Arsa</option>
-              </select>
+              <SelectField
+                label="İlan Tipi"
+                {...register("type")}
+                error={errors.type?.message}
+                required
+                options={[
+                  { value: "konut", label: "🏠 Konut" },
+                  { value: "sanayi", label: "🏭 Sanayi" },
+                  { value: "tarim", label: "🌾 Tarım" },
+                  { value: "ticari", label: "🏢 Ticari" },
+                  { value: "arsa", label: "📐 Arsa" },
+                ]}
+              />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                İşlem Tipi *
-              </label>
-              <select
-                name="transactionType"
-                value={formData.transactionType}
-                onChange={handleChange}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="sale">Satılık</option>
-                <option value="rent">Kiralık</option>
-              </select>
+              <SelectField
+                label="İşlem Tipi"
+                {...register("transactionType")}
+                error={errors.transactionType?.message}
+                required
+                options={[
+                  { value: "sale", label: "Satılık" },
+                  { value: "rent", label: "Kiralık" },
+                ]}
+              />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                İlan Durumu *
-              </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="active">Aktif (Sitede Görünür)</option>
-                <option value="draft">Taslak (Gizli)</option>
-                <option value="pending">Beklemede</option>
-                <option value="sold">Satıldı</option>
-              </select>
+              <SelectField
+                label="İlan Durumu"
+                {...register("status")}
+                error={errors.status?.message}
+                required
+                options={[
+                  { value: "active", label: "Aktif (Sitede Görünür)" },
+                  { value: "draft", label: "Taslak (Gizli)" },
+                  { value: "pending", label: "Beklemede" },
+                  { value: "sold", label: "Satıldı" },
+                ]}
+              />
             </div>
           </div>
         </div>
 
         {/* Konum */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <Icon name="location_on" className="text-emerald-400" /> Konum
             Bilgileri
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
               <InputField
                 label="Adres"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
+                {...register("address")}
+                error={errors.address?.message}
                 required
                 placeholder="Tam adres"
               />
             </div>
             <SelectField
               label="İlçe"
-              name="district"
-              value={formData.district}
-              onChange={handleChange}
+              {...register("district")}
+              error={errors.district?.message}
               options={DISTRICTS}
             />
             <InputField
               label="Mahalle/Köy"
-              name="neighborhood"
-              value={formData.neighborhood}
-              onChange={handleChange}
+              {...register("neighborhood")}
+              error={errors.neighborhood?.message}
               placeholder="Mahalle adı"
             />
           </div>
         </div>
 
         {/* Fiyat & Alan */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <Icon name="payments" className="text-emerald-400" /> Fiyat & Alan
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField
               label="Fiyat (₺)"
-              name="price"
-              value={formData.price}
-              onChange={handleChange}
+              {...register("price")}
+              error={errors.price?.message}
               required
               placeholder="21500000"
             />
             <InputField
               label="Alan (m²)"
-              name="area"
-              value={formData.area}
-              onChange={handleChange}
+              {...register("area")}
+              error={errors.area?.message}
               type="number"
               required
               placeholder="5000"
@@ -833,69 +658,58 @@ export default function YeniIlanPage() {
         </div>
 
         {/* Tapu & İmar */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <Icon name="description" className="text-emerald-400" /> Tapu & İmar
             Bilgileri
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <SelectField
               label="İmar Durumu"
-              name="zoningStatus"
-              value={formData.zoningStatus}
-              onChange={handleChange}
+              {...register("zoningStatus")}
+              error={errors.zoningStatus?.message}
               options={ZONING_STATUS}
             />
             <SelectField
               label="Tapu Durumu"
-              name="deedStatus"
-              value={formData.deedStatus}
-              onChange={handleChange}
+              {...register("deedStatus")}
+              error={errors.deedStatus?.message}
               options={DEED_STATUS}
             />
             <InputField
               label="Ada No"
-              name="blockNo"
-              value={formData.blockNo}
-              onChange={handleChange}
+              {...register("blockNo")}
+              error={errors.blockNo?.message}
               placeholder="123"
             />
             <InputField
               label="Parsel No"
-              name="parcelNo"
-              value={formData.parcelNo}
-              onChange={handleChange}
+              {...register("parcelNo")}
+              error={errors.parcelNo?.message}
               placeholder="45"
             />
           </div>
         </div>
 
-        {/* KONUT */}
+        {/* Dynamic Sections */}
         {formData.type === "konut" && (
-          <KonutFormSection formData={formData} handleChange={handleChange} />
+          <KonutFormSection register={register} errors={errors} watch={watch} control={control} />
         )}
-        {/* SANAYİ */}
         {formData.type === "sanayi" && (
-          <SanayiFormSection formData={formData} handleChange={handleChange} />
+          <SanayiFormSection register={register} errors={errors} watch={watch} control={control} />
         )}
-
-        {/* TARIM */}
         {formData.type === "tarim" && (
-          <TarimFormSection formData={formData} handleChange={handleChange} />
+          <TarimFormSection register={register} errors={errors} watch={watch} control={control} />
         )}
-
-        {/* TİCARİ */}
         {formData.type === "ticari" && (
-          <TicariFormSection formData={formData} handleChange={handleChange} />
+          <TicariFormSection register={register} errors={errors} watch={watch} control={control} />
         )}
-
-        {/* ARSA */}
         {formData.type === "arsa" && (
-          <ArsaFormSection formData={formData} handleChange={handleChange} />
+          <ArsaFormSection register={register} errors={errors} watch={watch} control={control} />
         )}
 
         {/* Açıklama + AI */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Icon name="edit_note" className="text-emerald-400" /> İlan
@@ -919,84 +733,97 @@ export default function YeniIlanPage() {
             </button>
           </div>
           <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
+            {...register("description")}
             rows={6}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+            className={cn(
+              "w-full bg-slate-900 border rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 transition-all resize-none",
+              errors.description
+                ? "border-red-500 focus:ring-red-500/20"
+                : "border-slate-700 focus:ring-emerald-500/20 focus:border-emerald-500"
+            )}
             placeholder="İlan açıklaması... (AI ile otomatik oluşturabilirsiniz)"
           />
-          <p className="text-xs text-slate-500 mt-2">
+          {errors.description && (
+            <p className="text-xs font-medium text-red-500 mt-1">{errors.description.message}</p>
+          )}
+          <p className="text-xs text-slate-500 mt-2 italic">
             💡 Tüm bilgileri girdikten sonra AI ile profesyonel açıklama
             oluşturabilirsiniz.
           </p>
         </div>
 
         {/* SEO & Seçenekler */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <Icon name="tune" className="text-emerald-400" /> SEO & Seçenekler
           </h3>
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-6">
             <InputField
               label="Meta Başlık"
-              name="metaTitle"
-              value={formData.metaTitle}
-              onChange={handleChange}
+              {...register("metaTitle")}
+              error={errors.metaTitle?.message}
               placeholder="SEO için özel başlık"
             />
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-slate-300">
                 Meta Açıklama
               </label>
               <textarea
-                name="metaDescription"
-                value={formData.metaDescription}
-                onChange={handleChange}
+                {...register("metaDescription")}
                 rows={2}
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                className={cn(
+                  "w-full bg-slate-900 border rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 transition-all resize-none",
+                  errors.metaDescription
+                    ? "border-red-500 focus:ring-red-500/20"
+                    : "border-slate-700 focus:ring-emerald-500/20 focus:border-emerald-500"
+                )}
                 placeholder="SEO için özel açıklama"
               />
+              {errors.metaDescription && (
+                <p className="text-xs font-medium text-red-500">{errors.metaDescription.message}</p>
+              )}
             </div>
-            <label className="flex items-center gap-3 cursor-pointer p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-lg">
+
+            <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-amber-500/5 to-orange-500/5 border border-amber-500/20 rounded-xl transition-all hover:border-amber-500/40 group">
               <input
                 type="checkbox"
-                name="isFeatured"
-                checked={formData.isFeatured}
-                onChange={handleChange}
-                className="w-5 h-5 rounded border-amber-500 bg-slate-900 text-amber-500 focus:ring-amber-500"
+                id="isFeatured"
+                {...register("isFeatured")}
+                className="w-5 h-5 rounded border-amber-500/50 bg-slate-900 text-amber-500 focus:ring-amber-500 cursor-pointer"
               />
-              <Icon name="star" className="text-amber-400" filled />
-              <div>
-                <span className="text-white font-medium">Öne Çıkan İlan</span>
-                <p className="text-xs text-slate-400">
-                  Ana sayfada ve listelerde öncelikli gösterilir
-                </p>
-              </div>
-            </label>
+              <label htmlFor="isFeatured" className="flex items-center gap-3 cursor-pointer flex-1">
+                <Icon name="star" className="text-amber-400 group-hover:scale-110 transition-transform" filled />
+                <div>
+                  <span className="text-white font-bold text-sm tracking-wide">ÖNE ÇIKAN İLAN</span>
+                  <p className="text-xs text-slate-500">
+                    Ana sayfada ve listelerde öncelikli gösterilir
+                  </p>
+                </div>
+              </label>
+            </div>
           </div>
         </div>
 
         {/* Submit */}
-        <div className="flex justify-end gap-4">
+        <div className="flex items-center justify-end gap-4 pt-4">
           <Link
             href="/admin/ilanlar"
-            className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+            className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition-all active:scale-95"
           >
             İptal
           </Link>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-lg font-bold transition-colors disabled:opacity-50 shadow-lg shadow-emerald-500/20"
+            className="flex items-center gap-2 px-8 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-900 rounded-xl font-bold transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/20 active:scale-95"
           >
             {isSubmitting ? (
               <>
-                <Icon name="sync" className="animate-spin" /> Kaydediliyor...
+                <Icon name="sync" className="animate-spin" /> İŞLENİYOR...
               </>
             ) : (
               <>
-                <Icon name="save" /> İlanı Kaydet
+                <Icon name="save" /> İLANI KAYDET
               </>
             )}
           </button>
@@ -1006,9 +833,7 @@ export default function YeniIlanPage() {
       {/* AI Co-pilot Assistant */}
       <ListingAIAssistant
         listingData={formData}
-        onUpdateField={(name, value) => {
-          setFormData((prev) => ({ ...prev, [name]: value }));
-        }}
+        onUpdateField={handleUpdateField}
       />
     </div>
   );

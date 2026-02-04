@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,29 @@ interface SiteSettings {
   logo?: string;
 }
 
-export function Navbar() {
+import { motion, AnimatePresence } from "framer-motion";
+
+interface SiteSettings {
+  siteName: string;
+  siteTagline?: string;
+  logo?: string;
+}
+
+const navLinks = [
+  { href: "/", label: "Anasayfa", icon: "home" },
+  { href: "/hakkimizda", label: "Hakkımızda", icon: "info" },
+  { href: "/ilanlar", label: "İlanlar", icon: "real_estate_agent" },
+  {
+    href: "/degerleme",
+    label: "Mülk Değerleme Platformu",
+    icon: "auto_awesome",
+    highlight: true,
+  },
+  { href: "/rehber", label: "Yatırım Rehberi", icon: "explore" },
+  { href: "/iletisim", label: "Bize Ulaşın", icon: "mail" },
+];
+
+export const Navbar = memo(() => {
   const [isOpen, setIsOpen] = useState(false);
   const [settings, setSettings] = useState<SiteSettings>({
     siteName: "DEMİR",
@@ -22,12 +44,13 @@ export function Navbar() {
   const closeMenu = () => setIsOpen(false);
 
   useEffect(() => {
-    const originalStyle = window.getComputedStyle(document.body).overflow;
     if (isOpen) {
       document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
     }
     return () => {
-      document.body.style.overflow = originalStyle;
+      document.body.style.overflow = "";
     };
   }, [isOpen]);
 
@@ -174,84 +197,105 @@ export function Navbar() {
           </div>
         </div>
 
-        <div
-          className={cn(
-            "fixed inset-0 bg-white z-[55] lg:hidden transition-all duration-300 ease-in-out",
-            isOpen
-              ? "opacity-100 pointer-events-auto"
-              : "opacity-0 pointer-events-none"
-          )}
-        >
-          <div className="flex flex-col h-full p-6 pt-24 gap-4 overflow-y-auto">
-            <Link
-              href="/"
-              onClick={closeMenu}
-              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
-            >
-              Anasayfa
-            </Link>
-            <Link
-              href="/hakkimizda"
-              onClick={closeMenu}
-              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
-            >
-              Hakkımızda
-            </Link>
-            <Link
-              href="/ilanlar"
-              onClick={closeMenu}
-              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
-            >
-              İlanlar
-            </Link>
-            <Link
-              href="/degerleme"
-              onClick={closeMenu}
-              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100 flex items-center gap-2"
-            >
-              <Icon
-                name="auto_awesome"
-                className="text-[var(--terracotta)]"
-                filled
+        <AnimatePresence>
+          {isOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={closeMenu}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55] lg:hidden"
               />
-              Mülk Değerleme Platformu
-            </Link>
-            <Link
-              href="/rehber"
-              onClick={closeMenu}
-              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
-            >
-              Yatırım Rehberi
-            </Link>
-            <Link
-              href="/iletisim"
-              onClick={closeMenu}
-              className="px-4 py-3 text-lg font-medium text-[var(--demir-slate)] border-b border-gray-100"
-            >
-              Bize Ulaşın
-            </Link>
 
-            <div className="mt-4 flex flex-col gap-3">
-              <Link
-                href="/randevu"
-                onClick={closeMenu}
-                className="flex items-center justify-center gap-2 px-6 py-4 font-semibold text-[var(--demir-slate)] border-2 border-[var(--demir-slate)]/20 rounded-xl"
+              {/* Drawer */}
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="fixed right-0 top-0 bottom-0 w-[300px] bg-white z-[60] flex flex-col shadow-2xl lg:hidden"
               >
-                <Icon name="coffee" />
-                Kahve İçelim
-              </Link>
-              <Link
-                href="/iletisim"
-                onClick={closeMenu}
-                className="flex items-center justify-center gap-2 px-6 py-4 font-bold text-white bg-[var(--demir-slate)] rounded-xl shadow-lg"
-              >
-                <Icon name="call" />
-                İletişim
-              </Link>
-            </div>
-          </div>
-        </div>
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50/50">
+                  <div className="flex flex-col">
+                    <span className="text-lg font-bold text-[var(--demir-slate)]">
+                      {mainName}
+                    </span>
+                    <span className="text-[10px] font-bold text-[var(--terracotta)] uppercase tracking-widest">
+                      {settings.siteTagline}
+                    </span>
+                  </div>
+                  <button
+                    onClick={closeMenu}
+                    className="p-2 hover:bg-gray-200/50 rounded-full transition-colors"
+                  >
+                    <Icon name="close" className="text-2xl text-gray-500" />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                  {navLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={closeMenu}
+                      className={cn(
+                        "flex items-center gap-4 px-4 py-4 rounded-2xl transition-all active:scale-[0.98] touch-manipulation",
+                        link.highlight
+                          ? "bg-[var(--terracotta)]/5 text-[var(--terracotta)] border border-[var(--terracotta)]/10"
+                          : "text-[var(--demir-slate)] hover:bg-gray-50"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "size-10 rounded-xl flex items-center justify-center",
+                          link.highlight
+                            ? "bg-[var(--terracotta)] text-white shadow-lg shadow-[var(--terracotta)]/20"
+                            : "bg-gray-100 text-gray-500"
+                        )}
+                      >
+                        <Icon
+                          name={link.icon}
+                          className="text-xl"
+                          filled={link.highlight}
+                        />
+                      </div>
+                      <span className="font-semibold text-base">
+                        {link.label}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Footer */}
+                <div className="p-6 border-t border-gray-100 space-y-4">
+                  <Link
+                    href="/randevu"
+                    onClick={closeMenu}
+                    className="flex items-center justify-center gap-3 w-full py-4 font-bold text-[var(--demir-slate)] border-2 border-gray-200 rounded-2xl active:scale-[0.98] transition-all"
+                  >
+                    <Icon name="coffee" className="text-xl" />
+                    Kahve İçelim
+                  </Link>
+                  <Link
+                    href="/iletisim"
+                    onClick={closeMenu}
+                    className="flex items-center justify-center gap-3 w-full py-4 font-bold text-white bg-[var(--demir-slate)] rounded-2xl shadow-lg active:scale-[0.98] transition-all"
+                  >
+                    <Icon name="call" className="text-xl" />
+                    Hemen Arayın
+                  </Link>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </nav>
     </>
   );
-}
+});
+
+Navbar.displayName = "Navbar";

@@ -1,43 +1,93 @@
 // Google Maps Places API (New) ile Yakındaki Önemli Noktaları Tespit Et
 
-import { LocationPoint, NearbyPOI, POIDetail, CategoryPOIDetails } from "./types";
+import {
+  LocationPoint,
+  NearbyPOI,
+  POIDetail,
+  CategoryPOIDetails,
+  LocationScore,
+} from "./types";
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+const GOOGLE_MAPS_API_KEY =
+  process.env.GOOGLE_MAPS_API_KEY ||
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
+  "";
 
 const CHAIN_MARKETS = [
-  "A101", "BİM", "BIM", "ŞOK", "SOK", "Şok",
-  "CarrefourSA", "Carrefour", "Migros", "Macro Center", "MacroCenter",
-  "Metro", "File", "Hakmar", "Yunus Market", "Tarım Kredi",
-  "Gratis", "Watsons", "Rossmann",
-  "Özdilek", "Kipa", "Real", "Tesco", "Groseri",
+  "A101",
+  "BİM",
+  "BIM",
+  "ŞOK",
+  "SOK",
+  "Şok",
+  "CarrefourSA",
+  "Carrefour",
+  "Migros",
+  "Macro Center",
+  "MacroCenter",
+  "Metro",
+  "File",
+  "Hakmar",
+  "Yunus Market",
+  "Tarım Kredi",
+  "Gratis",
+  "Watsons",
+  "Rossmann",
+  "Özdilek",
+  "Kipa",
+  "Real",
+  "Tesco",
+  "Groseri",
 ] as const;
 
 export function isChainMarket(name: string): boolean {
   const normalizedName = name.toLowerCase().replace(/[^a-z0-9ığüşöçı]/g, "");
-  return CHAIN_MARKETS.some(chain => {
-    const normalizedChain = chain.toLowerCase().replace(/[^a-z0-9ığüşöçı]/g, "");
+  return CHAIN_MARKETS.some((chain) => {
+    const normalizedChain = chain
+      .toLowerCase()
+      .replace(/[^a-z0-9ığüşöçı]/g, "");
     return normalizedName.includes(normalizedChain);
   });
 }
 
 const POI_CATEGORIES = {
-  school: { types: ["school", "primary_school", "secondary_school", "university"], weight: 15, maxDistance: 2000 },
-  hospital: { types: ["hospital", "doctor", "pharmacy"], weight: 10, maxDistance: 5000 },
-  shopping_mall: { types: ["shopping_mall", "department_store"], weight: 8, maxDistance: 3000 },
+  school: {
+    types: ["school", "primary_school", "secondary_school", "university"],
+    weight: 15,
+    maxDistance: 2000,
+  },
+  hospital: {
+    types: ["hospital", "doctor", "pharmacy"],
+    weight: 10,
+    maxDistance: 5000,
+  },
+  shopping_mall: {
+    types: ["shopping_mall", "department_store"],
+    weight: 8,
+    maxDistance: 3000,
+  },
   park: { types: ["park"], weight: 7, maxDistance: 1000 },
-  transportation: { types: ["bus_station", "transit_station", "train_station"], weight: 12, maxDistance: 1500 },
+  transportation: {
+    types: ["bus_station", "transit_station", "train_station"],
+    weight: 12,
+    maxDistance: 1500,
+  },
   mosque: { types: ["mosque"], weight: 5, maxDistance: 1000 },
-  market: { types: ["supermarket", "grocery_store", "convenience_store"], weight: 6, maxDistance: 1000 },
+  market: {
+    types: ["supermarket", "grocery_store", "convenience_store"],
+    weight: 6,
+    maxDistance: 1000,
+  },
   bakery: { types: ["bakery"], weight: 4, maxDistance: 800 },
 } as const;
 
 async function searchNearbyNew(
   location: LocationPoint,
   includedTypes: string[],
-  maxRadius: number
+  maxRadius: number,
 ): Promise<any[]> {
   const url = "https://places.googleapis.com/v1/places:searchNearby";
-  
+
   const requestBody = {
     includedTypes: includedTypes,
     maxResultCount: 10,
@@ -58,13 +108,14 @@ async function searchNearbyNew(
       headers: {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_MAPS_API_KEY,
-        "X-Goog-FieldMask": "places.displayName,places.location,places.rating,places.types",
+        "X-Goog-FieldMask":
+          "places.displayName,places.location,places.rating,places.types",
       },
       body: JSON.stringify(requestBody),
     });
 
     const data = await response.json();
-    
+
     if (data.error) {
       console.error("Places API (New) error:", data.error);
       return [];
@@ -83,7 +134,9 @@ export async function detectNearbyPOIs(
   const allPOIs: NearbyPOI[] = [];
 
   if (!GOOGLE_MAPS_API_KEY) {
-    console.warn("Google Maps API key not configured for POI detection - using defaults");
+    console.warn(
+      "Google Maps API key not configured for POI detection - using defaults",
+    );
     return getDefaultPOIs();
   }
 
@@ -91,8 +144,12 @@ export async function detectNearbyPOIs(
 
   try {
     for (const [category, config] of Object.entries(POI_CATEGORIES)) {
-      const places = await searchNearbyNew(location, [...config.types], config.maxDistance);
-      
+      const places = await searchNearbyNew(
+        location,
+        [...config.types],
+        config.maxDistance,
+      );
+
       console.log(`POI Search [${category}]:`, {
         types: config.types,
         count: places.length,
@@ -100,11 +157,11 @@ export async function detectNearbyPOIs(
 
       for (const place of places) {
         if (!place.location) continue;
-        
+
         const placeLat = place.location.latitude;
         const placeLng = place.location.longitude;
         const placeName = place.displayName?.text || "Unknown";
-        
+
         const distance = calculateDistance(
           location.lat,
           location.lng,
@@ -123,7 +180,8 @@ export async function detectNearbyPOIs(
           name: placeName,
           distance: Math.round(distance),
           rating: place.rating,
-          isChainMarket: category === "market" ? isChainMarket(placeName) : undefined,
+          isChainMarket:
+            category === "market" ? isChainMarket(placeName) : undefined,
         });
       }
     }
@@ -145,7 +203,12 @@ function getDefaultPOIs(): NearbyPOI[] {
   return [
     { type: "school", name: "Yakın Okul", distance: 800, rating: 4.0 },
     { type: "hospital", name: "Sağlık Ocağı", distance: 1500, rating: 3.8 },
-    { type: "transportation", name: "Otobüs Durağı", distance: 400, rating: 4.2 },
+    {
+      type: "transportation",
+      name: "Otobüs Durağı",
+      distance: 400,
+      rating: 4.2,
+    },
     { type: "market", name: "Market", distance: 300, rating: 4.0 },
     { type: "park", name: "Park", distance: 600, rating: 4.1 },
     { type: "mosque", name: "Cami", distance: 500, rating: 4.5 },
@@ -175,14 +238,8 @@ function calculateDistance(
   return R * c;
 }
 
-export function calculateLocationScore(pois: NearbyPOI[]): {
-  total: number;
-  breakdown: Record<string, number>;
-  advantages: string[];
-  disadvantages: string[];
-  poiDetails: CategoryPOIDetails;
-} {
-  const breakdown: Record<string, number> = {
+export function calculateLocationScore(pois: NearbyPOI[]): LocationScore {
+  const breakdown: LocationScore["breakdown"] = {
     proximity: 0,
     transportation: 0,
     amenities: 0,
@@ -193,7 +250,7 @@ export function calculateLocationScore(pois: NearbyPOI[]): {
 
   const advantages: string[] = [];
   const disadvantages: string[] = [];
-  
+
   const poiDetails: CategoryPOIDetails = {
     transportation: [],
     education: [],
@@ -201,9 +258,12 @@ export function calculateLocationScore(pois: NearbyPOI[]): {
     health: [],
   };
 
-  const formatDistance = (m: number) => m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)}km`;
+  const formatDistance = (m: number) =>
+    m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)}km`;
 
-  const schools = pois.filter((p) => p.type === "school").sort((a, b) => a.distance - b.distance);
+  const schools = pois
+    .filter((p) => p.type === "school")
+    .sort((a, b) => a.distance - b.distance);
   if (schools.length > 0) {
     const closestSchool = schools[0];
     if (closestSchool.distance < 500) {
@@ -226,12 +286,16 @@ export function calculateLocationScore(pois: NearbyPOI[]): {
     disadvantages.push("Yakında okul yok");
   }
 
-  const hospitals = pois.filter((p) => p.type === "hospital").sort((a, b) => a.distance - b.distance);
+  const hospitals = pois
+    .filter((p) => p.type === "hospital")
+    .sort((a, b) => a.distance - b.distance);
   if (hospitals.length > 0) {
     const closestHospital = hospitals[0];
     if (closestHospital.distance < 2000) {
       breakdown.health = 10;
-      advantages.push(`${closestHospital.name} - ${formatDistance(closestHospital.distance)}`);
+      advantages.push(
+        `${closestHospital.name} - ${formatDistance(closestHospital.distance)}`,
+      );
     } else if (closestHospital.distance < 5000) {
       breakdown.health = 7;
     } else {
@@ -244,7 +308,9 @@ export function calculateLocationScore(pois: NearbyPOI[]): {
     });
   }
 
-  const transportation = pois.filter((p) => p.type === "transportation").sort((a, b) => a.distance - b.distance);
+  const transportation = pois
+    .filter((p) => p.type === "transportation")
+    .sort((a, b) => a.distance - b.distance);
   if (transportation.length > 0) {
     const closest = transportation[0];
     if (closest.distance < 500) {
@@ -267,7 +333,9 @@ export function calculateLocationScore(pois: NearbyPOI[]): {
     });
   }
 
-  const markets = pois.filter((p) => p.type === "market" || p.type === "shopping_mall").sort((a, b) => a.distance - b.distance);
+  const markets = pois
+    .filter((p) => p.type === "market" || p.type === "shopping_mall")
+    .sort((a, b) => a.distance - b.distance);
   if (markets.length >= 3) {
     breakdown.amenities = 20;
   } else if (markets.length >= 2) {
@@ -281,25 +349,35 @@ export function calculateLocationScore(pois: NearbyPOI[]): {
   markets.slice(0, 3).forEach((m) => {
     if (m.distance < 1000) {
       advantages.push(`${m.name} - ${formatDistance(m.distance)}`);
-      poiDetails.amenities.push({ 
-        name: m.name, 
-        distance: m.distance, 
-        isChainMarket: m.isChainMarket 
+      poiDetails.amenities.push({
+        name: m.name,
+        distance: m.distance,
+        isChainMarket: m.isChainMarket,
       });
     }
   });
 
-  const mosques = pois.filter((p) => p.type === "mosque").sort((a, b) => a.distance - b.distance);
+  const mosques = pois
+    .filter((p) => p.type === "mosque")
+    .sort((a, b) => a.distance - b.distance);
   if (mosques.length > 0 && mosques[0].distance < 800) {
-    advantages.push(`${mosques[0].name} - ${formatDistance(mosques[0].distance)}`);
+    advantages.push(
+      `${mosques[0].name} - ${formatDistance(mosques[0].distance)}`,
+    );
   }
 
-  const bakeries = pois.filter((p) => p.type === "bakery").sort((a, b) => a.distance - b.distance);
+  const bakeries = pois
+    .filter((p) => p.type === "bakery")
+    .sort((a, b) => a.distance - b.distance);
   if (bakeries.length > 0 && bakeries[0].distance < 600) {
-    advantages.push(`${bakeries[0].name} - ${formatDistance(bakeries[0].distance)}`);
+    advantages.push(
+      `${bakeries[0].name} - ${formatDistance(bakeries[0].distance)}`,
+    );
   }
 
-  const parks = pois.filter((p) => p.type === "park").sort((a, b) => a.distance - b.distance);
+  const parks = pois
+    .filter((p) => p.type === "park")
+    .sort((a, b) => a.distance - b.distance);
   if (parks.length > 0 && parks[0].distance < 500) {
     breakdown.environment = 10;
     advantages.push(`${parks[0].name} - ${formatDistance(parks[0].distance)}`);

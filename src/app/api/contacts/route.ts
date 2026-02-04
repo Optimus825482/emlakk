@@ -4,12 +4,14 @@ import { contacts } from "@/db/schema";
 import { createContactSchema, contactQuerySchema } from "@/lib/validations";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 import { notifyNewContact } from "@/lib/notification-helper";
+import { withAdmin } from "@/lib/api-auth";
 
 /**
  * GET /api/contacts
  * List all contact messages with filtering and pagination
+ * Security: Admin only
  */
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const params = Object.fromEntries(searchParams.entries());
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
           error: "Geçersiz sorgu parametreleri",
           details: query.error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,10 +70,13 @@ export async function GET(request: NextRequest) {
     console.error("Contacts GET error:", error);
     return NextResponse.json(
       { error: "Mesajlar yüklenirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
+
+// Export GET with admin protection
+export const GET = withAdmin(getHandler);
 
 /**
  * POST /api/contacts
@@ -85,7 +90,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Geçersiz veri", details: validation.error.flatten() },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -113,13 +118,13 @@ export async function POST(request: NextRequest) {
         message:
           "Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.",
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Contacts POST error:", error);
     return NextResponse.json(
       { error: "Mesaj gönderilirken bir hata oluştu" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -63,7 +63,10 @@ export const POST = withAdmin(async (request: NextRequest) => {
       error instanceof Error ? error.message : "Bilinmeyen hata";
 
     // API key yoksa özel mesaj
-    if (errorMessage.includes("DEEPSEEK_API_KEY")) {
+    if (
+      errorMessage.includes("DEEPSEEK_API_KEY") ||
+      errorMessage.includes("API key")
+    ) {
       return NextResponse.json(
         {
           error:

@@ -93,6 +93,18 @@ export interface MarketAnalysis {
   trendDescription?: string;
 }
 
+export interface CalculationMetadata {
+  weights: { local: number; neighborhood: number; province: number };
+  confidenceBreakdown: { 
+    comparableCount: number; 
+    consistency: number; 
+    location: number; 
+    regional: number;
+  };
+  featureImpact: Record<string, number>;
+  neighborhoodCoefficient?: number;
+}
+
 export interface ValuationResult {
   estimatedValue: number;
   priceRange: {
@@ -107,4 +119,5 @@ export interface ValuationResult {
   nearbyPOIs: NearbyPOI[];
   aiInsights: string;
   methodology: string;
+  calculationMetadata?: CalculationMetadata;
 }
